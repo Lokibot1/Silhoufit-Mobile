@@ -26,6 +26,15 @@ async function errorBody(response: Response): Promise<{ detail?: string; code?: 
   }
 }
 
+// Expo's global URL is spec-compliant (throws on "https://" or a relative address), so a parse plus a scheme check is enough.
+export function isHttps(url: string) {
+  try {
+    return new URL(url).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
 export const isNum = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 export const str = (value: unknown) => (typeof value === 'string' && value ? value : null)

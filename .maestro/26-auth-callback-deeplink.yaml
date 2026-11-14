@@ -1,0 +1,44 @@
+appId: ${APP_ID}
+---
+# The auth/callback guard route: a redirect link arriving while NO Google sign-in is in flight must not crash, show "Unmatched Route"
+# or show a banner. The route closes itself and the app returns to Sign In (src/app/auth/callback.tsx: router.back()).
+# Needs no backend and no account. In a dev build the dev launcher may intercept openLink (same caveat as flows 15 and 24).
+# On iOS a system "Open in <app>?" prompt may appear; it is tapped if present.
+- runFlow: subflows/launch.yaml
+- tapOn:
+    id: tab-profile
+- tapOn:
+    id: profile-sign-in
+- extendedWaitUntil:
+    visible:
+      id: sign-in-google
+    timeout: 10000
+# Cancelled at Google: access_denied
+- openLink: silhoufitmobile://auth/callback?error=access_denied
+- tapOn:
+    text: '(?i)Open'
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: sign-in-google
+    timeout: 10000
+- assertNotVisible: '(?i)Unmatched Route'
+- assertNotVisible:
+    id: sign-in-banner
+# Provider error: the banner text is produced only by an in-flight sign-in (signInWithGoogle), never by the guard route.
+- openLink: silhoufitmobile://auth/callback?error=server_error&error_description=x
+- tapOn:
+    text: '(?i)Open'
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: sign-in-google
+    timeout: 10000
+- assertNotVisible: '(?i)Unmatched Route'
+- assertNotVisible:
+    id: sign-in-banner
+- assertNotVisible: '(?i)Google sign-in didn.t finish'
+# Still signed out and the form still works.
+- tapOn:
+    id: sign-in-submit
+- assertVisible: Email is required.

@@ -90,3 +90,28 @@ Pay and cancel change real orders, so they are manual. Use a dedicated test acco
 - [ ] Failed payment: pay with a test card that the provider declines (or close the payment page unpaid), return to the app: the order stays unpaid or shows the failed payment status, an inline message explains, and Pay Now stays available to try again.
 - [ ] A cancelled order shows its cancellation reason in the timeline and neither Pay Now nor Cancel Order.
 - [ ] Keep Order in the cancel confirmation changes nothing (status stays, no toast).
+
+## Google sign-in
+Needs the owner setup below first. Use a dedicated Google test account (a test user while the consent screen is unpublished).
+- [ ] Full sign-in in Expo Go (Android and iOS) and in a dev build: Continue with Google opens the browser, consent, the app returns, the "Signed in with Google" toast shows and Profile shows the Google name and avatar.
+- [ ] A brand-new Google account gets a profile on first sign-in: Profile loads (no "Couldn't load your profile") and the Cart and Orders tabs work.
+- [ ] An existing email/password account with the same Gmail address lands in the same account (same orders and cart), not a duplicate.
+- [ ] Cancel on Google's consent page, and closing the browser (Android Back, iOS Cancel): back on Sign In with no banner and no toast; the button works again.
+- [ ] Airplane mode before tapping: the banner reads "Can't reach Google sign-in. The connection dropped before it finished. Check your connection and try again."
+- [ ] A banned/deactivated account: the banner reads "This account has been deactivated. Contact the store for help." Confirm Supabase's real `error_code` for a banned OAuth user is `user_banned` (it is assumed, not verified); if it differs, the copy falls back to "Google sign-in didn't finish".
+- [ ] Android: after the redirect there is no "Unmatched Route" screen or flash of one (the `auth/callback` guard route closes itself); Back from Sign In still works.
+- [ ] Double-tap Continue with Google: one browser opens; Sign In is disabled while it is open, and Continue with Google is disabled while a password sign-in is pending.
+- [ ] Signed out, Add to Cart, Continue with Google: after signing in the app returns to the product.
+- [ ] Airplane mode while the browser is open, then finish or cancel: Sign In shows the banner or returns quietly, never stuck on the busy button.
+- [ ] Kill the app after a Google sign-in and relaunch (no clear state): still signed in, Profile shows the Google name, no sign-in prompt.
+- [ ] Expo Go vs dev build: Expo Go returns through the `exp://...` address and needs that allow-list entry; a dev build or release uses `silhoufitmobile://auth/callback`. A redirect missing from the allow-list makes Supabase fall back to the Site URL, so the app stays on Sign In. Test both.
+- [ ] Android Custom Tab: system Back closes it (flow 25 automates this); iOS: the system prompt "wants to use supabase.co to sign in" shows once per tap and Cancel returns quietly (flow 25 taps it).
+- [ ] Failed exchange copy (link reused or expired): "Google sign-in didn't finish. The sign-in expired or was already used, so you're not signed in. Tap Continue with Google to try again."
+- [ ] TalkBack and VoiceOver read "Continue with Google" and skip the "(OR)" divider (it is hidden from accessibility on purpose, which is also why Maestro may not see `sign-in-divider`).
+- [ ] 320px-wide screen: divider and button fit with no horizontal scroll.
+
+## Owner setup checklist (Google sign-in, not code)
+- [ ] Supabase > Authentication > URL Configuration > Redirect URLs: add `silhoufitmobile://auth/callback` (dev builds and release) and the Expo Go address that `Linking.createURL('auth/callback')` prints, for example `exp://192.168.1.225:8081/--/auth/callback`. The LAN IP changes, so on the dev project only you may use `exp://**/--/auth/callback`; remove it before release.
+- [ ] Supabase > Authentication > Providers: Google is enabled with the client id and secret.
+- [ ] Google Cloud needs no change: its authorised redirect stays `https://<project>.supabase.co/auth/v1/callback`.
+- [ ] Keep the OAuth consent screen's test users up to date, or publish the consent screen.

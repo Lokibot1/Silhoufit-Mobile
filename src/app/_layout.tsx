@@ -46,6 +46,7 @@ function Gate() {
             headerTintColor: color.obsidian,
           }}
         />
+        <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
         <Stack.Screen
           name="sign-in"
           options={{

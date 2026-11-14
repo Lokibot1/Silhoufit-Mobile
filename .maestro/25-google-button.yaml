@@ -1,0 +1,56 @@
+appId: ${APP_ID}
+---
+# Continue with Google: the button shows on Sign In; tapping opens the system browser. Cancelling returns quietly (no banner).
+# The Google consent page itself is never automated, so no Google credentials are needed.
+# Android: Custom Tab, closed with system Back. iOS: ASWebAuthenticationSession; its system prompt is cancelled by label.
+# Needs the owner setup in MANUAL.md (the Supabase authorize URL must come back; otherwise the banner shows and the browser never opens).
+# sign-in-divider is hidden from accessibility (so it may be missing from the Maestro hierarchy): its assert is optional.
+- runFlow: subflows/launch.yaml
+- tapOn:
+    id: tab-profile
+- tapOn:
+    id: profile-sign-in
+- extendedWaitUntil:
+    visible:
+      id: sign-in-google
+    timeout: 10000
+- assertVisible:
+    id: sign-in-divider
+    optional: true
+- assertVisible:
+    id: sign-in-google
+- assertNotVisible:
+    id: sign-in-banner
+- tapOn:
+    id: sign-in-google
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      # The browser covers the app, so the app's ids leave the hierarchy.
+      - extendedWaitUntil:
+          notVisible:
+            id: sign-in-google
+          timeout: 15000
+      - back
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # System prompt "wants to use supabase.co to sign in": Cancel. If it did not appear, the browser sheet's own Cancel is tapped.
+      - extendedWaitUntil:
+          visible: '(?i)Cancel'
+          timeout: 15000
+      - tapOn: '(?i)Cancel'
+- extendedWaitUntil:
+    visible:
+      id: sign-in-google
+    timeout: 15000
+- assertNotVisible:
+    id: sign-in-banner
+- assertNotVisible: '(?i)Google sign-in didn.t finish'
+- assertNotVisible: Signed in with Google
+# The form still works after cancelling.
+- tapOn:
+    id: sign-in-submit
+- assertVisible: Email is required.

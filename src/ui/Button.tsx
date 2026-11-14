@@ -1,6 +1,7 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native'
+import type { ReactNode } from 'react'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 
-import { color, type } from './theme'
+import { color, space, type } from './theme'
 
 type Props = {
   label: string
@@ -10,10 +11,11 @@ type Props = {
   accessibilityLabel?: string
   pending?: boolean
   disabled?: boolean
+  icon?: ReactNode
 }
 
 // KRAL button: square, 48px, uppercase. Primary is Red; secondary is an Obsidian outline that fills when pressed.
-export function Button({ label, onPress, variant = 'primary', testID, accessibilityLabel, pending = false, disabled = false }: Props) {
+export function Button({ label, onPress, variant = 'primary', testID, accessibilityLabel, pending = false, disabled = false, icon }: Props) {
   const primary = variant === 'primary'
   const off = pending || disabled
   return (
@@ -34,7 +36,10 @@ export function Button({ label, onPress, variant = 'primary', testID, accessibil
         pending ? (
           <ActivityIndicator color={primary ? color.paper : color.obsidian} />
         ) : (
-          <Text style={[type.button, { color: primary || pressed ? color.paper : color.obsidian }]}>{label}</Text>
+          <View style={styles.row}>
+            {icon}
+            <Text style={[type.button, { color: primary || pressed ? color.paper : color.obsidian }]}>{label}</Text>
+          </View>
         )
       }
     </Pressable>
@@ -47,5 +52,6 @@ const styles = StyleSheet.create({
   primaryPressed: { backgroundColor: color.redPress },
   secondary: { borderWidth: 1, borderColor: color.obsidian, backgroundColor: 'transparent' },
   secondaryPressed: { backgroundColor: color.obsidian },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   pending: { opacity: 0.6 },
 })

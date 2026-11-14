@@ -1,4 +1,4 @@
-import { ApiError, isRecord, num, request, str } from '@/lib/api'
+import { ApiError, isHttps, isRecord, num, request, str } from '@/lib/api'
 
 // Status values stay plain strings: one the API adds later reads as a neutral label and offers no actions.
 export type OrderItem = { id: string; name: string; size: string | null; color: string | null; quantity: number; unitPrice: number; lineTotal: number; imageUrl: string | null }
@@ -95,15 +95,6 @@ export async function fetchOrder(id: string, signal?: AbortSignal): Promise<Orde
     // The id must be a UUID, so a malformed one answers 400: nothing exists at that address.
     if (error instanceof ApiError && error.status === 400) throw new ApiError('not-found', undefined, 400)
     throw error
-  }
-}
-
-// Expo's global URL is spec-compliant (throws on "https://" or a relative address), so a parse plus a scheme check is enough.
-function isHttps(url: string) {
-  try {
-    return new URL(url).protocol === 'https:'
-  } catch {
-    return false
   }
 }
 

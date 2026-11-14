@@ -25,7 +25,7 @@ maestro test -e APP_ID=com.example.silhoufit -e TEST_EMAIL=a@b.com -e TEST_PASSW
 Single flow: pass its file instead of the folder. `subflows/` is a helper folder and is not run on its own.
 
 ## Flows (Profile, Shop, Product, Cart and Orders cycles)
-All auth lives on the Profile tab, not Shop; Shop is public. Ids used: `shop-list`, `shop-card-<id>` (and `shop-card-<id>-image`, so flows match cards with `shop-card-(?!.*-image$).+`), `shop-count`, `shop-search`, `shop-search-clear`, `shop-empty`, `shop-retry`, `shop-load-more-retry`, `intro-loader`, `tab-profile`, `profile-sign-in`, `profile-name`, `profile-sign-out`, `sign-in-*`, `toast`.
+All auth lives on the Profile tab, not Shop; Shop is public. Ids used: `shop-list`, `shop-card-<id>` (and `shop-card-<id>-image`, so flows match cards with `shop-card-(?!.*-image$).+`), `shop-count`, `shop-search`, `shop-search-clear`, `shop-empty`, `shop-retry`, `shop-load-more-retry`, `intro-loader`, `tab-profile`, `profile-sign-in`, `profile-name`, `profile-sign-out`, `sign-in-*` (including `sign-in-divider`, `sign-in-google`), `toast`.
 
 | Flow | Covers |
 |---|---|
@@ -53,6 +53,9 @@ All auth lives on the Profile tab, not Shop; Shop is public. Ids used: `shop-lis
 | 22 | Orders, signed out: tap `orders-sign-in`, sign in, the modal closes and the Orders tab shows `orders-list` or `orders-empty-action` (not Profile, not Shop). Read-only |
 | 23 | Orders, signed in then signed out on Profile: the Orders tab shows the signed-out prompt and no rows or empty state from the previous account. Read-only |
 | 24 | Deep link `silhoufitmobile://orders/<made-up uuid>` while signed in: "We couldn't find this order" with `order-error-back`; Back to Orders lands on the Orders tab. Needs only a seeded customer; the dev launcher may intercept the link in a dev build |
+| 25 | Continue with Google: button shows on Sign In, tapping opens the browser; Android closes it with Back, iOS taps the system prompt's Cancel; back on Sign In with no banner, no toast, form still usable. Does not complete a Google sign-in. Needs the Supabase setup in MANUAL.md |
+| 26 | Deep link `silhoufitmobile://auth/callback?error=access_denied` and `?error=server_error&error_description=x` while on Sign In with no sign-in in flight: no "Unmatched Route", no banner, back on Sign In. Needs no account; the dev launcher or an iOS prompt may intercept the link |
+| 27 | Email/password still works with the Google button: `sign-in-google` sits below `sign-in-submit` (divider asserts are optional, it is hidden from accessibility), then a password sign-in reaches `profile-name`. Needs `TEST_EMAIL`, `TEST_PASSWORD` |
 
 Cart ids: `tab-cart`, `cart-list`, `cart-row-<itemId>`, `cart-qty-<itemId>`, `cart-inc-<itemId>`, `cart-dec-<itemId>`, `cart-remove-<itemId>`, `cart-row-error-<itemId>`, `cart-clear`, `cart-subtotal`, `cart-count`, `cart-sign-in`, `cart-retry`, `cart-empty-action`. Remove and Clear Cart confirm with a native `Alert`, so Maestro taps its buttons by text ("Cancel", "Remove Item", "Clear All Items"); there are no `cart-confirm-*` ids. Flows 16 to 19 are UNRUN like the rest. Collision guard: `cart-row-<id>` is also a prefix of `cart-row-error-<id>`, so flows match rows with `cart-row-(?!error-).+`. The quantity Text carries an accessibility label ("Quantity N"), so quantity asserts use `(Quantity )?N`. Native Alert buttons are tapped through `subflows/confirm-alert.yaml` (`BUTTON` env, `(?i)` regex because Android may uppercase labels, `below: (?i)Are you sure\?` kept as a safeguard only: the confirm labels no longer collide with the footer Clear Cart button). The product page sits above the tabs, so flow 17 goes back (Android `back`, iOS header back by label) and waits for `tab-cart` before opening the Cart.
 
@@ -63,5 +66,7 @@ Product ids: `product-gallery`, `product-name`, `product-price`, `product-swatch
 Note: Maestro `id:` is a full-string regex. Tab labels and `type.label` text render uppercase on Android, so match them with `(?i)`.
 
 Helpers: `subflows/confirm-alert.yaml` (native Alert button by text), `subflows/launch.yaml` (clear state, wait up to 10 s for `intro-loader` to vanish), `subflows/relaunch.yaml` (same, keeps session), `subflows/sign-in.yaml` (Profile tab, Sign In, fill, submit, wait for `profile-name`).
+
+Google flows (25 to 27) need no Google credentials: the consent screen is never automated. 25 and 26 need only `APP_ID`; 27 also needs `TEST_EMAIL` and `TEST_PASSWORD`. All flows here are UNRUN.
 
 Device-only checks are in `MANUAL.md`.

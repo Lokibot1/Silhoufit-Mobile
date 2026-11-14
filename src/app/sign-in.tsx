@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
+import { router, useNavigation } from 'expo-router'
 import { useRef, useState, type ComponentRef } from 'react'
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 
+import { signInWithGoogle } from '@/auth/google'
 import { useSession } from '@/auth/session'
 import { validateEmail, validateLoginPassword } from '@/lib/loginValidation'
 import { Button } from '@/ui/Button'
+import { GoogleMark } from '@/ui/GoogleMark'
 import { KralLogo } from '@/ui/KralLogo'
 import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
@@ -16,12 +18,13 @@ const validators = { email: validateEmail, password: validateLoginPassword }
 export default function SignIn() {
   const { signIn } = useSession()
   const toast = useToast()
+  const navigation = useNavigation()
   const [values, setValues] = useState({ email: '', password: '' })
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({})
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
   const [showPassword, setShowPassword] = useState(false)
   const [focused, setFocused] = useState<Field | null>(null)
-  const [pending, setPending] = useState(false)
+  const [pending, setPending] = useState<'password' | 'google' | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const inFlight = useRef(false)
   const emailRef =useRef<ComponentRef<typeof TextInput>>(null)
@@ -40,6 +43,13 @@ export default function SignIn() {
     validate(field, values[field])
   }
 
+  // Read focus at call time: if this screen is gone or covered by now, going back would pop an unrelated screen.
+  function leave() {
+    if (!navigation.isFocused()) return
+    if (router.canGoBack()) router.back()
+    else router.replace('/(tabs)')
+  }
+
   async function submit() {
     if (inFlight.current) return
     const found = { email: validateEmail(values.email) ?? undefined, password: validateLoginPassword(values.password) ?? undefined }
@@ -49,7 +59,7 @@ export default function SignIn() {
     if (found.password) return passwordRef.current?.focus()
 
     inFlight.current = true
-    setPending(true)
+    setPending('password')
     setFailure(null)
     let result
     try {
@@ -58,12 +68,30 @@ export default function SignIn() {
       return setFailure('Sign-in failed on our side. Please try again.')
     } finally {
       inFlight.current = false
-      setPending(false)
+      setPending(null)
     }
     if (!result.ok) return setFailure(result.message)
     toast(`Signed in as ${values.email.trim()}`)
-    if (router.canGoBack()) router.back()
-    else router.replace('/(tabs)')
+    leave()
+  }
+
+  async function google() {
+    if (inFlight.current) return
+    inFlight.current = true
+    setPending('google')
+    setFailure(null)
+    let result
+    try {
+      result = await signInWithGoogle()
+    } catch {
+      return setFailure('Sign-in failed on our side. Please try again.')
+    } finally {
+      inFlight.current = false
+      setPending(null)
+    }
+    if (!result.ok) return result.cancelled ? undefined : setFailure(result.message)
+    toast('Signed in with Google')
+    leave()
   }
 
   return (
@@ -134,7 +162,24 @@ export default function SignIn() {
           </View>
         )}
 
-        <Button testID="sign-in-submit" label="Sign In" pending={pending} onPress={submit} />
+        <Button testID="sign-in-submit" label="Sign In" pending={pending === 'password'} disabled={pending === 'google'} onPress={submit} />
+
+        <View testID="sign-in-divider" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.divider}>
+          <View style={styles.rule} />
+          <Text style={type.label}>(OR)</Text>
+          <View style={styles.rule} />
+        </View>
+
+        <Button
+          testID="sign-in-google"
+          variant="secondary"
+          label="Continue with Google"
+          accessibilityLabel="Continue with Google"
+          icon={<GoogleMark />}
+          pending={pending === 'google'}
+          disabled={pending === 'password'}
+          onPress={google}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   )
@@ -150,5 +195,7 @@ const styles = StyleSheet.create({
   passwordInput: { paddingRight: 48 },
   toggle: { position: 'absolute', right: 0, top: 2, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   error: { ...type.small, color: color.red, minHeight: 20 },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  rule: { flex: 1, height: 1, backgroundColor: color.porcelain },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
 })
