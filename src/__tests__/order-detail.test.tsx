@@ -11,7 +11,7 @@ jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('expo-web-browser', () => ({ openBrowserAsync: jest.fn() }))
 jest.mock('expo-image', () => ({ Image: () => null }))
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), navigate: jest.fn(), canGoBack: jest.fn(() => true) },
+  router: { push: jest.fn(), navigate: jest.fn(), setParams: jest.fn(), canGoBack: jest.fn(() => true) },
   Stack: { Screen: ({ options }: { options: { headerLeft?: () => unknown } }) => options.headerLeft?.() ?? null },
   useLocalSearchParams: jest.fn(() => ({ id: 'o1' })),
 }))
@@ -376,5 +376,36 @@ describe('other states', () => {
     await render(<OrderScreen />)
     await fireEvent.press(await screen.findByTestId('order-header-back'))
     expect(router.navigate).toHaveBeenCalledWith('/orders')
+  })
+})
+
+describe('pay=1 from checkout', () => {
+  it('opens the payment page once for an unpaid order, clears the param, and does not repeat when the order reloads', async () => {
+    useLocalSearchParams.mockReturnValue({ id: 'o1', pay: '1' })
+    api.fetchOrder.mockResolvedValue(order())
+    api.createCheckoutSession.mockResolvedValue('https://pay.test/c/1')
+    mockOpen.mockResolvedValue({ type: 'dismiss' }) // iOS: the browser closing reloads the order
+    await render(<OrderScreen />)
+    await waitFor(() => expect(mockOpen).toHaveBeenCalledWith('https://pay.test/c/1'))
+    await waitFor(() => expect(api.fetchOrder).toHaveBeenCalledTimes(2))
+    expect(api.createCheckoutSession).toHaveBeenCalledTimes(1)
+    expect(router.setParams).toHaveBeenCalledWith({ pay: undefined })
+  })
+
+  it('never pays a paid order, but still clears the param', async () => {
+    useLocalSearchParams.mockReturnValue({ id: 'o1', pay: '1' })
+    api.fetchOrder.mockResolvedValue(paid())
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(api.createCheckoutSession).not.toHaveBeenCalled()
+    expect(router.setParams).toHaveBeenCalledWith({ pay: undefined })
+  })
+
+  it('does not pay without pay=1', async () => {
+    api.fetchOrder.mockResolvedValue(order())
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-pay-now')
+    expect(api.createCheckoutSession).not.toHaveBeenCalled()
+    expect(router.setParams).not.toHaveBeenCalled()
   })
 })

@@ -65,12 +65,14 @@ appId: ${APP_ID}
     visible:
       id: cart-list
     timeout: 15000
-# The sticky bar is outside the list: always visible, Checkout is disabled until checkout exists.
+# The sticky bar is outside the list: always visible, with an enabled Checkout while the bag is clean.
 - assertVisible:
     id: cart-bar
 - assertVisible:
     id: cart-subtotal
-- assertVisible: Checkout is coming soon
+- assertVisible:
+    id: cart-checkout
+    enabled: true
 - tapOn:
     id: 'cart-open-.+'
 - extendedWaitUntil:

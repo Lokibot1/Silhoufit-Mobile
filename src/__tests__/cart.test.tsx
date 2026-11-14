@@ -169,13 +169,33 @@ describe('with items', () => {
     expect(screen.getByLabelText('Remove Tee a')).toBeTruthy()
   })
 
-  it('shows the sticky bar with the count, the subtotal and a disabled Checkout that says why', () => {
+  it('shows the sticky bar with the count, the subtotal and an enabled Checkout that opens checkout once', async () => {
     expect(screen.getByTestId('cart-bar')).toBeTruthy()
     expect(screen.getByTestId('cart-count').props.children).toBe('3 Items')
     expect(screen.getByTestId('cart-subtotal').props.children).toBe('₱3,750.00')
+    expect(screen.getByTestId('cart-checkout')).toBeEnabled()
+    expect(screen.queryByTestId('cart-checkout-note')).toBeNull()
+    await fireEvent.press(screen.getByTestId('cart-checkout'))
+    await fireEvent.press(screen.getByTestId('cart-checkout'))
+    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith('/checkout')
+  })
+
+  it('disables Checkout while a row is being updated', async () => {
+    api.setCartItemQuantity.mockReturnValue(new Promise(() => {}))
+    await act(async () => {
+      screen.getByTestId('cart-inc-a').props.onClick({})
+    })
     expect(screen.getByTestId('cart-checkout')).toBeDisabled()
-    expect(screen.getByTestId('cart-checkout-note')).toHaveTextContent('Checkout is coming soon')
-    fireEvent.press(screen.getByTestId('cart-checkout'))
+  })
+
+  it('disables Checkout and says why while any row has a warning', async () => {
+    api.fetchCart.mockResolvedValue(cartOf([line('a'), line('w', { quantity: 4, variant: { id: 'v', size: 'M', color: 'Red', price: 1250, stock: 2, imageUrl: null } })]))
+    await render(<CartScreen />)
+    expect(await screen.findByTestId('cart-checkout-note')).toHaveTextContent('Fix the items marked above to check out')
+    expect(screen.getAllByTestId('cart-checkout').at(-1)).toBeDisabled()
+    mockPush.mockClear()
+    await fireEvent.press(screen.getAllByTestId('cart-checkout').at(-1)!)
     expect(mockPush).not.toHaveBeenCalled()
   })
 

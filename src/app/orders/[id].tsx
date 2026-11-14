@@ -149,7 +149,7 @@ function DetailSkeleton() {
 
 // Needs a session. An order of another account answers 404, which reads as "not found".
 export default function OrderScreen() {
-  const { id: raw } = useLocalSearchParams<{ id: string | string[] }>()
+  const { id: raw, pay: autoPay } = useLocalSearchParams<{ id: string | string[]; pay?: string }>()
   const id = typeof raw === 'string' ? raw.trim() : ''
   const { session, loading, signOut } = useSession()
   const userId = session?.user.id ?? null
@@ -233,6 +233,15 @@ export default function OrderScreen() {
       },
       "We couldn't get a payment link for this order. Tap Pay Now to try again.",
     )
+  // Checkout opens this screen with pay=1 to go straight to payment: once, and only while the order is still unpaid.
+  const autoPaid = useRef(false)
+  useEffect(() => {
+    if (autoPay !== '1' || !data || autoPaid.current) return
+    autoPaid.current = true
+    router.setParams({ pay: undefined })
+    if (awaitsPayment(data)) void pay()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPay, data])
   const cancel = () => {
     if (asking.current || busy.current) return
     asking.current = true

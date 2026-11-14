@@ -1,0 +1,52 @@
+# Reusable clean-up: from any screen with the tab bar, cancels the order under "To pay" so the stock it reserved is released.
+# Does nothing when there is none, and ALSO nothing when there are two or more (it cannot tell which one is the run's, so it never guesses).
+# The caller must have proved the account started with no unpaid order (flow 49 does). Meant for a DEDICATED test account.
+appId: ${APP_ID}
+---
+- tapOn:
+    id: tab-orders
+- extendedWaitUntil:
+    visible:
+      id: 'orders-list|orders-empty-action'
+    timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: orders-list
+    commands:
+      - tapOn:
+          id: orders-tab-to-pay
+      - extendedWaitUntil:
+          visible:
+            id: 'order-row-(?!error-).+|orders-tab-empty-action'
+          timeout: 10000
+      - runFlow:
+          when:
+            visible:
+              id: 'order-row-(?!error-).+'
+            notVisible:
+              id: 'order-row-(?!error-).+'
+              index: 1
+          commands:
+            - tapOn:
+                id: 'order-row-(?!error-).+'
+            - extendedWaitUntil:
+                visible:
+                  id: order-detail
+                timeout: 15000
+            - runFlow:
+                when:
+                  visible:
+                    id: order-cancel
+                commands:
+                  - tapOn:
+                      id: order-cancel
+                  - runFlow:
+                      file: confirm-alert.yaml
+                      env:
+                        BUTTON: '(?i)Cancel Order'
+                  - extendedWaitUntil:
+                      visible:
+                        id: order-status
+                        text: '(?i)Cancelled'
+                      timeout: 15000

@@ -1,15 +1,18 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native'
+import { Alert, StyleSheet } from 'react-native'
 
 import { ApiError } from '@/lib/api'
 import CheckoutScreen from '../app/checkout'
 
-jest.mock('@/api/cart', () => ({ fetchCart: jest.fn() }))
+jest.mock('@/api/cart', () => ({ fetchCart: jest.fn(), removeCartItem: jest.fn() }))
 jest.mock('@/api/addresses', () => ({ fetchAddresses: jest.fn() }))
-jest.mock('@/api/orders', () => ({ quoteShipping: jest.fn() }))
+jest.mock('@/api/orders', () => ({ quoteShipping: jest.fn(), createOrder: jest.fn(), fetchOrdersPage: jest.fn() }))
+jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
+const mockToast = jest.fn()
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), navigate: jest.fn(), canGoBack: () => true },
+  router: { push: jest.fn(), navigate: jest.fn(), replace: jest.fn(), canGoBack: () => true },
   Stack: { Screen: () => null },
   useFocusEffect: (effect: () => void | (() => void)) => jest.requireActual('react').useEffect(effect, [effect]),
 }))
@@ -22,7 +25,7 @@ const cartApi = jest.requireMock('@/api/cart')
 const addressApi = jest.requireMock('@/api/addresses')
 const ordersApi = jest.requireMock('@/api/orders')
 const mockUseSession = jest.requireMock('@/auth/session').useSession
-const { push: mockPush, navigate: mockNavigate } = jest.requireMock('expo-router').router
+const { push: mockPush, navigate: mockNavigate, replace: mockReplace } = jest.requireMock('expo-router').router
 
 const signedIn = { session: { user: { id: 'u1' } }, loading: false, signOut: jest.fn() }
 const line = (id: string, over: Record<string, unknown> = {}) => ({
@@ -51,7 +54,8 @@ const address = (id: string, over: Record<string, unknown> = {}) => ({
   isDefault: false,
   ...over,
 })
-const quoteOf = (fee: number, courier = 'Lalamove') => ({ quotationId: `q-${fee}`, courier, shippingFee: fee, expiresAt: '2099-01-01T00:00:00Z' })
+const quoteOf = (fee: number, courier = 'Lalamove', expiresAt = '2099-01-01T00:00:00Z') => ({ quotationId: `q-${fee}`, courier, shippingFee: fee, expiresAt })
+const alertSpy = jest.spyOn(Alert, 'alert')
 
 beforeEach(() => {
   jest.resetAllMocks()
@@ -59,6 +63,9 @@ beforeEach(() => {
   cartApi.fetchCart.mockResolvedValue(cartOf([line('a')]))
   addressApi.fetchAddresses.mockResolvedValue([address('home', { isDefault: true })])
   ordersApi.quoteShipping.mockResolvedValue(quoteOf(150))
+  ordersApi.createOrder.mockResolvedValue({ id: 'o1', total: 2650 })
+  cartApi.removeCartItem.mockResolvedValue(undefined)
+  alertSpy.mockImplementation(() => {})
 })
 
 it('shows a skeleton for every section while loading', async () => {
@@ -190,12 +197,410 @@ it('never shows a half sum while the shipping fee is unknown', async () => {
   expect(screen.getByTestId('checkout-bar-total').props.children).toBe('—')
 })
 
-it('keeps Place Order disabled with the visible note and never creates an order', async () => {
+const placeButton = () => screen.getByTestId('checkout-place-order')
+const ready = async () => {
   await render(<CheckoutScreen />)
   await screen.findByTestId('checkout-shipping-fee')
-  const button = screen.getByTestId('checkout-place-order')
-  expect(button.props.accessibilityState.disabled).toBe(true)
-  await act(async () => fireEvent.press(button))
-  expect(screen.getByTestId('checkout-place-note').props.children).toBe('Placing orders is coming next')
-  expect(screen.getByText('Pay online on a secure page')).toBeTruthy()
+}
+const place = async () => {
+  await fireEvent.press(placeButton())
+}
+const BODY = { addressId: 'home', cartItemIds: ['a'], quotationId: 'q-150' }
+const detail = (message: string) => new ApiError('validation', message, 400)
+
+describe('Place Order is enabled only when everything is ready', () => {
+  it('is enabled with a pinned address, a clean cart and a quote', async () => {
+    await ready()
+    expect(placeButton().props.accessibilityState.disabled).toBe(false)
+    expect(screen.queryByTestId('checkout-bar-hint')).toBeNull()
+  })
+  it('is disabled with no address', async () => {
+    addressApi.fetchAddresses.mockResolvedValue([])
+    await render(<CheckoutScreen />)
+    await screen.findByText('You have no saved delivery address yet.')
+    expect(placeButton().props.accessibilityState.disabled).toBe(true)
+    expect(placeButton().props.accessibilityHint).toBe('Add an address first')
+  })
+  it('is disabled when only pinless addresses exist', async () => {
+    addressApi.fetchAddresses.mockResolvedValue([address('nopin', { latitude: null, longitude: null })])
+    await render(<CheckoutScreen />)
+    await screen.findByTestId('checkout-address-none')
+    expect(placeButton().props.accessibilityState.disabled).toBe(true)
+    expect(screen.getByTestId('checkout-bar-hint').props.children).toBe('Choose an address with a map pin')
+  })
+  it('is disabled and says why while a line has a warning', async () => {
+    cartApi.fetchCart.mockResolvedValue(cartOf([line('a', { quantity: 9 })]))
+    await render(<CheckoutScreen />)
+    await screen.findByTestId('checkout-shipping-fee')
+    expect(placeButton().props.accessibilityState.disabled).toBe(true)
+    expect(screen.getByTestId('checkout-bar-hint').props.children).toBe('Fix the items marked above to place your order')
+    await act(async () => fireEvent.press(placeButton()))
+    expect(ordersApi.createOrder).not.toHaveBeenCalled()
+  })
+  it('is disabled while there is no quote', async () => {
+    ordersApi.quoteShipping.mockReturnValue(new Promise(() => {}))
+    await render(<CheckoutScreen />)
+    await screen.findByTestId('checkout-address')
+    expect(placeButton().props.accessibilityState.disabled).toBe(true)
+  })
+})
+
+describe('placing the order', () => {
+  it('sends exactly one request on a double tap, with only the three allowed keys', async () => {
+    await ready()
+    await act(async () => {
+      placeButton().props.onClick({})
+      placeButton().props.onClick({})
+    })
+    expect(ordersApi.createOrder).toHaveBeenCalledTimes(1)
+    expect(ordersApi.createOrder).toHaveBeenCalledWith(BODY, expect.anything())
+  })
+
+  it('removes each ordered line (a 404 on one is ignored), then opens the order to pay with a toast', async () => {
+    cartApi.fetchCart.mockResolvedValue(cartOf([line('a'), line('b')]))
+    cartApi.removeCartItem.mockImplementation(async (id: string) => {
+      if (id === 'b') throw new ApiError('not-found', undefined, 404)
+    })
+    ordersApi.createOrder.mockResolvedValue({ id: 'o1', total: 5150 })
+    await ready()
+    await place()
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith({ pathname: '/orders/[id]', params: { id: 'o1', pay: '1' } }))
+    expect(ordersApi.createOrder).toHaveBeenCalledWith({ addressId: 'home', cartItemIds: ['a', 'b'], quotationId: 'q-150' }, expect.anything())
+    expect(cartApi.removeCartItem.mock.calls.map((c: string[]) => c[0])).toEqual(['a', 'b'])
+    expect(mockToast).toHaveBeenCalledWith('Order placed')
+  })
+
+  it('still opens the order when removing the cart lines fails', async () => {
+    cartApi.removeCartItem.mockRejectedValue(new ApiError('network'))
+    await ready()
+    await place()
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith({ pathname: '/orders/[id]', params: { id: 'o1', pay: '1' } }))
+    expect(screen.queryByTestId('checkout-notice')).toBeNull()
+  })
+
+  it('asks for a new quote when the current one expires within 30 seconds, and goes on when the fee is unchanged', async () => {
+    ordersApi.quoteShipping.mockResolvedValueOnce(quoteOf(150, 'Lalamove', new Date(Date.now() + 10_000).toISOString())).mockResolvedValueOnce({ ...quoteOf(150), quotationId: 'q-new' })
+    await ready()
+    await place()
+    await waitFor(() => expect(ordersApi.createOrder).toHaveBeenCalledWith({ ...BODY, quotationId: 'q-new' }, expect.anything()))
+    expect(ordersApi.quoteShipping).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops with a notice and no order when the new quote has another fee', async () => {
+    ordersApi.quoteShipping.mockResolvedValueOnce(quoteOf(150, 'Lalamove', new Date(Date.now() + 10_000).toISOString())).mockResolvedValueOnce(quoteOf(200))
+    await ready()
+    await place()
+    expect(await screen.findByText('Delivery is now ₱200.00. Check your total, then place your order again.')).toBeTruthy()
+    expect(screen.getByTestId('checkout-notice').props.accessibilityRole).toBe('alert')
+    expect(ordersApi.createOrder).not.toHaveBeenCalled()
+    expect(screen.getByTestId('checkout-shipping-fee').props.children).toBe('₱200.00')
+    expect(screen.getByTestId('checkout-bar-total').props.children).toBe('₱2,700.00')
+    // Placing again uses the new, fresh quote.
+    await place()
+    await waitFor(() => expect(ordersApi.createOrder).toHaveBeenCalledWith({ ...BODY, quotationId: 'q-200' }, expect.anything()))
+  })
+
+  it.each([
+    ['Pay ₱2,700.00', '1'],
+    ['Not Now', undefined],
+  ])('when the total changed, the alert button "%s" opens the order', async (button, pay) => {
+    ordersApi.createOrder.mockResolvedValue({ id: 'o1', total: 2700 })
+    await ready()
+    await place()
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled())
+    expect(alertSpy.mock.calls[0][1]).toBe('Your total changed from ₱2,650.00 to ₱2,700.00.')
+    expect(mockReplace).not.toHaveBeenCalled()
+    const buttons = alertSpy.mock.calls[0][2] ?? []
+    await act(async () => buttons.find((b) => b.text === button)?.onPress?.())
+    expect(mockReplace).toHaveBeenCalledWith({ pathname: '/orders/[id]', params: pay ? { id: 'o1', pay } : { id: 'o1' } })
+  })
+})
+
+describe('a refused order is explained inline', () => {
+  it('no map pin: offers another address and creates nothing', async () => {
+    ordersApi.createOrder.mockRejectedValue(detail('Address has no coordinates'))
+    await ready()
+    await place()
+    expect(await screen.findByText(/has no map pin/)).toBeTruthy()
+    expect(within(screen.getByTestId('checkout-notice-action')).getByText('Pick another address')).toBeTruthy()
+    await fireEvent.press(screen.getByTestId('checkout-notice-action'))
+    expect(screen.getByTestId('address-option-home')).toBeTruthy() // the sheet is open
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('a 404 address: offers another address', async () => {
+    ordersApi.createOrder.mockRejectedValue(new ApiError('not-found', undefined, 404))
+    await ready()
+    await place()
+    expect(await screen.findByText(/couldn't find that delivery address/)).toBeTruthy()
+    expect(within(screen.getByTestId('checkout-notice-action')).getByText('Pick another address')).toBeTruthy()
+  })
+
+  it('expired quotation: re-quotes silently and asks to place again with the new fee', async () => {
+    ordersApi.createOrder.mockRejectedValueOnce(detail('Shipping quotation has expired'))
+    await ready()
+    ordersApi.quoteShipping.mockResolvedValue(quoteOf(175))
+    await place()
+    expect(await screen.findByText(/Delivery is now ₱175.00. Check your total, then place your order again./)).toBeTruthy()
+    expect(ordersApi.quoteShipping).toHaveBeenCalledTimes(2)
+    expect(screen.getByTestId('checkout-shipping-fee').props.children).toBe('₱175.00')
+  })
+
+  it.each(['Insufficient stock for SKU-9F1C-0042 (M). Available: 1.', 'Insufficient stock for Quote coordinates Tee (M). Available: 1.'])(
+    'stock: generic copy (never the server detail), a way back to the cart, and a cart reload: %s',
+    async (message) => {
+      ordersApi.createOrder.mockRejectedValue(detail(message))
+      await ready()
+      await place()
+      expect(await screen.findByText('An item in your cart is out of stock or no longer available. Update your cart, then check out again.')).toBeTruthy()
+      expect(screen.queryByText(/SKU-9F1C|Insufficient/)).toBeNull()
+      expect(ordersApi.quoteShipping).toHaveBeenCalledTimes(1) // not mistaken for a quotation error
+      await fireEvent.press(screen.getByTestId('checkout-notice-action'))
+      expect(mockNavigate).toHaveBeenCalledWith('/cart')
+      expect(cartApi.fetchCart).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  it('a quotation message is read only from a 400', async () => {
+    ordersApi.createOrder.mockRejectedValue(new ApiError('server', 'Shipping quotation has expired', 500))
+    await ready()
+    await place()
+    expect(await screen.findByText('The server had a problem. Please try again.')).toBeTruthy()
+    expect(ordersApi.quoteShipping).toHaveBeenCalledTimes(1)
+  })
+
+  it('403: its own copy, not the session copy, and no sign-out', async () => {
+    ordersApi.createOrder.mockRejectedValue(new ApiError('forbidden', undefined, 403))
+    await ready()
+    await place()
+    expect(await screen.findByText("You don't have permission to place this order.")).toBeTruthy()
+    expect(screen.queryByText(/session/i)).toBeNull()
+    expect(signedIn.signOut).not.toHaveBeenCalled()
+  })
+
+  it('409: the cart changed copy with Back to Cart, and no sign-out', async () => {
+    ordersApi.createOrder.mockRejectedValue(new ApiError('conflict', 'raw conflict text', 409))
+    await ready()
+    await place()
+    expect(await screen.findByText('Your cart changed while you were checking out. Review it and try again.')).toBeTruthy()
+    expect(screen.queryByText(/raw conflict|session/i)).toBeNull()
+    expect(within(screen.getByTestId('checkout-notice-action')).getByText('Back to Cart')).toBeTruthy()
+    expect(signedIn.signOut).not.toHaveBeenCalled()
+  })
+
+  it('a second place works after a definite failure released the lock', async () => {
+    ordersApi.createOrder.mockRejectedValueOnce(new ApiError('forbidden', undefined, 403))
+    await ready()
+    await place()
+    await screen.findByTestId('checkout-notice')
+    expect(placeButton().props.accessibilityState.disabled).toBe(false)
+    await place()
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith({ pathname: '/orders/[id]', params: { id: 'o1', pay: '1' } }))
+    expect(ordersApi.createOrder).toHaveBeenCalledTimes(2)
+    expect(ordersApi.fetchOrdersPage).not.toHaveBeenCalled() // a definite answer needs no lookup
+  })
+
+  it('cart empty or items not found: fixed copy (never the server text), back to cart, reload', async () => {
+    ordersApi.createOrder.mockRejectedValue(detail('Cart items not found: 9f1c'))
+    await ready()
+    await place()
+    expect(await screen.findByText(/because your cart changed/)).toBeTruthy()
+    expect(screen.queryByText(/9f1c/)).toBeNull()
+    expect(within(screen.getByTestId('checkout-notice-action')).getByText('Back to Cart')).toBeTruthy()
+    expect(cartApi.fetchCart).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([new ApiError('network'), new ApiError('server', undefined, 500)])('%#: Try Again sends the same request again', async (failure) => {
+    ordersApi.createOrder.mockRejectedValueOnce(failure)
+    ordersApi.fetchOrdersPage.mockResolvedValue({ items: [], total: 0, page: 1, hasNextPage: false }) // the check before sending again finds nothing
+    await ready()
+    await place()
+    await screen.findByTestId('checkout-notice')
+    ordersApi.quoteShipping.mockClear()
+    await fireEvent.press(screen.getByTestId('checkout-notice-action'))
+    await waitFor(() => expect(ordersApi.createOrder).toHaveBeenCalledTimes(2))
+    expect(ordersApi.createOrder.mock.calls[1][0]).toEqual(ordersApi.createOrder.mock.calls[0][0])
+    expect(ordersApi.quoteShipping).not.toHaveBeenCalled()
+    await waitFor(() => expect(mockReplace).toHaveBeenCalled())
+  })
+
+  it('a rejected token signs out, once, however often it is rejected', async () => {
+    ordersApi.createOrder.mockRejectedValue(new ApiError('forbidden', undefined, 401))
+    await ready()
+    await place()
+    await waitFor(() => expect(signedIn.signOut).toHaveBeenCalled())
+    await place()
+    await waitFor(() => expect(ordersApi.createOrder).toHaveBeenCalledTimes(2))
+    expect(signedIn.signOut).toHaveBeenCalledTimes(1)
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('a rejected token on the page loads signs out once too', async () => {
+    cartApi.fetchCart.mockRejectedValue(new ApiError('forbidden', undefined, 401))
+    addressApi.fetchAddresses.mockRejectedValue(new ApiError('forbidden', undefined, 401))
+    await render(<CheckoutScreen />)
+    await waitFor(() => expect(signedIn.signOut).toHaveBeenCalled())
+    expect(signedIn.signOut).toHaveBeenCalledTimes(1)
+  })
+})
+
+// The outcome of createOrder is unknown after a lost response: look for the order before anything is sent again.
+describe('an unanswered order', () => {
+  const placed = (over: Record<string, unknown> = {}) => ({ id: 'o9', status: 'PENDING_PAYMENT', createdAt: new Date().toISOString(), total: 2650, items: [{ id: 'i1' }], address: null, ...over })
+  const lookup = (...orders: unknown[]) => ordersApi.fetchOrdersPage.mockResolvedValue({ items: orders, total: orders.length, page: 1, hasNextPage: false })
+  const tryAgain = () => fireEvent.press(screen.getByTestId('checkout-notice-action'))
+  const lost = async () => {
+    ordersApi.createOrder.mockRejectedValueOnce(new ApiError('network'))
+    await ready()
+    await place()
+    await screen.findByText("Can't reach the server. Check your connection and try again.")
+  }
+
+  it('Try Again finds the order the lost response created and sends no second one', async () => {
+    lookup(placed())
+    await lost()
+    await tryAgain()
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith({ pathname: '/orders/[id]', params: { id: 'o9', pay: '1' } }))
+    expect(ordersApi.createOrder).toHaveBeenCalledTimes(1)
+    expect(ordersApi.fetchOrdersPage).toHaveBeenCalledWith({ page: 1, limit: 5 }, expect.anything())
+    expect(cartApi.removeCartItem).toHaveBeenCalledWith('a')
+    expect(mockToast).toHaveBeenCalledWith('Your order was already placed')
+  })
+
+  it('the Place Order button also looks first, and matches the order address when it has one', async () => {
+    lookup(placed({ address: { recipient: null, phone: null, line: 'home Main St, Poblacion', city: '' } }))
+    await lost()
+    await place()
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith({ pathname: '/orders/[id]', params: { id: 'o9', pay: '1' } }))
+    expect(ordersApi.createOrder).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['an old order', { createdAt: new Date(Date.now() - 600_000).toISOString() }],
+    ['another total', { total: 999 }],
+    ['another item count', { items: [{ id: 'i1' }, { id: 'i2' }] }],
+    ['another status', { status: 'CANCELLED' }],
+    ['another address', { address: { recipient: null, phone: null, line: 'elsewhere', city: '' } }],
+  ])('%s is not the order: the same request is sent again', async (_name, over) => {
+    lookup(placed(over))
+    await lost()
+    await tryAgain()
+    await waitFor(() => expect(ordersApi.createOrder).toHaveBeenCalledTimes(2))
+    expect(ordersApi.createOrder.mock.calls[1][0]).toEqual(ordersApi.createOrder.mock.calls[0][0])
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith({ pathname: '/orders/[id]', params: { id: 'o1', pay: '1' } }))
+  })
+
+  it('tolerates a clock a minute behind', async () => {
+    lookup(placed({ createdAt: new Date(Date.now() - 60_000).toISOString() }))
+    await lost()
+    await tryAgain()
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith({ pathname: '/orders/[id]', params: { id: 'o9', pay: '1' } }))
+    expect(ordersApi.createOrder).toHaveBeenCalledTimes(1)
+  })
+
+  it('a failed lookup blocks placing again, with Orders and a way to check again', async () => {
+    ordersApi.fetchOrdersPage.mockRejectedValue(new ApiError('network'))
+    await lost()
+    await tryAgain()
+    expect(await screen.findByText("We couldn't confirm whether your order went through. Check Orders before trying again.")).toBeTruthy()
+    expect(ordersApi.createOrder).toHaveBeenCalledTimes(1)
+    const scroll = StyleSheet.flatten(screen.getByTestId('checkout-notice-scroll').props.style)
+    expect(scroll.maxHeight).toBeGreaterThan(0)
+    await place() // the main button is blocked the same way
+    await screen.findByText(/couldn't confirm/)
+    expect(ordersApi.createOrder).toHaveBeenCalledTimes(1)
+    await fireEvent.press(screen.getByTestId('checkout-notice-action'))
+    expect(mockNavigate).toHaveBeenCalledWith('/orders')
+    // Checking again only looks: nothing is found, so nothing is placed, and the marker is cleared.
+    lookup()
+    await fireEvent.press(screen.getByTestId('checkout-notice-action-2'))
+    expect(await screen.findByText(/No matching order was found/)).toBeTruthy()
+    expect(ordersApi.createOrder).toHaveBeenCalledTimes(1)
+    const lookups = ordersApi.fetchOrdersPage.mock.calls.length
+    await place()
+    await waitFor(() => expect(ordersApi.createOrder).toHaveBeenCalledTimes(2))
+    expect(ordersApi.fetchOrdersPage).toHaveBeenCalledTimes(lookups)
+  })
+
+  it('a definite 400 clears the marker: the next place does no lookup', async () => {
+    lookup()
+    ordersApi.createOrder.mockRejectedValueOnce(new ApiError('network')).mockRejectedValueOnce(detail('Insufficient stock for Tee a'))
+    await ready()
+    await place()
+    await screen.findByTestId('checkout-notice')
+    await tryAgain() // looks (nothing found), sends, and is refused
+    await screen.findByText(/out of stock/)
+    expect(ordersApi.fetchOrdersPage).toHaveBeenCalledTimes(1)
+    await place()
+    await waitFor(() => expect(ordersApi.createOrder).toHaveBeenCalledTimes(3))
+    expect(ordersApi.fetchOrdersPage).toHaveBeenCalledTimes(1)
+  })
+
+  it('a request that hangs is aborted after 30 seconds, releases the lock and counts as unknown', async () => {
+    jest.useFakeTimers()
+    try {
+      lookup()
+      ordersApi.createOrder.mockImplementationOnce((_body: unknown, signal: AbortSignal) => new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason))))
+      await ready()
+      await place()
+      expect(placeButton().props.accessibilityState.busy).toBe(true)
+      await act(async () => {
+        jest.advanceTimersByTime(30_000)
+      })
+      expect(await screen.findByText(/took too long/)).toBeTruthy()
+      expect(ordersApi.createOrder.mock.calls[0][1].aborted).toBe(true)
+      expect(placeButton().props.accessibilityState.busy).toBe(false)
+      expect(placeButton().props.accessibilityState.disabled).toBe(false)
+      await tryAgain() // unknown outcome: it looks before sending again
+      await waitFor(() => expect(ordersApi.createOrder).toHaveBeenCalledTimes(2))
+      expect(ordersApi.fetchOrdersPage).toHaveBeenCalledTimes(1)
+      expect(ordersApi.createOrder.mock.calls[1][1].aborted).toBe(false)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('a quick answer clears its timer: the signal is never aborted later', async () => {
+    jest.useFakeTimers()
+    try {
+      await ready()
+      await place()
+      await waitFor(() => expect(mockReplace).toHaveBeenCalled())
+      await act(async () => {
+        jest.advanceTimersByTime(60_000)
+      })
+      expect(ordersApi.createOrder.mock.calls[0][1].aborted).toBe(false)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+})
+
+describe('while the order is in flight', () => {
+  it('a screen already left gets no navigation or alert, only the toast, and the cart lines still go', async () => {
+    let finish: (order: unknown) => void = () => {}
+    ordersApi.createOrder.mockReturnValue(new Promise((resolve) => (finish = resolve)))
+    await ready()
+    await place()
+    await screen.unmount()
+    await act(async () => finish({ id: 'o1', total: 2700 })) // a changed total would have raised the alert
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith('Order placed. Find it in Orders.'))
+    expect(cartApi.removeCartItem).toHaveBeenCalledWith('a')
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(alertSpy).not.toHaveBeenCalled()
+  })
+
+  it('Change is disabled, and a pick is ignored, while the order is being placed', async () => {
+    addressApi.fetchAddresses.mockResolvedValue([address('home', { isDefault: true }), address('office')])
+    let finish: (order: unknown) => void = () => {}
+    ordersApi.createOrder.mockReturnValue(new Promise((resolve) => (finish = resolve)))
+    await ready()
+    await fireEvent.press(screen.getByTestId('checkout-address-change'))
+    await place()
+    expect(screen.getByTestId('checkout-address-change').props.accessibilityState.disabled).toBe(true)
+    await fireEvent.press(screen.getByTestId('address-option-office'))
+    expect(screen.getByTestId('address-option-home').props.accessibilityState.selected).toBe(true)
+    expect(ordersApi.quoteShipping).toHaveBeenCalledTimes(1)
+    await act(async () => finish({ id: 'o1', total: 2650 })) // settles the request so its timer is cleared
+  })
 })

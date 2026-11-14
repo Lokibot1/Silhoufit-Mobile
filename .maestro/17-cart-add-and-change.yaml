@@ -108,11 +108,11 @@ appId: ${APP_ID}
     text: '(Quantity )?1'
 - assertVisible:
     id: cart-subtotal
-# No checkout exists yet: the sticky bar says so and the button stays disabled.
+# The bag is clean (one in-stock piece, no warning), so Checkout is enabled and no blocking note shows. It is not tapped here (flow 49 does).
 - assertVisible:
     id: cart-checkout
-    enabled: false
-- assertVisible: Checkout is coming soon
+    enabled: true
+- assertNotVisible: Fix the items marked above to check out
 - copyTextFrom:
     id: cart-subtotal
 - tapOn:

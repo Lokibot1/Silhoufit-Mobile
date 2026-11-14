@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { clearCart, fetchCart, removeCartItem, setCartItemQuantity, type Cart, type CartItem } from '@/api/cart'
 import { useSession } from '@/auth/session'
+import { cartWarning } from '@/checkout/cartWarning'
 import { ApiError, errorMessage } from '@/lib/api'
 import { peso } from '@/lib/format'
 import { Button } from '@/ui/Button'
@@ -21,16 +22,9 @@ const TARGET = 44
 const IMG_W = 88
 const IMG_H = 112
 const LOW_STOCK = 5
+const BLOCKED_NOTE = 'Fix the items marked above to check out'
 
 const variantLine = ({ size, color: colour }: CartItem['variant']) => [size, colour].filter(Boolean).join(' / ')
-
-// What is wrong with the line right now (the server may have lowered the stock or pulled the product since it was added).
-function warning({ quantity, variant, product }: CartItem): string | null {
-  if (!product.active) return 'No longer available. Remove it from your cart.'
-  if (variant.stock !== null && variant.stock <= 0) return 'Out of stock. Remove it from your cart.'
-  if (variant.stock !== null && variant.stock < quantity) return `Only ${variant.stock} left. Lower the quantity.`
-  return null
-}
 
 function StepButton({ symbol, label, testID, disabled, onPress }: { symbol: string; label: string; testID: string; disabled: boolean; onPress: () => void }) {
   return (
@@ -53,7 +47,7 @@ type RowProps = {
 function CartRow({ item, locked, pending, error, onOpen, onQuantity, onRemove }: RowProps) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
   const { id, quantity, lineTotal, variant, product } = item
-  const warn = warning(item)
+  const warn = cartWarning(item)
   const { stock } = variant
   const unavailable = !product.active || (stock !== null && stock <= 0)
   const atMax = !product.active || (stock !== null && quantity >= stock)
@@ -352,6 +346,12 @@ export default function CartScreen() {
     )
 
   const count = cart?.totalItems ?? 0
+  const blocked = !!cart?.items.some((item) => cartWarning(item) !== null)
+  const checkout = () => {
+    if (opening.current) return
+    opening.current = true
+    router.push('/checkout')
+  }
 
   const header = (
     <View style={styles.header}>
@@ -425,8 +425,8 @@ export default function CartScreen() {
           </View>
           <Text testID="cart-subtotal" maxFontSizeMultiplier={1.3} style={styles.subtotal}>{peso(cart.subtotal)}</Text>
         </View>
-        <Text testID="cart-checkout-note" style={styles.note}>Checkout is coming soon</Text>
-        <Button testID="cart-checkout" label="Checkout" disabled onPress={() => {}} accessibilityHint="Checkout is coming soon" />
+        {blocked && <Text testID="cart-checkout-note" accessibilityLiveRegion="polite" style={styles.note}>{BLOCKED_NOTE}</Text>}
+        <Button testID="cart-checkout" label="Checkout" disabled={blocked || busyId !== null} accessibilityHint={blocked ? BLOCKED_NOTE : undefined} onPress={checkout} />
       </View>
     </View>
   )

@@ -1,0 +1,189 @@
+appId: ${APP_ID}
+tags:
+  - creates-order
+onFlowComplete:
+  # Safety net: even when an assertion below failed, the order this run placed is cancelled so its reserved stock is released.
+  # It runs only after the run reached Place Order (output.placed), because the start guard proves the account had no other "To pay" order.
+  - runFlow:
+      when:
+        true: ${output.placed == true}
+      commands:
+        - runFlow: subflows/relaunch.yaml
+        - runFlow: subflows/cancel-latest-unpaid.yaml
+---
+# CREATES A REAL ORDER every run (unpaid, reserves stock until cancelled), then cancels it. Use a DEDICATED test account only.
+# Needs TEST_EMAIL's account to have a default address WITH a map pin (add one on the web) and an in-stock first Shop card.
+# The flow empties the bag, adds one piece, places the order, lets the payment page open, comes back, asserts "Awaiting payment"
+# and cancels. It never pays. The hosted payment page is a browser outside the app: Android Back closes it, iOS needs its Done button.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+# Guard: refuse to run when the account already has an unpaid order, so the only "To pay" order afterwards is the one this run places.
+# With orders but none to pay the tab shows its empty state; with no orders at all there are no tabs and nothing to check.
+- tapOn:
+    id: tab-orders
+- extendedWaitUntil:
+    visible:
+      id: 'orders-list|orders-empty-action'
+    timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: orders-list
+    commands:
+      - tapOn:
+          id: orders-tab-to-pay
+      - extendedWaitUntil:
+          visible:
+            id: orders-tab-empty-action
+          timeout: 10000
+- tapOn:
+    id: tab-cart
+- extendedWaitUntil:
+    visible:
+      id: 'cart-list|cart-empty-action'
+    timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: cart-list
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: cart-clear
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: cart-clear
+      - runFlow:
+          file: subflows/confirm-alert.yaml
+          env:
+            BUTTON: '(?i)Clear All Items'
+      - extendedWaitUntil:
+          visible:
+            id: cart-empty-action
+          timeout: 10000
+# Add exactly one piece, same steps as flow 13.
+- tapOn:
+    id: tab-shop
+- extendedWaitUntil:
+    visible:
+      id: 'shop-card-(?!.*-image$).+'
+    timeout: 15000
+- tapOn:
+    id: 'shop-card-(?!.*-image$).+'
+- extendedWaitUntil:
+    visible:
+      id: product-name
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: 'product-swatch-.+'
+    direction: DOWN
+    timeout: 20000
+    optional: true
+- tapOn:
+    id: 'product-swatch-.+'
+    enabled: true
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: 'product-size-.+'
+    direction: DOWN
+    timeout: 20000
+    optional: true
+- tapOn:
+    id: 'product-size-.+'
+    enabled: true
+    optional: true
+- tapOn:
+    id: product-add-to-cart
+- extendedWaitUntil:
+    visible: Added to cart
+    timeout: 10000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '(?i)(back|shop|\(tabs\))'
+- extendedWaitUntil:
+    visible:
+      id: tab-cart
+    timeout: 10000
+- tapOn:
+    id: tab-cart
+- extendedWaitUntil:
+    visible:
+      id: cart-list
+    timeout: 15000
+# The bag is clean, so Checkout is enabled and opens the checkout review.
+- assertVisible:
+    id: cart-checkout
+    enabled: true
+- tapOn:
+    id: cart-checkout
+- extendedWaitUntil:
+    visible:
+      id: checkout-shipping-fee
+    timeout: 20000
+- assertVisible:
+    id: checkout-place-order
+    enabled: true
+- evalScript: ${output.placed = true}
+- tapOn:
+    id: checkout-place-order
+# The order opens and goes straight to the payment page. Wait for the order screen, then for the app UI to disappear behind the browser.
+- extendedWaitUntil:
+    visible:
+      id: order-detail
+    timeout: 30000
+- extendedWaitUntil:
+    notVisible:
+      id: order-detail
+    timeout: 20000
+    optional: true
+# Close the browser only when it is open (the order screen is hidden): Back would otherwise leave the order screen.
+- runFlow:
+    when:
+      notVisible:
+        id: order-detail
+    commands:
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - back
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - tapOn:
+                text: '(?i)Done'
+- extendedWaitUntil:
+    visible:
+      id: order-detail
+    timeout: 20000
+- assertVisible:
+    id: order-status
+    text: '(?i)Awaiting payment'
+- assertVisible:
+    id: order-pay-now
+# Always cancel: the existing cancel flow on the order screen (confirm first) releases the reserved stock.
+- tapOn:
+    id: order-cancel
+- runFlow:
+    file: subflows/confirm-alert.yaml
+    env:
+      BUTTON: '(?i)Cancel Order'
+- extendedWaitUntil:
+    visible:
+      id: order-status
+      text: '(?i)Cancelled'
+    timeout: 15000
+- assertNotVisible:
+    id: order-cancel

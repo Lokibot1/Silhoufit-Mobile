@@ -12,6 +12,7 @@ import { Skeleton } from '@/ui/Skeleton'
 import { color, font, radius, space, type } from '@/ui/theme'
 
 import { addressLines } from './AddressLines'
+import { cartWarning } from './cartWarning'
 
 const IMG_W = 56
 const IMG_H = 72
@@ -40,7 +41,7 @@ function Failure({ message, label, testID, onRetry }: { message: string; label: 
   )
 }
 
-export function AddressSection({ req, selected, onChange }: { req: Req<Address[]>; selected: Address | null; onChange: () => void }) {
+export function AddressSection({ req, selected, onChange, disabled = false }: { req: Req<Address[]>; selected: Address | null; onChange: () => void; disabled?: boolean }) {
   const list = req.data ?? []
   let body: ReactNode
   if (req.status === 'loading') {
@@ -74,19 +75,11 @@ export function AddressSection({ req, selected, onChange }: { req: Req<Address[]
         ) : (
           <Text testID="checkout-address-none" style={styles.body}>None of your addresses has a map pin yet. Add the pin on the web, then reload.</Text>
         )}
-        <Button testID="checkout-address-change" variant="secondary" label="Change" accessibilityLabel="Change delivery address" onPress={onChange} />
+        <Button testID="checkout-address-change" variant="secondary" label="Change" accessibilityLabel="Change delivery address" disabled={disabled} onPress={onChange} />
       </View>
     )
   }
   return <Card title="(Delivery Address)">{body}</Card>
-}
-
-// Same wording as the Cart: what is wrong with the line right now.
-function warning({ quantity, variant, product }: CartItem): string | null {
-  if (!product.active) return 'No longer available. Remove it from your cart.'
-  if (variant.stock !== null && variant.stock <= 0) return 'Out of stock. Remove it from your cart.'
-  if (variant.stock !== null && variant.stock < quantity) return `Only ${variant.stock} left. Lower the quantity.`
-  return null
 }
 
 const variantLine = ({ size, color: colour }: CartItem['variant']) => [size && `Size ${size}`, colour].filter(Boolean).join(' // ')
@@ -94,7 +87,7 @@ const variantLine = ({ size, color: colour }: CartItem['variant']) => [size && `
 function ItemRow({ item }: { item: CartItem }) {
   const [failed, setFailed] = useState(false)
   const { quantity, lineTotal, variant, product } = item
-  const warn = warning(item)
+  const warn = cartWarning(item)
   return (
     <View testID={`checkout-item-${item.id}`} style={styles.item}>
       <View style={styles.tile}>

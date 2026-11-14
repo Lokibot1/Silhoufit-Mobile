@@ -1,8 +1,8 @@
 appId: ${APP_ID}
 ---
-# Read-only: opens the checkout review and never creates an order (Place Order is disabled in this build).
+# Read-only: opens the checkout review and NEVER taps Place Order (flow 49 is the one that creates an order).
 # Needs TEST_EMAIL's account to have at least one piece in the cart and a default address with a map pin (the web can add one);
-# the Cart's Checkout button is still disabled, so the route is opened by deep link.
+# the route is opened by deep link so the flow does not depend on the Cart's state.
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/sign-in.yaml
 - openLink: silhoufitmobile://checkout
@@ -25,7 +25,9 @@ appId: ${APP_ID}
     id: checkout-courier
 - assertVisible:
     id: checkout-bar-total
+# The selected address has a map pin, a quote is loaded and the cart is clean, so Place Order is enabled and no hint explains a block.
 - assertVisible:
     id: checkout-place-order
-    enabled: false
-- assertVisible: Placing orders is coming next
+    enabled: true
+- assertNotVisible:
+    id: checkout-bar-hint
