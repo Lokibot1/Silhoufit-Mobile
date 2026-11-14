@@ -1,0 +1,31 @@
+appId: ${APP_ID}
+---
+# Read-only: opens the checkout review and never creates an order (Place Order is disabled in this build).
+# Needs TEST_EMAIL's account to have at least one piece in the cart and a default address with a map pin (the web can add one);
+# the Cart's Checkout button is still disabled, so the route is opened by deep link.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- openLink: silhoufitmobile://checkout
+- extendedWaitUntil:
+    visible:
+      id: checkout-place-order
+    timeout: 15000
+# Each section loads on its own; wait for the last one (the shipping fee) before asserting.
+- extendedWaitUntil:
+    visible:
+      id: checkout-shipping-fee
+    timeout: 20000
+- assertVisible:
+    id: checkout-address
+- assertVisible:
+    id: checkout-address-change
+- assertVisible:
+    id: 'checkout-item-.+'
+- assertVisible:
+    id: checkout-courier
+- assertVisible:
+    id: checkout-bar-total
+- assertVisible:
+    id: checkout-place-order
+    enabled: false
+- assertVisible: Placing orders is coming next
