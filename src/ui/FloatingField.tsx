@@ -1,0 +1,127 @@
+import { Ionicons } from '@expo/vector-icons'
+import { useEffect, useState, type ComponentRef, type Ref } from 'react'
+import { Animated, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native'
+
+import { color, radius, space, type } from '@/ui/theme'
+import { useReduceMotion } from '@/ui/useReduceMotion'
+
+type Props = Omit<TextInputProps, 'style' | 'placeholder' | 'accessibilityLabel'> & {
+  label: string
+  value: string
+  onChangeText: (text: string) => void
+  error?: string
+  helper?: string
+  /** Must equal the screen background: the floated label's patch hides the border behind it. */
+  background?: string
+  /** Only used with secureTextEntry: testID of the show/hide button. */
+  toggleTestID?: string
+  ref?: Ref<ComponentRef<typeof TextInput>>
+}
+
+const FLOAT_SCALE = 14 / 16
+const DURATION = 180
+
+// Outlined field whose label sits inside like a placeholder and floats onto the top border on focus or when filled (the web FloatingField).
+export function FloatingField({
+  label,
+  value,
+  error,
+  helper,
+  background = color.paper,
+  toggleTestID,
+  secureTextEntry,
+  editable = true,
+  onFocus,
+  onBlur,
+  ref,
+  ...input
+}: Props) {
+  const reduceMotion = useReduceMotion()
+  const [focused, setFocused] = useState(false)
+  const [revealed, setRevealed] = useState(false)
+  const [height, setHeight] = useState(56)
+  const floated = focused || value.length > 0
+  const [progress] = useState(() => new Animated.Value(floated ? 1 : 0))
+
+  useEffect(() => {
+    if (reduceMotion) return progress.setValue(floated ? 1 : 0)
+    Animated.timing(progress, { toValue: floated ? 1 : 0, duration: DURATION, useNativeDriver: true }).start()
+  }, [floated, reduceMotion, progress])
+
+  const tint = error ? color.red : focused ? color.obsidian : color.graphite
+  const message = error ?? helper
+  return (
+    <View style={[styles.field, !editable && styles.disabled]}>
+      <View onLayout={(event) => setHeight(event.nativeEvent.layout.height)}>
+        <TextInput
+          {...input}
+          ref={ref}
+          value={value}
+          editable={editable}
+          secureTextEntry={secureTextEntry && !revealed}
+          accessibilityLabel={label}
+          accessibilityHint={message}
+          accessibilityState={{ disabled: !editable }}
+          maxFontSizeMultiplier={1.2}
+          onFocus={(event) => {
+            setFocused(true)
+            onFocus?.(event)
+          }}
+          onBlur={(event) => {
+            setFocused(false)
+            onBlur?.(event)
+          }}
+          style={[styles.input, secureTextEntry && styles.inputSecure]}
+        />
+        <View pointerEvents="none" style={[styles.outline, { borderColor: error ? color.red : focused ? color.obsidian : color.stonewash, borderWidth: focused ? 2 : 1 }]} />
+        <View pointerEvents="none" style={styles.labelBox}>
+          <Animated.Text
+            testID={input.testID ? `${input.testID}-label` : undefined}
+            importantForAccessibility="no"
+            accessibilityElementsHidden
+            maxFontSizeMultiplier={1.2}
+            numberOfLines={1}
+            style={[
+              styles.label,
+              { color: tint, backgroundColor: floated ? background : 'transparent' },
+              {
+                transform: [
+                  { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -(height / 2 - 1)] }) },
+                  { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, FLOAT_SCALE] }) },
+                ],
+              },
+            ]}>
+            {label}
+          </Animated.Text>
+        </View>
+        {secureTextEntry && (
+          <Pressable
+            testID={toggleTestID}
+            accessibilityRole="button"
+            accessibilityLabel={revealed ? 'Hide password' : 'Show password'}
+            disabled={!editable}
+            style={styles.toggle}
+            onPress={() => setRevealed((shown) => !shown)}>
+            <Ionicons name={revealed ? 'eye-off' : 'eye'} size={24} color={color.graphite} />
+          </Pressable>
+        )}
+      </View>
+      <Text accessibilityLiveRegion="polite" maxFontSizeMultiplier={1.2} style={[styles.message, error ? styles.messageError : null]}>
+        {message}
+      </Text>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  field: { gap: space.xs },
+  disabled: { opacity: 0.5 },
+  input: { ...type.body, minHeight: 56, paddingHorizontal: space.md, paddingVertical: space.lg },
+  inputSecure: { paddingRight: 56 },
+  outline: { ...StyleSheet.absoluteFill, borderRadius: radius.soft },
+  labelBox: { position: 'absolute', top: 0, bottom: 0, left: space.sm, justifyContent: 'center', alignItems: 'flex-start' },
+  label: { ...type.body, paddingHorizontal: space.xs, transformOrigin: 'left center' },
+  toggle: { position: 'absolute', right: space.xs, top: 6, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  message: { ...type.small, color: color.graphite, minHeight: 20 },
+  messageError: { color: color.red },
+})
