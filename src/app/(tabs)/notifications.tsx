@@ -7,12 +7,14 @@ import { fetchOrdersPage, orderUpdates, STAGE_KINDS, type NotificationEvent } fr
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { dateTime } from '@/lib/format'
+import { useLivePoll } from '@/lib/useLivePoll'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const seenKey = (uid: string) => `kral:notifications-seen:${uid}`
+const eventsKey = (events: NotificationEvent[]) => events.map((e) => `${e.id}|${e.at}|${e.note ?? ''}`).join('\n')
 const isNew = (event: NotificationEvent, seen: string | null) => seen !== null && Date.parse(event.at) > Date.parse(seen)
 
 function UpdateRow({ event, fresh, onPress }: { event: NotificationEvent; fresh: boolean; onPress: () => void }) {
@@ -74,6 +76,7 @@ export default function NotificationsScreen() {
   const shown = useRef<{ uid: string; at: string } | null>(null) // newest event the list has been rendered with since focus
   const seq = useRef(0) // the newest load wins: an earlier one is dropped when it lands
   const expired = useRef(false)
+  const flight = useRef<{ uid: string; signal: AbortSignal; promise: Promise<boolean>; quiet: boolean } | null>(null)
   useEffect(() => {
     notify.current = toast
     out.current = signOut
@@ -98,26 +101,40 @@ export default function NotificationsScreen() {
   }, [])
 
   // shortcut: only the 20 newest orders, page further if customers have more
+  // Resolves false on a real failure (a poll, `quiet`, backs off instead of toasting). A read already in flight is shared, and an
+  // unchanged list is not written, so nothing re-renders; the newest event still counts as shown.
   const load = useCallback(
-    (signal: AbortSignal) => {
+    (signal: AbortSignal, quiet = false) => {
       const uid = userId
-      if (!uid) return Promise.resolve()
+      if (!uid) return Promise.resolve(true)
+      const joined = flight.current
+      // Only a poll joins a read in flight; a user's own load replaces a poll's (its result is dropped by `seq`).
+      if (joined && joined.uid === uid && !joined.signal.aborted && (quiet || !joined.quiet)) return joined.promise
       const started = ++seq.current
       const current = () => !signal.aborted && started === seq.current
-      return fetchOrdersPage({ page: 1, limit: 20 }, signal).then(
-        (page) => {
-          if (!current()) return
-          const list = orderUpdates(page.items)
-          write(uid, { events: list, error: null })
-          if (list[0]) shown.current = { uid, at: list[0].at }
-        },
-        (failure: unknown) => {
-          if (!current()) return
-          if (isExpired(failure)) expire()
-          else if (eventsRef.current) notify.current(errorMessage(failure))
-          else write(uid, { error: failure })
-        },
-      )
+      const promise: Promise<boolean> = fetchOrdersPage({ page: 1, limit: 20 }, signal)
+        .then(
+          (page) => {
+            if (!current()) return true
+            const list = orderUpdates(page.items)
+            if (!eventsRef.current || eventsKey(eventsRef.current) !== eventsKey(list)) write(uid, { events: list, error: null })
+            if (list[0]) shown.current = { uid, at: list[0].at }
+            return true
+          },
+          (failure: unknown) => {
+            if (!current()) return true
+            if (isExpired(failure)) expire()
+            else if (eventsRef.current) {
+              if (!quiet) notify.current(errorMessage(failure))
+            } else write(uid, { error: failure })
+            return false
+          },
+        )
+        .finally(() => {
+          if (flight.current?.promise === promise) flight.current = null
+        })
+      flight.current = { uid, signal, promise, quiet }
+      return promise
     },
     [userId, write, expire],
   )
@@ -145,6 +162,15 @@ export default function NotificationsScreen() {
         void AsyncStorage.setItem(seenKey(userId), left.at).catch(() => {})
       }
     }, [userId, load, write]),
+  )
+
+  // The focus effect above already reads when the tab is shown, so a poll only keeps it fresh while it stays open. It never touches
+  // the last-seen time: that only advances on blur, from what the list showed.
+  useLivePoll(
+    async (signal) => {
+      if (!(await load(signal, true))) throw new Error('poll failed')
+    },
+    { enabled: signedIn, readOnFocus: false, resetKey: userId },
   )
 
   const retry = () => {

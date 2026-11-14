@@ -204,6 +204,15 @@ export function orderTimeline(order: Order): { label: string; at: string; note?:
   return steps.filter((step): step is { label: string; at: string; note?: string } => step.at !== null)
 }
 
+const CLOSED = ['DELIVERED', 'CANCELLED', 'REFUNDED']
+/** No further status change can come: live polling of the order stops. */
+export const isClosed = ({ status }: Pick<Order, 'status'>) => CLOSED.includes(status)
+
+/** What a customer can see change on an order; two reads with the same signature need no re-render. */
+export const orderSignature = (o: Order) =>
+  [o.id, o.status, o.paymentStatus, o.total, o.updatedAt, o.paidAt, o.cancelledAt, o.cancellationReason, o.shipment?.status, o.shipment?.pickupTime, o.shipment?.deliveredAt, o.shipment?.trackingUrl].join('|')
+export const ordersSignature = (orders: Order[]) => orders.map(orderSignature).join('\n')
+
 export type NotificationEvent = { id: string; orderId: string; orderNumber: string; kind: string; label: string; at: string; note?: string }
 /** Stages the API keeps no time for: their event is dated with the order's last update instead. */
 export const STAGE_KINDS = ['PROCESSING', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'PAYMENT_FAILED', 'REFUNDED']

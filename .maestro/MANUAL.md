@@ -106,7 +106,7 @@ Pay and cancel change real orders, so they are manual. Use a dedicated test acco
 - [ ] Pay Now when the payment link cannot be made (stop the backend's payment provider or use an order with a total under 1.00): an inline message explains it and Pay Now stays available.
 - [ ] Complete a test payment, return to the app: status shows Paid, Pay Now and Cancel Order are gone.
 - [ ] Cancel Order on an unpaid order: "Are you sure?" with Keep Order and Cancel Order; Keep Order, Android back and tapping outside do nothing; Cancel Order shows the "Order cancelled" toast and the status turns Cancelled with the reason in the timeline. There is no undo.
-- [ ] Cancel an order that was paid on another device in the meantime: an inline message with the server's reason shows, and the status refreshes to the real one.
+- [ ] Cancel an order that was paid on another device in the meantime: the inline message reads "This order's status changed or is still updating. If you already paid, it can take a moment to show.", and the status refreshes to the real one.
 - [ ] A paid order shows no Pay Now and no Cancel Order.
 - [ ] Deep link `silhoufitmobile://orders/<made-up uuid>` and a real order id of another account: "We couldn't find this order", Back to Orders opens the Orders tab. A link opened from a cold start has an "Orders" header button that goes to the Orders tab, never a blank screen.
 - [ ] 320px-wide screen: rows, the status chips, items, amounts and buttons fit with no horizontal scroll; a very long product name clamps to two lines and a long order number stays on one line.
@@ -118,6 +118,19 @@ Pay and cancel change real orders, so they are manual. Use a dedicated test acco
 - [ ] Failed payment: pay with a test card that the provider declines (or close the payment page unpaid), return to the app: the order stays unpaid or shows the failed payment status, an inline message explains, and Pay Now stays available to try again.
 - [ ] A cancelled order shows its cancellation reason in the timeline and neither Pay Now nor Cancel Order.
 - [ ] Keep Order in the cancel confirmation changes nothing (status stays, no toast).
+
+## Live updates (polling every ~20 s, no backend change)
+Maestro cannot change an order status, so these are manual. Needs a second actor: change an order's status from the staff dashboard (or pay through the Xendit test mode) while the phone stays on the screen.
+- [ ] Orders list open: change a status; within about 20 s the card's status chip and the tab counts update on their own, with no skeleton, no flicker, and the scroll position and the selected tab unchanged.
+- [ ] Order page open on an unpaid order: pay it in test mode from another device; within about 20 s status and payment turn Paid and Pay Now / Cancel Order disappear. Mark it delivered from the dashboard: the status updates, then no more requests go out for that order.
+- [ ] Alerts tab open: change a status; the new update appears within about 20 s with "New", and the Alerts list does not jump. Leave the tab and return: the marker is gone only after that leave.
+- [ ] Background the app for a minute, change a status, bring the app back: the visible screen refreshes at once (not after 20 s), and nothing was fetched while it was in the background.
+- [ ] Switch to another tab or open another screen, change a status, wait 40 s: nothing updates behind it (no requests); coming back shows the change once, without a second reload or skeleton.
+- [ ] Airplane mode on a visible Orders list or order page: no toast and no error screen, the rows stay; the retries slow down (20 s, 40 s, 80 s, then up to 2 min). Turn the network back on: it recovers within the current wait, or on the next pull-to-refresh.
+- [ ] Pay Now / Cancel Order in flight: a status change from the dashboard at that moment does not replace the result of your action; polling resumes after it.
+- [ ] Sign out while polling: no further order requests, and a session that expires mid-poll signs out once with one toast.
+- [ ] Battery sanity: leave the Orders list open and the screen on for 10 minutes; the device does not warm up, and the backend log shows one request per ~20 s per open screen, none while the screen is off or in the background.
+- [ ] Reduce Motion on: a poll update shows no animation beyond the normal state change.
 
 ## Notifications (Alerts tab)
 Updates are built on the device from the customer's 20 newest orders (no API feed). The "last seen" time is stored per account on the device.

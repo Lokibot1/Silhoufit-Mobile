@@ -4,10 +4,11 @@ import { openBrowserAsync } from 'expo-web-browser'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native'
 
-import { awaitsPayment, fetchAllOrders, matchesTab, ORDER_TABS, statusLabel, tabCounts, trackingLink, type Order, type OrderItem, type OrderTab } from '@/api/orders'
+import { awaitsPayment, fetchAllOrders, matchesTab, ORDER_TABS, ordersSignature, statusLabel, tabCounts, trackingLink, type Order, type OrderItem, type OrderTab } from '@/api/orders'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { dateOnly, peso } from '@/lib/format'
+import { useLivePoll } from '@/lib/useLivePoll'
 import { Button } from '@/ui/Button'
 import { Chip } from '@/ui/Chip'
 import { PressableScale } from '@/ui/PressableScale'
@@ -166,6 +167,7 @@ export default function OrdersScreen() {
   const opening = useRef(false)
   const seq = useRef(0) // the newest load wins: an earlier one is dropped when it lands
   const expired = useRef(false)
+  const flight = useRef<{ uid: string; signal: AbortSignal; promise: Promise<boolean>; quiet: boolean } | null>(null)
   useEffect(() => {
     notify.current = toast
     out.current = signOut
@@ -189,24 +191,39 @@ export default function OrdersScreen() {
     void out.current()
   }, [])
 
-  // The first failure fills the error state; a failed refresh keeps the rows and toasts.
+  // The first failure fills the error state; a failed refresh keeps the rows and toasts (a poll, `quiet`, backs off instead).
+  // Resolves false on a real failure. A poll joins a read in flight; a user's load starts its own, so a quiet poll can never swallow it. Identical rows are not written, and
+  // identical rows are not written, so nothing re-renders.
   const load = useCallback(
-    (signal: AbortSignal) => {
+    (signal: AbortSignal, quiet = false) => {
       const uid = userId
-      if (!uid) return Promise.resolve()
+      if (!uid) return Promise.resolve(true)
+      const joined = flight.current
+      // Only a poll joins a read in flight; a user's own load replaces a poll's (its result is dropped by `seq`).
+      if (joined && joined.uid === uid && !joined.signal.aborted && (quiet || !joined.quiet)) return joined.promise
       const started = ++seq.current
       const current = () => !signal.aborted && started === seq.current
-      return fetchAllOrders(signal).then(
-        (rows) => {
-          if (current()) write(uid, { items: rows, error: null })
-        },
-        (failure: unknown) => {
-          if (!current()) return
-          if (isExpired(failure)) expire()
-          else if (itemsRef.current) notify.current(errorMessage(failure))
-          else write(uid, { error: failure })
-        },
-      )
+      const promise: Promise<boolean> = fetchAllOrders(signal)
+        .then(
+          (rows) => {
+            if (!current()) return true
+            if (!itemsRef.current || ordersSignature(itemsRef.current) !== ordersSignature(rows)) write(uid, { items: rows, error: null })
+            return true
+          },
+          (failure: unknown) => {
+            if (!current()) return true
+            if (isExpired(failure)) expire()
+            else if (itemsRef.current) {
+              if (!quiet) notify.current(errorMessage(failure))
+            } else write(uid, { error: failure })
+            return false
+          },
+        )
+        .finally(() => {
+          if (flight.current?.promise === promise) flight.current = null
+        })
+      flight.current = { uid, signal, promise, quiet }
+      return promise
     },
     [userId, write, expire],
   )
@@ -219,6 +236,14 @@ export default function OrdersScreen() {
       void load(controller.signal)
       return () => controller.abort()
     }, [signedIn, load]),
+  )
+
+  // The focus reload above already reads when the tab is shown, so a poll only keeps it fresh while it stays open.
+  useLivePoll(
+    async (signal) => {
+      if (!(await load(signal, true))) throw new Error('poll failed')
+    },
+    { enabled: signedIn, readOnFocus: false, resetKey: userId },
   )
 
   const retry = () => {

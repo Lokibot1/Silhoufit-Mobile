@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { awaitsPayment, cancelOrder, createCheckoutSession, createOrder, quoteShipping, fetchAllOrders, fetchOrder, fetchOrdersPage, matchesTab, ORDER_TABS, orderTimeline, tabCounts, trackingLink, orderUpdates, paymentLabel, shipmentLabel, statusLabel, toOrder, toOrdersPage } from '../orders'
+import { awaitsPayment, cancelOrder, isClosed, orderSignature, ordersSignature, createCheckoutSession, createOrder, quoteShipping, fetchAllOrders, fetchOrder, fetchOrdersPage, matchesTab, ORDER_TABS, orderTimeline, tabCounts, trackingLink, orderUpdates, paymentLabel, shipmentLabel, statusLabel, toOrder, toOrdersPage } from '../orders'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -269,5 +269,19 @@ describe('createOrder', () => {
   it('rejects a malformed order', async () => {
     mockRequest.mockResolvedValue({})
     await expect(createOrder({ addressId: 'a1', cartItemIds: ['c1'] })).rejects.toMatchObject({ kind: 'server' })
+  })
+})
+
+describe('live poll helpers', () => {
+  it.each([['DELIVERED', true], ['CANCELLED', true], ['REFUNDED', true], ['PAID', false], ['PENDING_PAYMENT', false], ['MYSTERY', false]])('isClosed(%s) is %s', (status, closed) => {
+    expect(isClosed({ status })).toBe(closed)
+  })
+  it('a signature changes with what a customer sees, not with a fresh copy of the same order', () => {
+    const base = toOrder(raw())
+    expect(orderSignature(toOrder(raw()))).toBe(orderSignature(base))
+    expect(orderSignature(toOrder(raw({ status: 'PAID', paymentStatus: 'PAID' })))).not.toBe(orderSignature(base))
+    expect(orderSignature(toOrder(raw({ shipment: { status: 'ON_GOING', pickupTime: null, deliveredAt: null, trackingUrl: null } })))).not.toBe(orderSignature(base))
+    expect(ordersSignature([base, base])).toBe(ordersSignature([toOrder(raw()), toOrder(raw())]))
+    expect(ordersSignature([base])).not.toBe(ordersSignature([base, base]))
   })
 })

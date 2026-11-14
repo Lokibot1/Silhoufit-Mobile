@@ -5,10 +5,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { awaitsPayment, cancelOrder, createCheckoutSession, fetchOrder, orderTimeline, paymentLabel, shipmentLabel, statusLabel, type Order, type OrderItem } from '@/api/orders'
+import { awaitsPayment, cancelOrder, createCheckoutSession, fetchOrder, isClosed, orderSignature, orderTimeline, paymentLabel, shipmentLabel, statusLabel, type Order, type OrderItem } from '@/api/orders'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { dateTime, peso } from '@/lib/format'
+import { useLivePoll } from '@/lib/useLivePoll'
 import { useRequest } from '@/lib/useRequest'
 import { Button } from '@/ui/Button'
 import { Skeleton } from '@/ui/Skeleton'
@@ -147,6 +148,9 @@ function DetailSkeleton() {
   )
 }
 
+const STUCK_MS = 15_000 // a pay-return flag this old is stale
+const RELOAD_DEDUPE_MS = 3000
+
 // Needs a session. An order of another account answers 404, which reads as "not found".
 export default function OrderScreen() {
   const { id: raw, pay: autoPay } = useLocalSearchParams<{ id: string | string[]; pay?: string }>()
@@ -159,13 +163,19 @@ export default function OrderScreen() {
     if (!id) return Promise.reject(new ApiError('not-found'))
     return userId ? fetchOrder(id, signal) : new Promise<Order>(() => {}) // no session yet (or none): nothing to ask
   })
+  // A poll's newer copy of `data`; it is dropped as soon as a reload (retry) puts a new `data` on screen.
+  const [fresh, setFresh] = useState<{ base: Order; order: Order } | null>(null)
+  const shown = fresh && fresh.base === data ? fresh.order : data
+  const pollKey = `${userId}:${id}`
+  const [stopped, setStopped] = useState<string | null>(null) // the key whose poll got a 404/403
   const [action, setAction] = useState<'pay' | 'cancel' | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const latest = useRef({ toast, signOut, retry })
   const busy = useRef(false)
   const asking = useRef(false)
   const opening = useRef(false)
-  const returning = useRef(false)
+  const returning = useRef(0) // when Pay Now opened the browser; 0 = not away
+  const reloadedAt = useRef(0) // when the return reload started
   const expired = useRef(false)
   useEffect(() => {
     latest.current = { toast, signOut, retry }
@@ -186,22 +196,44 @@ export default function OrderScreen() {
     if (lapsed) expire()
   }, [lapsed, expire])
 
+  // Keeps the order current while it is open: paused during pay/cancel (so it cannot clobber the result), stopped once closed.
+  // A failed poll keeps what is on screen; the hook backs off. A poll skips while the shopper is in the payment browser (a short while:
+  // a `returning` flag older than STUCK_MS is dropped, so it cannot silence polling forever) and just after the return reload, whichever
+  // listener runs first. A 404/403 means polling can never succeed: it stops.
+  useLivePoll(
+    async (signal) => {
+      const now = Date.now()
+      if (returning.current && now - returning.current > STUCK_MS) returning.current = 0
+      if (returning.current || now - reloadedAt.current < RELOAD_DEDUPE_MS || !data) return
+      try {
+        const next = await fetchOrder(id, signal)
+        if (!signal.aborted && orderSignature(next) !== orderSignature(shown ?? data)) setFresh({ base: data, order: next })
+      } catch (reason) {
+        if (isExpired(reason)) expire()
+        if (reason instanceof ApiError && (reason.kind === 'not-found' || reason.kind === 'forbidden')) setStopped(pollKey)
+        throw reason
+      }
+    },
+    { enabled: userId !== null && data !== undefined && action === null, done: stopped === pollKey || (shown !== undefined && isClosed(shown)), resetKey: pollKey },
+  )
+
   // The Android browser answers "opened" at once, so the way back is the app becoming active again.
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state !== 'active' || !returning.current) return
-      returning.current = false
+      returning.current = 0
+      reloadedAt.current = Date.now()
       latest.current.retry()
     })
     return () => subscription.remove()
   }, [])
 
-  // A 400/409 means the order moved on (paid, cancelled): the server text names internal statuses, so fixed copy is shown, then reload so the buttons match.
+  // A 400/409 means the order's status changed or is still updating (a payment can take a moment to land): the server text names internal statuses, so fixed copy is shown, then reload so the buttons match.
   function fail(reason: unknown, serverCopy: string) {
     if (isExpired(reason)) return expire()
     if (reason instanceof ApiError && reason.kind === 'not-found') return latest.current.retry()
     if (reason instanceof ApiError && (reason.kind === 'validation' || reason.kind === 'conflict')) {
-      setFailure('This order has already moved on. It may be paid or cancelled, so the details below were refreshed.')
+      setFailure("This order's status changed or is still updating. If you already paid, it can take a moment to show.")
       return latest.current.retry()
     }
     if (reason instanceof ApiError && reason.kind === 'forbidden') return setFailure("This order couldn't be updated. Try again.") // a 403 is not a lapsed session
@@ -228,7 +260,7 @@ export default function OrderScreen() {
       'pay',
       async () => {
         const result = await openBrowserAsync(await createCheckoutSession(id))
-        if (result.type === 'opened') returning.current = true
+        if (result.type === 'opened') returning.current = Date.now()
         else retry() // iOS answers when the browser closes
       },
       "We couldn't get a payment link for this order. Tap Pay Now to try again.",
@@ -303,7 +335,7 @@ export default function OrderScreen() {
         )}
       </View>
     )
-  } else if (data) body = <OrderDetail order={data} action={action} failure={failure} onPay={pay} onCancel={cancel} />
+  } else if (shown) body = <OrderDetail order={shown} action={action} failure={failure} onPay={pay} onCancel={cancel} />
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={{ paddingBottom: insets.bottom + space.xl }}>

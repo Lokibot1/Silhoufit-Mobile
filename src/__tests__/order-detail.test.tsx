@@ -14,6 +14,7 @@ jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn(), setParams: jest.fn(), canGoBack: jest.fn(() => true) },
   Stack: { Screen: ({ options }: { options: { headerLeft?: () => unknown } }) => options.headerLeft?.() ?? null },
   useLocalSearchParams: jest.fn(() => ({ id: 'o1' })),
+  useIsFocused: () => true,
 }))
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
@@ -52,7 +53,7 @@ const pressAlert = async (text: string) => {
   const buttons = alertSpy.mock.calls.at(-1)?.[2] ?? []
   await act(async () => buttons.find((b) => b.text === text)?.onPress?.())
 }
-const MOVED_ON = 'This order has already moved on. It may be paid or cancelled, so the details below were refreshed.'
+const MOVED_ON = "This order's status changed or is still updating. If you already paid, it can take a moment to show."
 const never = () => new Promise(() => {})
 
 beforeEach(() => {
@@ -309,7 +310,7 @@ it('removes the AppState subscription on unmount', async () => {
   await screen.findByTestId('order-detail')
   expect(remove).not.toHaveBeenCalled()
   await view.unmount()
-  expect(remove).toHaveBeenCalledTimes(1)
+  expect(remove).toHaveBeenCalledTimes(2) // the screen's and the poll's
 })
 
 describe('other states', () => {
@@ -407,5 +408,162 @@ describe('pay=1 from checkout', () => {
     await screen.findByTestId('order-pay-now')
     expect(api.createCheckoutSession).not.toHaveBeenCalled()
     expect(router.setParams).not.toHaveBeenCalled()
+  })
+})
+
+describe('live polling', () => {
+  const POLL = 20_000
+  const MAX_POLL = 120_000
+  const tick = (ms: number) => act(async () => void (await jest.advanceTimersByTimeAsync(ms)))
+  const open = async () => {
+    await render(<OrderScreen />)
+    await act(async () => {})
+  }
+  beforeEach(() => {
+    jest.useFakeTimers()
+    jest.spyOn(Math, 'random').mockReturnValue(0.5)
+  })
+  afterEach(() => jest.useRealTimers())
+
+  it('shows a new status in place without the skeleton, and the actions follow it', async () => {
+    api.fetchOrder.mockResolvedValueOnce(order()).mockResolvedValue(paid())
+    await open()
+    expect(screen.getByTestId('order-pay-now')).toBeTruthy()
+    await tick(POLL)
+    expect(api.fetchOrder).toHaveBeenCalledTimes(2)
+    expect(api.fetchOrder).toHaveBeenLastCalledWith('o1', expect.any(AbortSignal))
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.getByTestId('order-status')).toHaveTextContent('Paid')
+    expect(screen.queryByTestId('order-pay-now')).toBeNull()
+  })
+
+  it('stops once the order is closed', async () => {
+    api.fetchOrder.mockResolvedValueOnce(paid()).mockResolvedValue(paid({ status: 'DELIVERED' }))
+    await open()
+    await tick(POLL)
+    expect(screen.getByTestId('order-status')).toHaveTextContent('Delivered')
+    await tick(10 * POLL)
+    expect(api.fetchOrder).toHaveBeenCalledTimes(2)
+  })
+
+  it('never polls an order that is already closed', async () => {
+    api.fetchOrder.mockResolvedValue(order({ status: 'CANCELLED' }))
+    await open()
+    await tick(10 * POLL)
+    expect(api.fetchOrder).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the order on screen when a poll fails, backs off, and recovers', async () => {
+    api.fetchOrder.mockResolvedValueOnce(order()).mockRejectedValueOnce(new ApiError('network')).mockResolvedValue(paid())
+    await open()
+    await tick(POLL)
+    expect(screen.getByTestId('order-detail')).toBeTruthy()
+    expect(screen.queryByTestId('order-retry')).toBeNull()
+    expect(mockToast).not.toHaveBeenCalled()
+    await tick(POLL) // the wait doubled to 40 s
+    expect(api.fetchOrder).toHaveBeenCalledTimes(2)
+    await tick(POLL)
+    expect(screen.getByTestId('order-status')).toHaveTextContent('Paid')
+  })
+
+  it('a 401 on a poll signs out once', async () => {
+    api.fetchOrder.mockResolvedValueOnce(order()).mockRejectedValue(new ApiError('forbidden', undefined, 401))
+    await open()
+    await tick(POLL)
+    expect(mockSignOut).toHaveBeenCalledTimes(1)
+    expect(mockToast).toHaveBeenCalledWith('Your session has expired. Sign in again.')
+  })
+
+  it('does not re-render for an identical copy', async () => {
+    api.fetchOrder.mockImplementation(() => Promise.resolve(order()))
+    await open()
+    const before = screen.getByTestId('order-detail')
+    await tick(POLL)
+    expect(api.fetchOrder).toHaveBeenCalledTimes(2)
+    expect(screen.getByTestId('order-detail')).toBe(before)
+  })
+
+  it('is paused while Cancel Order is in flight, so a poll cannot clobber the result', async () => {
+    let done: () => void = () => {}
+    api.fetchOrder.mockResolvedValueOnce(order()).mockResolvedValue(order({ status: 'CANCELLED' }))
+    api.cancelOrder.mockReturnValue(new Promise<void>((r) => (done = r)))
+    await open()
+    await fireEvent.press(screen.getByTestId('order-cancel'))
+    await pressAlert('Cancel Order')
+    await tick(5 * POLL)
+    expect(api.fetchOrder).toHaveBeenCalledTimes(1)
+    await act(async () => done())
+    expect(screen.getByTestId('order-status')).toHaveTextContent('Cancelled')
+  })
+
+  it('is paused while the payment link is being fetched', async () => {
+    api.fetchOrder.mockResolvedValue(order())
+    api.createCheckoutSession.mockReturnValue(new Promise(() => {}))
+    await open()
+    await act(async () => void fireEvent.press(screen.getByTestId('order-pay-now')))
+    await tick(5 * POLL)
+    expect(api.fetchOrder).toHaveBeenCalledTimes(1)
+  })
+
+  it('on return from payment the reload is the only read, not the poll as well', async () => {
+    api.fetchOrder.mockResolvedValueOnce(order()).mockResolvedValue(paid())
+    api.createCheckoutSession.mockResolvedValue('https://pay.test/c/1')
+    mockOpen.mockResolvedValue({ type: 'opened' })
+    await open()
+    await fireEvent.press(screen.getByTestId('order-pay-now'))
+    await act(async () => {})
+    const handlers = appState.mock.calls.map((call) => call[1] as (state: string) => void)
+    await act(async () => handlers.forEach((onChange) => onChange('active')))
+    await act(async () => {})
+    expect(api.fetchOrder).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the return reload the only read whichever listener runs first', async () => {
+    api.fetchOrder.mockResolvedValueOnce(order()).mockResolvedValue(paid())
+    api.createCheckoutSession.mockResolvedValue('https://pay.test/c/1')
+    mockOpen.mockResolvedValue({ type: 'opened' })
+    await open()
+    await fireEvent.press(screen.getByTestId('order-pay-now'))
+    await act(async () => {})
+    const handlers = appState.mock.calls.map((call) => call[1] as (state: string) => void)
+    await act(async () => [...handlers].reverse().forEach((onChange) => onChange('active')))
+    await act(async () => {})
+    expect(api.fetchOrder).toHaveBeenCalledTimes(2)
+  })
+
+  it('resumes polling when the payment browser never reports a return', async () => {
+    api.fetchOrder.mockResolvedValueOnce(order()).mockResolvedValue(paid())
+    api.createCheckoutSession.mockResolvedValue('https://pay.test/c/1')
+    mockOpen.mockResolvedValue({ type: 'opened' })
+    await open()
+    await fireEvent.press(screen.getByTestId('order-pay-now'))
+    await act(async () => {})
+    await tick(POLL) // the flag is 20 s old: stale, so this poll reads
+    expect(api.fetchOrder).toHaveBeenCalledTimes(2)
+    expect(screen.getByTestId('order-status')).toHaveTextContent('Paid')
+  })
+
+  it.each([
+    ['404', new ApiError('not-found', undefined, 404)],
+    ['403', new ApiError('forbidden', undefined, 403)],
+  ])('stops polling for good after a %s', async (_, failure) => {
+    api.fetchOrder.mockResolvedValueOnce(order()).mockRejectedValue(failure)
+    await open()
+    await tick(POLL)
+    expect(api.fetchOrder).toHaveBeenCalledTimes(2)
+    await tick(10 * MAX_POLL)
+    expect(api.fetchOrder).toHaveBeenCalledTimes(2)
+    expect(mockSignOut).not.toHaveBeenCalled()
+  })
+
+  it('pauses in the background and reads once on return', async () => {
+    api.fetchOrder.mockResolvedValue(order())
+    await open()
+    const handlers = appState.mock.calls.map((call) => call[1] as (state: string) => void)
+    await act(async () => handlers.forEach((onChange) => onChange('background')))
+    await tick(5 * POLL)
+    expect(api.fetchOrder).toHaveBeenCalledTimes(1)
+    await act(async () => handlers.forEach((onChange) => onChange('active')))
+    expect(api.fetchOrder).toHaveBeenCalledTimes(2)
   })
 })

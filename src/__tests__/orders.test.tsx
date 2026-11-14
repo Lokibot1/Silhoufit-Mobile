@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { AppState } from 'react-native'
 
 import { ApiError } from '@/lib/api'
 import OrdersScreen from '../app/(tabs)/orders'
@@ -10,6 +11,7 @@ jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn() },
   useLocalSearchParams: () => mockParams,
+  useIsFocused: () => mockFocused.on,
   useFocusEffect: (effect: () => void | (() => void)) => {
     mockFocus.current = effect
     // Like the real hook: re-runs only while the screen is focused, never for an unfocused tab.
@@ -22,6 +24,11 @@ const mockParams: { tab?: string; nav?: string } = {}
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
 jest.mock('expo-image', () => ({ Image: () => null }))
 jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
+jest.mock('@/ui/StatusChip', () => {
+  const actual = jest.requireActual('@/ui/StatusChip')
+  return { ...actual, StatusChip: (props: object) => (mockChipRenders(), actual.StatusChip(props)) }
+})
+const mockChipRenders = jest.fn()
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
 const mockToast = jest.fn()
 const api = jest.requireMock('@/api/orders')
@@ -52,8 +59,20 @@ const order = (id: string, over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
+let onAppState: (state: string) => void = () => {}
+const setApp = (state: string) =>
+  act(async () => {
+    Object.defineProperty(AppState, 'currentState', { value: state, configurable: true })
+    onAppState(state)
+  })
+
 beforeEach(() => {
   jest.resetAllMocks()
+  jest.spyOn(AppState, 'addEventListener').mockImplementation(((_: string, handler: (state: string) => void) => {
+    onAppState = handler
+    return { remove: jest.fn() }
+  }) as never)
+  Object.defineProperty(AppState, 'currentState', { value: 'active', configurable: true })
   mockFocused.on = true
   delete mockParams.tab
   delete mockParams.nav
@@ -324,4 +343,137 @@ it('switching straight from account A to B never shows A rows, not even for one 
   await view.rerender(<OrdersScreen />)
   expect(screen.queryByTestId('order-row-a')).toBeNull()
   expect(screen.getByRole('progressbar')).toBeTruthy()
+})
+
+describe('live polling', () => {
+  const POLL = 20_000
+  const tick = (ms: number) => act(async () => void (await jest.advanceTimersByTimeAsync(ms)))
+  const open = async () => {
+    const view = await render(<OrdersScreen />)
+    await act(async () => {})
+    return view
+  }
+  beforeEach(() => {
+    jest.useFakeTimers()
+    jest.spyOn(Math, 'random').mockReturnValue(0.5)
+  })
+  afterEach(() => jest.useRealTimers())
+
+  it('a poll shows a changed status in place, without the skeleton, and keeps the selected tab', async () => {
+    api.fetchAllOrders.mockResolvedValueOnce([order('a'), order('b', { status: 'DELIVERED', paymentStatus: 'PAID' })]).mockResolvedValue([order('a', { status: 'PAID', paymentStatus: 'PAID' }), order('b', { status: 'DELIVERED', paymentStatus: 'PAID' })])
+    await open()
+    await fireEvent.press(screen.getByTestId('orders-tab-to-pay'))
+    expect(screen.getAllByTestId(/^order-row-/)).toHaveLength(1)
+    await tick(POLL)
+    expect(api.fetchAllOrders).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.getByText('To pay (0)')).toBeTruthy()
+    expect(screen.getByTestId('orders-tab-to-pay').props.accessibilityState).toMatchObject({ selected: true })
+    expect(screen.queryByTestId('order-row-a')).toBeNull() // the tab filter now excludes it
+    await fireEvent.press(screen.getByTestId('orders-tab-all'))
+    expect(screen.getByTestId('order-row-a')).toHaveTextContent(/Paid/)
+  })
+
+  it('a poll that finds the same orders does not re-render the rows', async () => {
+    api.fetchAllOrders.mockImplementation(() => Promise.resolve([order('a'), order('b')]))
+    await open()
+    mockChipRenders.mockClear()
+    await tick(POLL)
+    expect(api.fetchAllOrders).toHaveBeenCalledTimes(2)
+    expect(mockChipRenders).not.toHaveBeenCalled()
+    expect(mockToast).not.toHaveBeenCalled()
+  })
+
+  it('a failed poll keeps the rows with no toast and backs off; a later success recovers', async () => {
+    api.fetchAllOrders.mockResolvedValueOnce([order('a')]).mockRejectedValueOnce(new ApiError('network')).mockResolvedValue([order('a'), order('b')])
+    await open()
+    await tick(POLL)
+    expect(api.fetchAllOrders).toHaveBeenCalledTimes(2)
+    expect(screen.getByTestId('order-row-a')).toBeTruthy()
+    expect(mockToast).not.toHaveBeenCalled()
+    await tick(POLL) // the wait doubled to 40 s
+    expect(api.fetchAllOrders).toHaveBeenCalledTimes(2)
+    await tick(POLL)
+    expect(api.fetchAllOrders).toHaveBeenCalledTimes(3)
+    expect(screen.getByTestId('order-row-b')).toBeTruthy()
+  })
+
+  it('a 401 on a poll signs out once and never polls again', async () => {
+    api.fetchAllOrders.mockResolvedValueOnce([order('a')]).mockRejectedValue(new ApiError('forbidden', undefined, 401))
+    const view = await open()
+    await tick(POLL)
+    mockUseSession.mockReturnValue(signedOut) // what signOut does
+    await view.rerender(<OrdersScreen />)
+    await tick(10 * POLL)
+    expect(mockSignOut).toHaveBeenCalledTimes(1)
+    expect(mockToast).toHaveBeenCalledTimes(1)
+    expect(mockToast).toHaveBeenCalledWith('Your session has expired. Sign in again.')
+    expect(api.fetchAllOrders).toHaveBeenCalledTimes(2)
+  })
+
+  it('shares one request with a read already in flight, so a poll never doubles the focus reload', async () => {
+    let resolve: (rows: unknown) => void = () => {}
+    api.fetchAllOrders.mockReturnValue(new Promise((r) => (resolve = r)))
+    await open()
+    await tick(5 * POLL)
+    expect(api.fetchAllOrders).toHaveBeenCalledTimes(1)
+    await act(async () => resolve([order('a')]))
+    expect(screen.getByTestId('order-row-a')).toBeTruthy()
+  })
+
+  it("a pull-to-refresh started during a quiet poll is not swallowed when the poll is aborted", async () => {
+    let finish: (rows: unknown) => void = () => {}
+    api.fetchAllOrders
+      .mockResolvedValueOnce([order('a')])
+      .mockReturnValueOnce(new Promise(() => {})) // the poll
+      .mockReturnValueOnce(new Promise((r) => (finish = r))) // the refresh
+    await open()
+    await tick(POLL)
+    await act(async () => screen.getByTestId('orders-list').props.onRefresh())
+    expect(api.fetchAllOrders).toHaveBeenCalledTimes(3)
+    expect(screen.getByTestId('orders-list').props.refreshing).toBe(true)
+    await setApp('background') // aborts the poll
+    await act(async () => finish([order('a'), order('b')]))
+    expect(screen.getByTestId('order-row-b')).toBeTruthy()
+    expect(screen.getByTestId('orders-list').props.refreshing).toBe(false)
+  })
+
+  it('a failed refresh that replaced a poll still toasts', async () => {
+    let fail: (reason: unknown) => void = () => {}
+    api.fetchAllOrders
+      .mockResolvedValueOnce([order('a')])
+      .mockReturnValueOnce(new Promise(() => {}))
+      .mockReturnValueOnce(new Promise((_, r) => (fail = r)))
+    await open()
+    await tick(POLL)
+    await act(async () => screen.getByTestId('orders-list').props.onRefresh())
+    await act(async () => fail(new ApiError('network')))
+    expect(mockToast).toHaveBeenCalledWith("Can't reach the server. Check your connection and try again.")
+    expect(screen.getByTestId('orders-list').props.refreshing).toBe(false)
+  })
+
+  it('keeps polling after every order is closed (new orders can still appear)', async () => {
+    api.fetchAllOrders.mockResolvedValue([order('a', { status: 'DELIVERED', paymentStatus: 'PAID' })])
+    await open()
+    await tick(POLL)
+    await tick(POLL)
+    expect(api.fetchAllOrders).toHaveBeenCalledTimes(3)
+  })
+
+  it('pauses in the background and while the tab is unfocused, and reads once on return to the app', async () => {
+    api.fetchAllOrders.mockResolvedValue([order('a')])
+    await open()
+    await setApp('background')
+    await tick(5 * POLL)
+    expect(api.fetchAllOrders).toHaveBeenCalledTimes(1)
+    await setApp('active')
+    expect(api.fetchAllOrders).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not poll while signed out', async () => {
+    mockUseSession.mockReturnValue(signedOut)
+    await open()
+    await tick(5 * POLL)
+    expect(api.fetchAllOrders).not.toHaveBeenCalled()
+  })
 })
