@@ -9,6 +9,8 @@ export const color = {
   paper: '#FFFBFD',
 }
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 }
+// Two radii only: soft tiles and cards, and pills for chips and the search field.
+export const radius = { soft: 8, pill: 999 }
 export const hairline = { borderWidth: 1, borderColor: color.porcelain }
 // Fonts: Poppins for all UI (caps headings, body, labels, buttons); Lora Italic only for taglines and quiet asides.
 export const font = {

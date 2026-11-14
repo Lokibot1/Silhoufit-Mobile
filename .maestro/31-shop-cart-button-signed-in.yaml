@@ -1,0 +1,22 @@
+appId: ${APP_ID}
+---
+# Signed in: the Shop cart button opens the Cart tab with the account's bag (rows or the empty state). Read-only on the cart.
+# Needs TEST_EMAIL and TEST_PASSWORD.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: tab-shop
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- tapOn:
+    id: shop-cart
+- extendedWaitUntil:
+    visible:
+      id: 'cart-list|cart-empty-action'
+    timeout: 20000
+- assertNotVisible:
+    id: cart-sign-in
+- assertNotVisible:
+    id: shop-list

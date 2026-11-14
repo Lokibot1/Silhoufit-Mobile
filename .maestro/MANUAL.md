@@ -21,13 +21,15 @@ Not automatable with Maestro (or too flaky). Run on a real Android and iOS devic
 - [ ] Airplane mode on a cold start: Shop shows "Couldn't load the shop" with the reason and Retry (`shop-retry`); Retry works once back online.
 - [ ] Airplane mode while page 2 loads: the loaded items stay and an inline "Couldn't load more pieces" row shows Retry (`shop-load-more-retry`); no endless retry loop.
 - [ ] 320px-wide screen: two columns fit with no horizontal scroll; the skeleton cards match the real cards with no jump.
-- [ ] Very long product names wrap to two lines then clip; prices stay right-aligned and never overlap the "Only N left" or rating text.
+- [ ] Very long product names wrap to two lines then clip; prices stay left-aligned under the name and never overlap the stock badge on the photo or the rating text.
 - [ ] A product with a broken or missing photo shows its name on a Porcelain tile, never a broken-image square.
 - [ ] Typing quickly in the search field sends one request after you pause (about 300 ms); stale results never replace newer ones.
 - [ ] TalkBack and VoiceOver: each card reads name, price, stock and rating; the search field, Clear search and Retry buttons are labelled.
 - [ ] Slow network on a cold start: the six skeleton cards show (progressbar "Loading"), then real cards replace them with no layout shift.
 - [ ] Remote product photos load and cache (expo-image); with the photo host blocked the card falls back to the name tile.
 - [ ] Empty catalogue (no active products): Shop shows "No pieces yet" with a Refresh button (`shop-empty-action`); it cannot be automated without an empty backend.
+- [ ] A category with no active products: Shop shows "No <category> pieces yet" with Show All (`shop-empty-action`), which restores the full list. Needs a category in `GET /products/filters` with no products, so it is not in Maestro.
+- [ ] Header stays pinned (search, cart button, chips, sort) while the list scrolls; the cart badge shows the item count when signed in and a bag has pieces, and reads "Cart, N items" in TalkBack/VoiceOver.
 - [ ] Scroll to load more (page 2+): data-dependent (needs more than 12 products), so not in Maestro. Check `shop-count` against the cards scrolled.
 - [ ] Keyboard open while searching: the Clear search button stays tappable and the keyboard does not hide results you tap (`keyboardShouldPersistTaps`).
 

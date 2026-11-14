@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { fetchProduct, fetchProducts, toProduct, toProductPage } from '../products'
+import { fetchProduct, fetchProducts, toCategories, toProduct, toProductPage } from '../products'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -123,4 +123,21 @@ describe('fetchProduct', () => {
     mockRequest.mockRejectedValue(new ApiError('not-found', undefined, 404))
     await expect(fetchProduct('x')).rejects.toMatchObject({ kind: 'not-found' })
   })
+})
+
+it('sends category and price sort to the API', async () => {
+  mockRequest.mockResolvedValue({ data: [], meta: { total: 0 } })
+  await fetchProducts({ category: 'Hoodie', sortBy: 'price', sortOrder: 'desc', page: 1, limit: 12 })
+  expect(mockRequest.mock.calls.at(-1)?.[1]).toBe('/products?page=1&limit=12&category=Hoodie&sortBy=price&sortOrder=desc')
+})
+
+it('keeps only categories that have products', () => {
+  expect(toCategories({ categories: [{ name: 'Hoodie', count: 2 }, { name: 'Pants', count: 0 }] })).toEqual(['Hoodie'])
+  expect(() => toCategories({})).toThrow(ApiError)
+})
+
+it('toCategories drops names that are blank or counted 0, and rejects a bad body', () => {
+  expect(toCategories({ categories: [{ name: '', count: 3 }, { name: 'Pants', count: 0 }, { name: 'Shirt', count: '2' }] })).toEqual([])
+  expect(() => toCategories(null)).toThrow(ApiError)
+  expect(() => toCategories({ categories: 'x' })).toThrow(ApiError)
 })

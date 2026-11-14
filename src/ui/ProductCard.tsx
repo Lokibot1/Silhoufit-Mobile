@@ -1,14 +1,16 @@
 import { Image } from 'expo-image'
 import { useState } from 'react'
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 
 import type { ProductListItem } from '@/api/products'
 import { peso } from '@/lib/format'
+import { PressableScale } from './PressableScale'
 import { Skeleton } from './Skeleton'
-import { color, space, type } from './theme'
+import { color, font, radius, space, type } from './theme'
 
 const LOW_STOCK = 5
 const NAME_HEIGHT = 40 // two lines of 20
+const PRICE_HEIGHT = 24
 const ROW_HEIGHT = 20
 const FONT_CAP = 1.3 // keeps the fixed name and row heights in step with the skeleton
 
@@ -37,7 +39,7 @@ export function ProductCard({ item, onPress }: { item: ProductListItem; onPress?
   const summary = [item.name, price, stock, rated && `rated ${item.rating?.toFixed(1)} from ${item.reviewCount} reviews`].filter(Boolean).join(', ')
 
   return (
-    <Pressable
+    <PressableScale
       testID={`shop-card-${item.id}`}
       accessible
       accessibilityRole={onPress ? 'button' : undefined}
@@ -46,18 +48,22 @@ export function ProductCard({ item, onPress }: { item: ProductListItem; onPress?
       style={[styles.card, { width }]}>
       <View style={[styles.tile, { height: (width * 4) / 3 }]}>
         {item.imageUrl && failedUrl !== item.imageUrl ? (
-          <Image testID={`shop-card-${item.id}-image`} source={{ uri: item.imageUrl }} accessible={false} contentFit="cover" onError={() => setFailedUrl(item.imageUrl)} style={styles.fill} />
+          <Image testID={`shop-card-${item.id}-image`} source={{ uri: item.imageUrl }} accessible={false} contentFit="cover" transition={200} onError={() => setFailedUrl(item.imageUrl)} style={styles.fill} />
         ) : (
           <View style={[styles.fill, styles.fallback]}>
             <Text numberOfLines={3} style={styles.fallbackText}>{item.name}</Text>
           </View>
         )}
+        {stock && (
+          <View style={styles.badge}>
+            <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} style={[styles.badgeText, stock === 'Sold out' && styles.soldOut]}>{stock}</Text>
+          </View>
+        )}
       </View>
       <Text numberOfLines={2} maxFontSizeMultiplier={FONT_CAP} style={styles.name}>{item.name}</Text>
-      <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} style={styles.price}>{price}</Text>
-      <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} style={[styles.stock, stock === 'Sold out' && styles.soldOut]}>{stock}</Text>
+      <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} style={[styles.price, stock === 'Sold out' && styles.soldOut]}>{price}</Text>
       <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} style={styles.rating}>{rated ? `★ ${item.rating?.toFixed(1)} (${item.reviewCount})` : ''}</Text>
-    </Pressable>
+    </PressableScale>
   )
 }
 
@@ -65,24 +71,29 @@ export function ProductCardSkeleton() {
   const width = useCardWidth()
   return (
     <View style={[styles.card, { width }]}>
-      <Skeleton height={(width * 4) / 3} />
-      <Skeleton height={NAME_HEIGHT} />
-      <Skeleton height={ROW_HEIGHT} />
-      <Skeleton height={ROW_HEIGHT} />
-      <Skeleton height={ROW_HEIGHT} />
+      <Skeleton height={(width * 4) / 3} radius={radius.soft} />
+      <View style={styles.nameSkeleton}>
+        <Skeleton height={16} radius={radius.soft} />
+        <Skeleton width="60%" height={16} radius={radius.soft} />
+      </View>
+      <Skeleton width="50%" height={PRICE_HEIGHT} radius={radius.soft} />
+      <Skeleton width="35%" height={ROW_HEIGHT} radius={radius.soft} />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  card: { gap: space.xs },
-  tile: { backgroundColor: color.porcelain },
+  card: { gap: space.sm },
+  tile: { backgroundColor: color.porcelain, borderRadius: radius.soft, overflow: 'hidden' },
   fill: { width: '100%', height: '100%' },
   fallback: { alignItems: 'center', justifyContent: 'center', padding: space.md },
   fallbackText: { ...type.label, textAlign: 'center' },
-  name: { ...type.label, height: NAME_HEIGHT },
-  price: { ...type.body, ...type.numeric, fontSize: 14, lineHeight: ROW_HEIGHT, textAlign: 'right', minHeight: ROW_HEIGHT },
-  stock: { ...type.small, color: color.red, minHeight: ROW_HEIGHT },
+  badge: { position: 'absolute', left: space.sm, bottom: space.sm, maxWidth: '90%', paddingHorizontal: space.sm, borderRadius: radius.pill, backgroundColor: color.paper },
+  badgeText: { fontFamily: font.medium, fontSize: 14, lineHeight: 20, color: color.red },
+  name: { fontFamily: font.regular, fontSize: 14, lineHeight: 20, color: color.obsidian, height: NAME_HEIGHT },
+  nameSkeleton: { height: NAME_HEIGHT, justifyContent: 'space-between' },
+  // Left-aligned under the name: in a two-column grid the price reads with its own product, not as a column to compare.
+  price: { fontFamily: font.bold, fontSize: 16, lineHeight: PRICE_HEIGHT, color: color.red, ...type.numeric, minHeight: PRICE_HEIGHT },
   soldOut: { color: color.graphite },
-  rating: { ...type.small, ...type.numeric, color: color.graphite, textAlign: 'right', minHeight: ROW_HEIGHT },
+  rating: { ...type.small, ...type.numeric, color: color.graphite, minHeight: ROW_HEIGHT },
 })

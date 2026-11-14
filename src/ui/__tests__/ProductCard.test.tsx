@@ -4,6 +4,7 @@ import type { ProductListItem } from '@/api/products'
 import { ProductCard } from '../ProductCard'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
+jest.mock('../PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
 jest.mock('../Skeleton', () => ({ Skeleton: () => null }))
 
 const base: ProductListItem = { id: 'p1', name: 'Linen Shirt', minPrice: 1250, maxPrice: 1250, totalStock: 20, imageUrl: 'https://x.test/a.jpg', rating: null, reviewCount: 0 }

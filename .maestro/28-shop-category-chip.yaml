@@ -1,0 +1,70 @@
+appId: ${APP_ID}
+---
+# Needs a dev backend where GET /products/filters returns at least one category and there is at least one active product.
+# Chip ids are shop-category-<name>; "all" is always present, so the regex skips it to pick the first real category.
+- runFlow: subflows/launch.yaml
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: 'shop-category-(?!all$).+'
+    timeout: 10000
+- assertVisible:
+    id: shop-category-all
+    selected: true
+- copyTextFrom:
+    id: shop-count
+# Tap a category: it becomes selected, All is not, and the list or the empty state returns for it.
+- tapOn:
+    id: 'shop-category-(?!all$).+'
+- extendedWaitUntil:
+    visible:
+      id: 'shop-list|shop-empty'
+    timeout: 15000
+- assertVisible:
+    id: shop-count
+- assertVisible:
+    id: shop-category-all
+    selected: false
+# Search with a category picked: the search empty state wins, and its action ("Clear Search") also resets the category.
+- tapOn:
+    id: shop-search
+- inputText: zzqxjkvv
+- extendedWaitUntil:
+    visible:
+      id: shop-empty
+    timeout: 10000
+- assertVisible: No pieces match "zzqxjkvv"
+- tapOn:
+    id: shop-empty-action
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertVisible:
+    id: shop-category-all
+    selected: true
+- assertVisible: ${maestro.copiedText}
+# Pick a category again, then All restores the full catalogue and the original count.
+- tapOn:
+    id: 'shop-category-(?!all$).+'
+- extendedWaitUntil:
+    visible:
+      id: 'shop-list|shop-empty'
+    timeout: 15000
+- tapOn:
+    id: shop-category-all
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertNotVisible:
+    id: shop-empty
+- assertVisible:
+    id: shop-category-all
+    selected: true
+- assertVisible:
+    id: 'shop-card-(?!.*-image$).+'
+- assertVisible: ${maestro.copiedText}

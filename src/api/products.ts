@@ -94,9 +94,25 @@ export async function fetchProduct(id: string, signal?: AbortSignal): Promise<Pr
   }
 }
 
-/** GET /products (public: no sign-in needed). An abort rejects with the AbortError itself. */
-export async function fetchProducts({ search, page, limit }: { search?: string; page: number; limit: number }, signal?: AbortSignal): Promise<ProductPage> {
+export type ProductSort = { sortBy?: 'price'; sortOrder?: 'asc' | 'desc' }
+type ProductQuery = ProductSort & { search?: string; category?: string; page: number; limit: number }
+
+/** GET /products (public: no sign-in needed). An abort rejects with the AbortError itself. Without a sort the API answers newest first. */
+export async function fetchProducts({ search, category, sortBy, sortOrder, page, limit }: ProductQuery, signal?: AbortSignal): Promise<ProductPage> {
   const query = [`page=${page}`, `limit=${limit}`]
   if (search?.trim()) query.push(`search=${encodeURIComponent(search.trim())}`)
+  if (category) query.push(`category=${encodeURIComponent(category)}`)
+  if (sortBy) query.push(`sortBy=${sortBy}`, `sortOrder=${sortOrder ?? 'asc'}`)
   return toProductPage(await request('GET', `/products?${query.join('&')}`, undefined, signal, { auth: false }), page)
+}
+
+/** The categories that have at least one product, from a GET /products/filters body. */
+export function toCategories(body: unknown): string[] {
+  if (!isRecord(body) || !Array.isArray(body.categories)) throw new ApiError('server')
+  return body.categories.filter(isRecord).filter((category) => str(category.name) && isNum(category.count) && category.count > 0).map((category) => category.name as string)
+}
+
+/** GET /products/filters (public: no sign-in needed). */
+export async function fetchCategories(signal?: AbortSignal): Promise<string[]> {
+  return toCategories(await request('GET', '/products/filters', undefined, signal, { auth: false }))
 }

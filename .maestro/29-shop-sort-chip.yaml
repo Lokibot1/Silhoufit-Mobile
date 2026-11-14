@@ -1,0 +1,48 @@
+appId: ${APP_ID}
+---
+# Needs a dev backend with at least one active product.
+# One chip cycles Newest -> Price: low to high -> Price: high to low -> Newest. Its accessibility label is
+# "Sort by <option>. Tap to change." and its text is the option, so a wrapped regex matches either on both platforms.
+- runFlow: subflows/launch.yaml
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertVisible: '(?i).*Newest.*'
+- tapOn:
+    id: shop-sort
+- extendedWaitUntil:
+    visible: '(?i).*Price: low to high.*'
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertNotVisible: '(?i).*Newest.*'
+- assertVisible:
+    id: 'shop-card-(?!.*-image$).+'
+- tapOn:
+    id: shop-sort
+- extendedWaitUntil:
+    visible: '(?i).*Price: high to low.*'
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertNotVisible: '(?i).*Price: low to high.*'
+- assertVisible:
+    id: 'shop-card-(?!.*-image$).+'
+# Third tap wraps back to the default.
+- tapOn:
+    id: shop-sort
+- extendedWaitUntil:
+    visible: '(?i).*Newest.*'
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertNotVisible: '(?i).*Price: high to low.*'
+- assertVisible:
+    id: 'shop-card-(?!.*-image$).+'
