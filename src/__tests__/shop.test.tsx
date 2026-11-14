@@ -5,10 +5,12 @@ import Shop from '../app/(tabs)/index'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/api/products', () => ({ fetchProducts: jest.fn() }))
+jest.mock('expo-router', () => ({ router: { push: jest.fn() }, useFocusEffect: jest.fn() }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
 const mockToast = jest.fn()
 const mockFetch: jest.Mock = jest.requireMock('@/api/products').fetchProducts
+const mockPush: jest.Mock = jest.requireMock('expo-router').router.push
 
 const item = (id: string) => ({ id, name: `Piece ${id}`, minPrice: 1250, maxPrice: 1250, totalStock: 10, imageUrl: null, rating: null, reviewCount: 0 })
 const page = (ids: string[], hasNextPage = false, total = ids.length) => ({ items: ids.map(item), total, page: 1, hasNextPage })
@@ -33,6 +35,16 @@ it('lists products for a signed-out visitor with no sign-in UI', async () => {
   expect(screen.getByTestId('shop-list')).toBeTruthy()
   expect(screen.getByText('2 pieces')).toBeTruthy()
   expect(screen.queryByText(/sign in/i)).toBeNull()
+})
+
+it('pushes the product route once on a double tap', async () => {
+  mockFetch.mockResolvedValue(page(['a']))
+  await render(<Shop />)
+  const card = await screen.findByTestId('shop-card-a')
+  await fireEvent.press(card)
+  await fireEvent.press(card)
+  expect(mockPush).toHaveBeenCalledTimes(1)
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/product/[id]', params: { id: 'a' } })
 })
 
 it('shows the first-page error with a Retry that refetches', async () => {

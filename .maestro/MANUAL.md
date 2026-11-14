@@ -30,3 +30,20 @@ Not automatable with Maestro (or too flaky). Run on a real Android and iOS devic
 - [ ] Empty catalogue (no active products): Shop shows "No pieces yet" with a Refresh button (`shop-empty-action`); it cannot be automated without an empty backend.
 - [ ] Scroll to load more (page 2+): data-dependent (needs more than 12 products), so not in Maestro. Check `shop-count` against the cards scrolled.
 - [ ] Keyboard open while searching: the Clear search button stays tappable and the keyboard does not hide results you tap (`keyboardShouldPersistTaps`).
+
+## Product page
+- [ ] Swipe the gallery: it pages one photo at a time and the "1 / 4" counter follows. A single-photo product shows no counter; a product with no photos shows its name on a Porcelain tile.
+- [ ] A product with a broken photo URL (or the photo host blocked) shows the name tile for that slide, never a broken-image square.
+- [ ] 320px-wide screen: colour swatches and size chips wrap onto new lines, nothing scrolls sideways, a very long product name wraps, and the Add to Cart button clears the bottom edge/gesture bar.
+- [ ] A size that is sold out for the chosen colour is dimmed and cannot be selected (TalkBack/VoiceOver read "Size L, unavailable"). Tapping a selected swatch or chip again clears it.
+- [ ] Add more than the stock allows (needs a product whose stock you can exceed, or one already in the cart): the server's message shows inline above the button, with no toast.
+- [ ] Airplane mode, then open a product: "Couldn't load this piece" with a Retry (`product-retry`); Retry works once back online.
+- [ ] Deep link to a real product from a cold start (no history): the header Back and hardware back go to the Shop or close the app sensibly, never a blank screen or a loop. (The missing-product link is automated in flow 15.)
+- [ ] Signed out: after signing in from Add to Cart the app returns to the same product by itself (no Back needed) with the earlier colour and size still selected (the screen stays mounted under the modal). Flow 14 checks the return and the add, not the retained selection.
+- [ ] Sold-out size for the chosen colour is not selectable: data-dependent (needs a partly sold-out product), so not in Maestro.
+- [ ] Add more than the stock allows needs a variant with stock 1; automating it needs seeded data.
+- [ ] Font scale 200% (Android Font size and Display size, iOS Larger Text): name, chips, price and the Add to Cart label wrap or grow with no clipping or overlap.
+- [ ] Safe area: on a phone with a gesture bar or notch, scroll to the bottom; Add to Cart and the description clear the gesture bar, and the toast does not cover the button.
+- [ ] Product skeleton on a slow network matches the final layout (gallery block, name, price, chips, button) with no jump.
+- [ ] A product with no variants shows "Not available to buy yet" and a disabled Add to Cart.
+- [ ] TalkBack and VoiceOver: photos read "<name>, photo N of M"; swatches read "Colour <name>"; the price and stock lines are readable.

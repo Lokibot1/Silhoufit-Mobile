@@ -8,6 +8,7 @@ import { Text } from 'react-native'
 import { SessionProvider, useSession } from '@/auth/session'
 import { fontAssets } from '@/ui/fonts'
 import { IntroLoader } from '@/ui/IntroLoader'
+import { KralLogo } from '@/ui/KralLogo'
 import { color, type } from '@/ui/theme'
 import { ToastProvider } from '@/ui/toast'
 
@@ -27,6 +28,15 @@ function Gate() {
       <StatusBar style={done ? 'dark' : 'light'} />
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="product/[id]"
+          options={{
+            headerTitle: () => <KralLogo width={72} />,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
         <Stack.Screen
           name="sign-in"
           options={{

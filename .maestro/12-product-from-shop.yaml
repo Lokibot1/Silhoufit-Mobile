@@ -1,0 +1,73 @@
+appId: ${APP_ID}
+---
+# Needs a dev backend with an active product that has stock. The product page is public: no sign-in to open it.
+# Ids are full-string regexes, so `product-size-.+` never matches `product-swatch-...`, and an exact id such as
+# `product-size-S` can not match `product-size-XS`. Generic `.+` is used so colour names with spaces or symbols are safe.
+- runFlow: subflows/launch.yaml
+- extendedWaitUntil:
+    visible:
+      id: 'shop-card-(?!.*-image$).+'
+    timeout: 15000
+- tapOn:
+    id: 'shop-card-(?!.*-image$).+'
+- extendedWaitUntil:
+    visible:
+      id: product-name
+    timeout: 15000
+- assertNotVisible:
+    id: sign-in-submit
+- assertVisible:
+    id: product-gallery
+- assertVisible:
+    id: product-price
+# Hardware back (Android only; Maestro `back` does nothing on iOS) returns to the Shop, then the card is opened again.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+      - extendedWaitUntil:
+          visible:
+            id: shop-list
+          timeout: 10000
+      - tapOn:
+          id: 'shop-card-(?!.*-image$).+'
+      - extendedWaitUntil:
+          visible:
+            id: product-name
+          timeout: 15000
+# Pick the first ENABLED colour and size (sold-out options are disabled and would leave Add to Cart disabled).
+# A single colour or size is preselected; tapping it again only re-derives the same value.
+# Options may sit below the fold, so scroll (bounded) before tapping.
+- scrollUntilVisible:
+    element:
+      id: 'product-swatch-.+'
+    direction: DOWN
+    timeout: 20000
+    optional: true
+- tapOn:
+    id: 'product-swatch-.+'
+    enabled: true
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: 'product-size-.+'
+    direction: DOWN
+    timeout: 20000
+    optional: true
+- tapOn:
+    id: 'product-size-.+'
+    enabled: true
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: product-add-to-cart
+    direction: DOWN
+    timeout: 20000
+# Signed out: Add to Cart goes to sign-in instead of the cart.
+- tapOn:
+    id: product-add-to-cart
+- extendedWaitUntil:
+    visible:
+      id: sign-in-submit
+    timeout: 10000

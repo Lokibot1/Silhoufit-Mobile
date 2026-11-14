@@ -1,0 +1,52 @@
+appId: ${APP_ID}
+---
+# Needs a seeded customer and a dev backend with an active product that has stock.
+# The backend counts what is already in the cart, so repeated runs hit a 400 once stock is used up: use a high-stock product or clear the cart (DELETE /cart) before each run.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: tab-shop
+- extendedWaitUntil:
+    visible:
+      id: 'shop-card-(?!.*-image$).+'
+    timeout: 15000
+- tapOn:
+    id: 'shop-card-(?!.*-image$).+'
+- extendedWaitUntil:
+    visible:
+      id: product-name
+    timeout: 15000
+# First ENABLED option of each kind (see flow 12); scroll bounded because options and the button can be below the fold.
+- scrollUntilVisible:
+    element:
+      id: 'product-swatch-.+'
+    direction: DOWN
+    timeout: 20000
+    optional: true
+- tapOn:
+    id: 'product-swatch-.+'
+    enabled: true
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: 'product-size-.+'
+    direction: DOWN
+    timeout: 20000
+    optional: true
+- tapOn:
+    id: 'product-size-.+'
+    enabled: true
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: product-add-to-cart
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: product-add-to-cart
+# The toast lives 4.5 s; the wait polls inside that window.
+- extendedWaitUntil:
+    visible: Added to cart
+    timeout: 10000
+- assertNotVisible:
+    id: product-inline-error

@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { fetchProducts, toProductPage } from '../products'
+import { fetchProduct, fetchProducts, toProduct, toProductPage } from '../products'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -53,5 +53,74 @@ describe('fetchProducts', () => {
     mockRequest.mockResolvedValue(body())
     await fetchProducts({ search: '  ', page: 1, limit: 12 })
     expect(mockRequest.mock.calls.at(-1)?.[1]).toBe('/products?page=1&limit=12')
+  })
+})
+
+const variant = { id: 'v1', size: 'M', color: 'Navy', colorHex: '#001f3f', price: 1250, stock: 3, imageUrl: 'https://x.test/v.jpg' }
+const detail = {
+  id: 'p1',
+  name: 'Linen Shirt',
+  brand: 'KRAL',
+  category: 'Shirt',
+  description: 'Soft linen.',
+  images: [
+    { url: 'https://x.test/2.jpg', altText: null, displayOrder: 1, isPrimary: false },
+    { url: 'https://x.test/1.jpg', altText: 'Front', displayOrder: 0, isPrimary: true },
+  ],
+  variants: [variant],
+}
+
+describe('toProduct', () => {
+  it('maps a valid body, primary image first', () => {
+    expect(toProduct(detail)).toEqual({
+      id: 'p1',
+      name: 'Linen Shirt',
+      brand: 'KRAL',
+      category: 'Shirt',
+      description: 'Soft linen.',
+      images: [{ url: 'https://x.test/1.jpg', altText: 'Front' }, { url: 'https://x.test/2.jpg', altText: null }],
+      variants: [variant],
+    })
+  })
+  it('tolerates missing optional fields on the product and a variant', () => {
+    const product = toProduct({ id: 'p1', name: 'X', variants: [{ id: 'v1', price: 100 }] })
+    expect(product).toMatchObject({ brand: null, category: null, description: null, images: [] })
+    expect(product.variants).toEqual([{ id: 'v1', size: null, color: null, colorHex: null, price: 100, stock: 0, imageUrl: null }])
+  })
+  it('drops a variant with no id or price', () => {
+    expect(toProduct({ ...detail, variants: [{ ...variant, id: undefined }, { ...variant, price: 'x' }, null, variant] }).variants).toEqual([variant])
+  })
+  it('accepts a product with no variants', () => {
+    expect(toProduct({ ...detail, variants: [] }).variants).toEqual([])
+    expect(toProduct({ ...detail, variants: undefined }).variants).toEqual([])
+  })
+  it('accepts a product with no images and skips an image without a url', () => {
+    expect(toProduct({ ...detail, images: [] }).images).toEqual([])
+    expect(toProduct({ ...detail, images: [{ altText: 'x' }] }).images).toEqual([])
+  })
+  it('treats an archived product as not found', () => expect(() => toProduct({ ...detail, isActive: false })).toThrow(expect.objectContaining({ kind: 'not-found' })))
+  it.each([null, 'x', 42, {}, { id: 'p1' }, { name: 'X' }])('rejects the bad shape %p', (bad) => {
+    expect(() => toProduct(bad)).toThrow(expect.objectContaining({ kind: 'server' }))
+  })
+})
+
+describe('fetchProduct', () => {
+  it('requests the encoded id without a token', async () => {
+    mockRequest.mockResolvedValue(detail)
+    const signal = new AbortController().signal
+    expect((await fetchProduct('a/b', signal)).id).toBe('p1')
+    expect(mockRequest).toHaveBeenLastCalledWith('GET', '/products/a%2Fb', undefined, signal, { auth: false })
+  })
+  it('treats a 400 from a malformed id as not found', async () => {
+    mockRequest.mockRejectedValue(new ApiError('validation', 'Validation failed (uuid is expected)', 400))
+    await expect(fetchProduct('nope')).rejects.toMatchObject({ kind: 'not-found' })
+  })
+  it('keeps other failures as they are', async () => {
+    mockRequest.mockRejectedValue(new ApiError('server', undefined, 500))
+    await expect(fetchProduct('x')).rejects.toMatchObject({ kind: 'server' })
+  })
+  it('passes a 404 through', async () => {
+    mockRequest.mockRejectedValue(new ApiError('not-found', undefined, 404))
+    await expect(fetchProduct('x')).rejects.toMatchObject({ kind: 'not-found' })
   })
 })

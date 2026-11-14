@@ -37,6 +37,63 @@ export function toProductPage(body: unknown, requestedPage = 1): ProductPage {
   return { items: body.data.map(toListItem), total: meta.total || body.data.length, page: Number(meta.page) || requestedPage, hasNextPage: meta.hasNextPage === true }
 }
 
+export type ProductVariant = { id: string; size: string | null; color: string | null; colorHex: string | null; price: number; stock: number; imageUrl: string | null }
+export type Product = {
+  id: string
+  name: string
+  brand: string | null
+  category: string | null
+  description: string | null
+  images: { url: string; altText: string | null }[]
+  variants: ProductVariant[]
+}
+
+// A variant without an id or a price cannot be bought, so it is dropped; a missing stock counts as none.
+function toVariant(value: unknown): ProductVariant | null {
+  if (!isRecord(value) || !str(value.id) || !isNum(value.price)) return null
+  return {
+    id: value.id as string,
+    size: str(value.size),
+    color: str(value.color),
+    colorHex: str(value.colorHex),
+    price: value.price,
+    stock: isNum(value.stock) ? value.stock : 0,
+    imageUrl: str(value.imageUrl),
+  }
+}
+
+/** The product from a GET /products/:id body; throws ApiError('server') on a wrong shape and 'not-found' for an archived product. */
+export function toProduct(body: unknown): Product {
+  if (!isRecord(body) || !str(body.id) || !str(body.name)) throw new ApiError('server')
+  if (body.isActive === false) throw new ApiError('not-found')
+  const order = (image: Record<string, unknown>) => (isNum(image.displayOrder) ? image.displayOrder : 0)
+  const images = (Array.isArray(body.images) ? body.images : [])
+    .filter(isRecord)
+    .filter((image) => str(image.url))
+    .sort((a, b) => Number(b.isPrimary === true) - Number(a.isPrimary === true) || order(a) - order(b))
+    .map((image) => ({ url: image.url as string, altText: str(image.altText) }))
+  return {
+    id: body.id as string,
+    name: body.name as string,
+    brand: str(body.brand),
+    category: str(body.category),
+    description: str(body.description),
+    images,
+    variants: (Array.isArray(body.variants) ? body.variants : []).map(toVariant).filter((variant) => variant !== null),
+  }
+}
+
+/** GET /products/:id (public: no sign-in needed). An abort rejects with the AbortError itself. */
+export async function fetchProduct(id: string, signal?: AbortSignal): Promise<Product> {
+  try {
+    return toProduct(await request('GET', `/products/${encodeURIComponent(id)}`, undefined, signal, { auth: false }))
+  } catch (error) {
+    // The API validates the id as a UUID, so a malformed one answers 400: nothing exists at that address.
+    if (error instanceof ApiError && error.status === 400) throw new ApiError('not-found', undefined, 400)
+    throw error
+  }
+}
+
 /** GET /products (public: no sign-in needed). An abort rejects with the AbortError itself. */
 export async function fetchProducts({ search, page, limit }: { search?: string; page: number; limit: number }, signal?: AbortSignal): Promise<ProductPage> {
   const query = [`page=${page}`, `limit=${limit}`]

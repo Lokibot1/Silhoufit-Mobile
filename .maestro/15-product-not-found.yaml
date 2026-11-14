@@ -1,0 +1,19 @@
+appId: ${APP_ID}
+---
+# Deep link to a product id that does not exist. Needs only the dev backend (no sign-in, no data).
+# Scheme comes from app.json ("silhoufitmobile"). In a dev build the dev launcher may show first; use a build that opens the app directly.
+- runFlow: subflows/launch.yaml
+- openLink: silhoufitmobile://product/00000000-0000-0000-0000-000000000000
+- extendedWaitUntil:
+    visible: This piece is no longer available
+    timeout: 15000
+- assertVisible:
+    id: product-error-back
+- assertNotVisible:
+    id: product-retry
+- tapOn:
+    id: product-error-back
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000

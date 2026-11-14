@@ -9,24 +9,26 @@ type Props = {
   testID?: string
   accessibilityLabel?: string
   pending?: boolean
+  disabled?: boolean
 }
 
 // KRAL button: square, 48px, uppercase. Primary is Red; secondary is an Obsidian outline that fills when pressed.
-export function Button({ label, onPress, variant = 'primary', testID, accessibilityLabel, pending = false }: Props) {
+export function Button({ label, onPress, variant = 'primary', testID, accessibilityLabel, pending = false, disabled = false }: Props) {
   const primary = variant === 'primary'
+  const off = pending || disabled
   return (
     <Pressable
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled: pending, busy: pending }}
-      disabled={pending}
+      accessibilityState={{ disabled: off, busy: pending }}
+      disabled={off}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
         primary ? styles.primary : styles.secondary,
         pressed && (primary ? styles.primaryPressed : styles.secondaryPressed),
-        pending && styles.pending,
+        off && styles.pending,
       ]}>
       {({ pressed }) =>
         pending ? (

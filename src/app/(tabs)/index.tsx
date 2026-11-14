@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons'
-import { useEffect, useRef, useState } from 'react'
+import { router, useFocusEffect } from 'expo-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { fetchProducts, type ProductListItem } from '@/api/products'
@@ -32,6 +33,14 @@ export default function Shop() {
   const controller = useRef<AbortController | null>(null)
   const pulled = useRef(false)
   const moreBusy = useRef(false)
+  const opening = useRef(false)
+  // A fast double tap must not push the product twice; allow it again when the Shop regains focus.
+  useFocusEffect(useCallback(() => { opening.current = false }, []))
+  const open = (id: string) => {
+    if (opening.current) return
+    opening.current = true
+    router.push({ pathname: '/product/[id]', params: { id } })
+  }
   // A ref keeps the effect below from re-running (and refetching) if the toast function's identity changes.
   const toastRef = useRef(toast)
   useEffect(() => {
@@ -181,7 +190,7 @@ export default function Shop() {
           data={items}
           keyExtractor={(item) => item.id}
           numColumns={2}
-          renderItem={({ item }) => <ProductCard item={item} />}
+          renderItem={({ item }) => <ProductCard item={item} onPress={() => open(item.id)} />}
           columnWrapperStyle={styles.columns}
           ItemSeparatorComponent={Gap}
           contentContainerStyle={styles.content}

@@ -37,7 +37,13 @@ All auth lives on the Profile tab, not Shop; Shop is public. Ids used: `shop-lis
 | 08 | Signed-out prompt title and message |
 | 09 | Shop (Cycle 2): list visible without signing in, nonsense search shows the empty state, clearing restores the list. Needs at least one active product |
 | 10 | Shop search with a matching term (`SEARCH_TERM`) returns cards, clearing restores. Needs a matching product |
-| 11 | Shop still loads after signing in and after signing out (taps the Shop tab by label, no `tab-shop` id yet) |
+| 11 | Shop still loads after signing in and after signing out (taps the Shop tab via `tab-shop`) |
+| 12 | Product page (Cycle 3): tap the first Shop card, the product opens without signing in, hardware back returns to the Shop (Android only), pick colour and size, Add to Cart while signed out lands on the sign-in screen. Needs an active product with stock |
+| 13 | Signed in: open a product, pick colour and size, Add to Cart shows the "Added to cart" toast. Needs a seeded customer and an in-stock product . Repeated runs add to the same cart and the backend counts it against stock (400): use a high-stock product or clear the cart (`DELETE /cart`) first |
+| 14 | Signed out: Add to Cart opens sign-in; after signing in the app returns to the same product and Add to Cart shows "Added to cart". Needs a seeded customer and an in-stock product . Repeated runs add to the same cart and the backend counts it against stock (400): use a high-stock product or clear the cart (`DELETE /cart`) first |
+| 15 | Deep link `silhoufitmobile://product/<made-up uuid>`: "This piece is no longer available", Back to Shop returns to the Shop. Needs only the backend |
+
+Product ids: `product-gallery`, `product-name`, `product-price`, `product-swatch-<color>`, `product-size-<size>`, `product-add-to-cart`, `product-retry`, `product-error-back`, `product-inline-error`, `product-unavailable`. Flows 12 to 14 open the first Shop card, then tap the first enabled swatch and size (`product-swatch-.+`, `product-size-.+` with `enabled: true`) after a bounded `scrollUntilVisible`. The backend therefore needs an in-stock product with variants as the first Shop card; 14 also needs `TEST_EMAIL` and `TEST_PASSWORD`, 15 needs neither. The deep-link scheme is `silhoufitmobile` (app.json). `back` in 12 only runs on Android. Flow 15 may be interrupted by the dev launcher in a dev build.
 
 Note: Maestro `id:` is a full-string regex. Tab labels and `type.label` text render uppercase on Android, so match them with `(?i)`.
 
