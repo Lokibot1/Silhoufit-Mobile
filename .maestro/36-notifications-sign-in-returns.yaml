@@ -1,0 +1,36 @@
+appId: ${APP_ID}
+---
+# Signed out: the Alerts prompt opens Sign In; signing in closes the modal (router.back()) and lands on the Alerts tab,
+# not Profile or Shop. Read-only. Needs TEST_EMAIL/TEST_PASSWORD; with no updates the empty state also counts.
+- runFlow: subflows/launch.yaml
+- tapOn:
+    id: tab-notifications
+- extendedWaitUntil:
+    visible:
+      id: notifications-sign-in
+    timeout: 10000
+- tapOn:
+    id: notifications-sign-in
+- extendedWaitUntil:
+    visible:
+      id: sign-in-submit
+    timeout: 10000
+- tapOn:
+    id: sign-in-email
+- inputText: ${TEST_EMAIL}
+- tapOn:
+    id: sign-in-password
+- inputText: ${TEST_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: sign-in-submit
+- extendedWaitUntil:
+    visible:
+      id: 'notifications-list|notifications-empty-action'
+    timeout: 20000
+- assertNotVisible:
+    id: sign-in-submit
+- assertNotVisible:
+    id: notifications-sign-in
+- assertNotVisible:
+    id: profile-name

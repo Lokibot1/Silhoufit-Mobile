@@ -1,0 +1,48 @@
+appId: ${APP_ID}
+---
+# Five tabs (Shop, Cart, Orders, Alerts, Profile): signed out, tap each by testID and assert its own screen.
+# This proves all five exist and open the right screen; their visual order is a device check (MANUAL.md).
+# Needs only the backend.
+- runFlow: subflows/launch.yaml
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- tapOn:
+    id: tab-cart
+- extendedWaitUntil:
+    visible:
+      id: cart-sign-in
+    timeout: 10000
+- tapOn:
+    id: tab-orders
+- extendedWaitUntil:
+    visible:
+      id: orders-sign-in
+    timeout: 10000
+- assertNotVisible:
+    id: cart-sign-in
+- tapOn:
+    id: tab-notifications
+- extendedWaitUntil:
+    visible:
+      id: notifications-sign-in
+    timeout: 10000
+- assertNotVisible:
+    id: orders-sign-in
+- tapOn:
+    id: tab-profile
+- extendedWaitUntil:
+    visible:
+      id: profile-sign-in
+    timeout: 10000
+- assertNotVisible:
+    id: notifications-sign-in
+- tapOn:
+    id: tab-shop
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertNotVisible:
+    id: profile-sign-in

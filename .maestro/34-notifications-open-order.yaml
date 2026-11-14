@@ -1,0 +1,62 @@
+appId: ${APP_ID}
+---
+# Read-only. Needs TEST_EMAIL/TEST_PASSWORD. The account should have an order with a payment, courier, delivery,
+# cancellation or in-progress stage update (otherwise the empty state shows and the flow only asserts that).
+# launch.yaml clears state, so the "last seen" time is empty and the FIRST visit must show no "New" marker.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: tab-notifications
+- extendedWaitUntil:
+    visible:
+      id: 'notifications-list|notifications-empty-action'
+    timeout: 20000
+- assertNotVisible:
+    id: notifications-sign-in
+- assertNotVisible:
+    id: notification-new
+- runFlow:
+    when:
+      visible:
+        id: notifications-empty-action
+    commands:
+      - assertVisible: No updates yet
+      - assertNotVisible:
+          id: notifications-list
+- runFlow:
+    when:
+      visible:
+        id: notifications-list
+    commands:
+      - assertVisible:
+          id: 'notification-row-.+'
+      - tapOn:
+          id: 'notification-row-.+'
+      # The order detail slides in above the tabs.
+      - extendedWaitUntil:
+          visible:
+            id: order-detail
+          timeout: 15000
+      - assertVisible:
+          id: order-status
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - back
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            # Same pattern as flow 21: the native back label is the previous title.
+            - tapOn:
+                text: '(?i)(back|alerts|\(tabs\))'
+      - extendedWaitUntil:
+          visible:
+            id: notifications-list
+          timeout: 10000
+      - assertNotVisible:
+          id: order-detail
+      # Nothing changed since the first visit, so coming back still shows no "New".
+      - assertNotVisible:
+          id: notification-new

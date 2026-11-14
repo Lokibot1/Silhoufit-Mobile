@@ -12,6 +12,7 @@ export type Order = {
   discount: number
   total: number
   createdAt: string
+  updatedAt: string
   paidAt: string | null
   cancelledAt: string | null
   cancellationReason: string | null
@@ -66,6 +67,7 @@ export function toOrder(raw: unknown): Order {
     discount: num(raw.discountAmount) ?? 0,
     total,
     createdAt,
+    updatedAt: str(raw.updatedAt) ?? createdAt,
     paidAt: str(raw.paidAt),
     cancelledAt: str(raw.cancelledAt),
     cancellationReason: str(raw.cancellationReason),
@@ -158,4 +160,28 @@ export function orderTimeline(order: Order): { label: string; at: string; note?:
     { label: 'Cancelled', at: order.cancelledAt, note: order.cancellationReason ?? undefined },
   ]
   return steps.filter((step): step is { label: string; at: string; note?: string } => step.at !== null)
+}
+
+export type NotificationEvent = { id: string; orderId: string; orderNumber: string; kind: string; label: string; at: string; note?: string }
+/** Stages the API keeps no time for: their event is dated with the order's last update instead. */
+export const STAGE_KINDS = ['PROCESSING', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'PAYMENT_FAILED', 'REFUNDED']
+
+/** Order updates built on the device from real timestamps, newest first; an order with none yields nothing.
+ *  An event dated in the future (a scheduled courier pickup) or with an unparseable time is left out until it is real. */
+export function orderUpdates(orders: Order[]): NotificationEvent[] {
+  return orders
+    .flatMap((order) => {
+      const times: { kind: string; label: string; at: string | null; note?: string }[] = [
+        { kind: 'paid', label: 'Payment received', at: order.paidAt },
+        { kind: 'courier', label: 'Handed to courier', at: order.shipment?.pickupTime ?? null },
+        { kind: 'delivered', label: 'Delivered', at: order.shipment?.deliveredAt ?? null },
+        { kind: 'cancelled', label: 'Cancelled', at: order.cancelledAt, note: order.cancellationReason ?? undefined },
+      ]
+      if (STAGE_KINDS.includes(order.status)) times.push({ kind: order.status, label: statusLabel(order.status), at: order.updatedAt })
+      const now = Date.now()
+      return times
+        .filter((t): t is typeof t & { at: string } => t.at !== null && Date.parse(t.at) <= now)
+        .map(({ kind, label, at, note }) => ({ id: `${order.id}-${kind}`, orderId: order.id, orderNumber: order.orderNumber, kind, label, at, ...(note ? { note } : {}) }))
+    })
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
 }

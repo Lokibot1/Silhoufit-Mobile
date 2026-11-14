@@ -99,6 +99,18 @@ Pay and cancel change real orders, so they are manual. Use a dedicated test acco
 - [ ] A cancelled order shows its cancellation reason in the timeline and neither Pay Now nor Cancel Order.
 - [ ] Keep Order in the cancel confirmation changes nothing (status stays, no toast).
 
+## Notifications (Alerts tab)
+Updates are built on the device from the customer's 20 newest orders (no API feed). The "last seen" time is stored per account on the device.
+- [ ] Tab bar shows five labels in order Shop, Cart, Orders, Alerts, Profile; at 320px-wide (and with large font) none is clipped, wrapped or overlapping, and each touch target is at least 44px. Labels are 12px uppercase on purpose (an exception to the 14px minimum so five fit): check PROFILE, ORDERS and ALERTS at 320px and at the largest font scale (capped at 1.2x, so the bar must not grow or wrap).
+- [ ] Tab switches shift smoothly across all five tabs (including to and from Alerts); with Reduce Motion / "Remove animations" on they are instant.
+- [ ] Signed-in empty state: an account with no orders shows "No updates yet"; "Browse the Shop" (`notifications-empty-action`) lands on the Shop tab. Needs an account with no orders, so not in Maestro.
+- [ ] "New" marker, first visit: sign in as an account with updates, open Alerts: no row shows "New" (flow 34 asserts this).
+- [ ] "New" marker, after a change: with Alerts already opened once, change an order in the backend (pay, dispatch, deliver or cancel it), then open Alerts: only the new event shows "New" (`notification-new`, read as ", new" in TalkBack/VoiceOver); older rows do not.
+- [ ] "New" marker across tab switches: after that visit, go to another tab and back to Alerts: the marker is gone (leaving after the list showed marked everything seen). A quick switch away and back before the list loaded (throttled network) keeps the marker. Opening an order and coming back also clears it. Killing and reopening the app keeps that state; another account never inherits it.
+- [ ] Opening a row opens that order; Back returns to Alerts. Pull down refreshes; with airplane mode on a toast explains and the rows stay; on a cold start "Couldn't load your updates" shows Retry (`notifications-retry`).
+- [ ] Sign out then sign in as another account: the previous account's updates never show, not even for a moment.
+- [ ] 320px-wide: rows (including a long cancellation reason) wrap with no horizontal scroll; the skeleton matches the rows with no jump. TalkBack/VoiceOver read "<label>, order <number>, <time>".
+
 ## Google sign-in
 Needs the owner setup below first. Use a dedicated Google test account (a test user while the consent screen is unpublished).
 - [ ] Full sign-in in Expo Go (Android and iOS) and in a dev build: Continue with Google opens the browser, consent, the app returns, the "Signed in with Google" toast shows and Profile shows the Google name and avatar.

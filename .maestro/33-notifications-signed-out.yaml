@@ -1,0 +1,20 @@
+appId: ${APP_ID}
+---
+# Notifications (the "Alerts" tab) needs a session; Shop stays public. Needs only the backend (signed out, cleared state).
+- runFlow: subflows/launch.yaml
+- tapOn:
+    id: tab-notifications
+# The tab shifts in: wait for the prompt instead of asserting right after the tap.
+- extendedWaitUntil:
+    visible:
+      id: notifications-sign-in
+    timeout: 10000
+- assertVisible: Sign in to see your order updates
+- assertNotVisible:
+    id: notifications-list
+- assertNotVisible:
+    id: 'notification-row-.+'
+- assertNotVisible:
+    id: notifications-empty-action
+- assertNotVisible:
+    id: notifications-retry
