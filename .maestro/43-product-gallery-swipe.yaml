@@ -1,0 +1,50 @@
+appId: ${APP_ID}
+---
+# Product gallery paging. Needs an active product as the first Shop card; no sign-in.
+# The swipe runs only when that product has more than one photo (the "1 / N" counter exists). With one or no photo
+# the flow passes without swiping: use MANUAL.md (Product page) with a multi-photo product to cover it.
+- runFlow: subflows/launch.yaml
+- extendedWaitUntil:
+    visible:
+      id: 'shop-card-(?!.*-image$).+'
+    timeout: 15000
+- tapOn:
+    id: 'shop-card-(?!.*-image$).+'
+- extendedWaitUntil:
+    visible:
+      id: product-name
+    timeout: 15000
+- assertVisible:
+    id: product-gallery
+- runFlow:
+    when:
+      visible:
+        id: product-gallery-counter
+    commands:
+      - assertVisible:
+          id: product-gallery-counter
+          text: '1 / \d+'
+      - swipe:
+          from:
+            id: product-gallery
+          direction: LEFT
+      # The counter updates when the paging settles.
+      - extendedWaitUntil:
+          visible:
+            id: product-gallery-counter
+            text: '2 / \d+'
+          timeout: 10000
+      - swipe:
+          from:
+            id: product-gallery
+          direction: RIGHT
+      - extendedWaitUntil:
+          visible:
+            id: product-gallery-counter
+            text: '1 / \d+'
+          timeout: 10000
+# The page itself did not scroll away or change: name and bar are still there.
+- assertVisible:
+    id: product-name
+- assertVisible:
+    id: product-add-to-cart

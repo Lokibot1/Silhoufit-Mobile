@@ -1,0 +1,72 @@
+appId: ${APP_ID}
+---
+# Signed in: adding to the cart raises the count on the product bar's cart button. Needs TEST_EMAIL, TEST_PASSWORD.
+# WRITES DATA: adds TWO pieces of the first Shop card to the cart of TEST_EMAIL and does not remove them (flow 17 empties
+# the bag through the UI, so run 17 after this one, or use a dedicated account). The product needs stock of at least 2
+# and an enabled colour/size. The count is read from the cart button's accessibility label ("Cart, N items"), which
+# Android exposes as content-desc and iOS as label; the badge itself is not read because it is a View without text.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: tab-shop
+- extendedWaitUntil:
+    visible:
+      id: 'shop-card-(?!.*-image$).+'
+    timeout: 15000
+- tapOn:
+    id: 'shop-card-(?!.*-image$).+'
+- extendedWaitUntil:
+    visible:
+      id: product-name
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: 'product-swatch-.+'
+    direction: DOWN
+    timeout: 20000
+    optional: true
+- tapOn:
+    id: 'product-swatch-.+'
+    enabled: true
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: 'product-size-.+'
+    direction: DOWN
+    timeout: 20000
+    optional: true
+- tapOn:
+    id: 'product-size-.+'
+    enabled: true
+    optional: true
+- tapOn:
+    id: product-add-to-cart
+- extendedWaitUntil:
+    visible: Added to cart
+    timeout: 10000
+# After a successful add the bag is never empty, so the badge shows without leaving the page.
+- extendedWaitUntil:
+    visible:
+      id: product-cart-badge
+    timeout: 10000
+- copyTextFrom:
+    id: product-cart
+# Let the first toast go so the second one proves the second add.
+- extendedWaitUntil:
+    notVisible: Added to cart
+    timeout: 10000
+- tapOn:
+    id: product-add-to-cart
+- extendedWaitUntil:
+    visible: Added to cart
+    timeout: 10000
+# The label no longer equals the one copied before the second add.
+- extendedWaitUntil:
+    notVisible:
+      id: product-cart
+      text: ${maestro.copiedText}
+    timeout: 10000
+- assertVisible:
+    id: product-cart-badge
+- assertNotVisible:
+    id: product-inline-error

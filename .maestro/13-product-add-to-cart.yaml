@@ -16,7 +16,7 @@ appId: ${APP_ID}
     visible:
       id: product-name
     timeout: 15000
-# First ENABLED option of each kind (see flow 12); scroll bounded because options and the button can be below the fold.
+# First ENABLED option of each kind (see flow 12); scroll bounded because the options can be below the fold; Add to Cart is in the sticky bar.
 - scrollUntilVisible:
     element:
       id: 'product-swatch-.+'
@@ -37,11 +37,6 @@ appId: ${APP_ID}
     id: 'product-size-.+'
     enabled: true
     optional: true
-- scrollUntilVisible:
-    element:
-      id: product-add-to-cart
-    direction: DOWN
-    timeout: 20000
 - tapOn:
     id: product-add-to-cart
 # The toast lives 4.5 s; the wait polls inside that window.

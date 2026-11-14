@@ -9,18 +9,22 @@ import { fetchProduct, type Product } from '@/api/products'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { peso } from '@/lib/format'
+import { useCartCount } from '@/lib/useCartCount'
 import { useRequest } from '@/lib/useRequest'
 import { Button } from '@/ui/Button'
+import { Chip } from '@/ui/Chip'
+import { HeaderIcon } from '@/ui/HeaderIcon'
+import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, space, type } from '@/ui/theme'
+import { color, font, radius, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const LOW_STOCK = 5
 const TARGET = 44
 
-// The gallery tile matches the Shop card ratio (3:4) at full screen width.
-const tileHeight = (width: number) => (width * 4) / 3
+// Edge-to-edge at 4:5, capped at half the screen so the price still peeks in on a short phone.
+const tileHeight = (width: number, screen: number) => Math.min((width * 5) / 4, screen * 0.5)
 const unique = (values: string[]) => [...new Set(values)]
 
 // A variant with no colour or size is its own option when siblings have one.
@@ -48,12 +52,12 @@ function Strike() {
   )
 }
 
-function Slide({ url, label, name, width }: { url: string | null; label: string; name: string; width: number }) {
+function Slide({ url, label, name, width, height }: { url: string | null; label: string; name: string; width: number; height: number }) {
   const [failed, setFailed] = useState(false)
   return (
-    <View accessible accessibilityRole="image" accessibilityLabel={label} style={{ width, height: tileHeight(width), backgroundColor: color.porcelain }}>
+    <View accessible accessibilityRole="image" accessibilityLabel={label} style={{ width, height, backgroundColor: color.porcelain }}>
       {url && !failed ? (
-        <Image source={{ uri: url }} accessible={false} contentFit="cover" onError={() => setFailed(true)} style={styles.fill} />
+        <Image source={{ uri: url }} accessible={false} contentFit="cover" transition={200} onError={() => setFailed(true)} style={styles.fill} />
       ) : (
         <View style={[styles.fill, styles.fallback]}>
           <Text numberOfLines={3} style={styles.fallbackText}>{name}</Text>
@@ -64,7 +68,7 @@ function Slide({ url, label, name, width }: { url: string | null; label: string;
 }
 
 function Gallery({ product }: { product: Product }) {
-  const { width } = useWindowDimensions()
+  const { width, height } = useWindowDimensions()
   const [index, setIndex] = useState(0)
   const slides: { url: string | null; altText: string | null }[] = product.images.length ? product.images : [{ url: null, altText: null }]
   return (
@@ -77,11 +81,11 @@ function Gallery({ product }: { product: Product }) {
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={(event) => setIndex(Math.round(event.nativeEvent.contentOffset.x / width))}
         renderItem={({ item, index: i }) => (
-          <Slide url={item.url} name={product.name} width={width} label={item.altText ?? `${product.name}, photo ${i + 1} of ${slides.length}`} />
+          <Slide url={item.url} name={product.name} width={width} height={tileHeight(width, height)} label={`${item.altText ?? product.name}, photo ${i + 1} of ${slides.length}`} />
         )}
       />
       {slides.length > 1 && (
-        <View style={styles.counter}>
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.counter}>
           <Text testID="product-gallery-counter" style={styles.counterText}>{`${index + 1} / ${slides.length}`}</Text>
         </View>
       )}
@@ -89,14 +93,17 @@ function Gallery({ product }: { product: Product }) {
   )
 }
 
-function Details({ product }: { product: Product }) {
+function ProductView({ product }: { product: Product }) {
   const { session } = useSession()
   const toast = useToast()
+  const insets = useSafeAreaInsets()
+  const { count, refresh } = useCartCount()
   const { variants } = product
   const [pickedColor, setPickedColor] = useState<string | null>(null)
   const [pickedSize, setPickedSize] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [failure, setFailure] = useState<{ variantId: string; message: string } | null>(null)
+  const barHeight = useRef(0)
   const busy = useRef(false)
   const opening = useRef(false)
   // A fast double tap must not stack two sign-in screens; allow it again when this screen regains focus.
@@ -141,6 +148,8 @@ function Details({ product }: { product: Product }) {
   const stock = allSoldOut ? 'Sold out' : !variant ? null : variant.stock <= 0 ? 'Sold out' : variant.stock <= LOW_STOCK ? `Only ${variant.stock} left` : null
   const missing = [hasColor && !chosenColor && 'a colour', hasSize && !chosenSize && 'a size'].filter(Boolean).join(' and ')
   const label = [product.brand, product.category].filter(Boolean).join(' / ')
+  const reviews = `${product.reviewCount} ${product.reviewCount === 1 ? 'review' : 'reviews'}`
+  const rated = product.reviewCount > 0 && product.rating !== null
 
   async function add() {
     if (!canBuy || busy.current) return
@@ -150,7 +159,8 @@ function Details({ product }: { product: Product }) {
     setFailure(null)
     try {
       await addCartItem(variant.id, 1)
-      toast('Added to cart')
+      toast('Added to cart', { bottom: Math.max(0, barHeight.current - insets.bottom) })
+      refresh()
     } catch (error) {
       if (error instanceof ApiError && error.kind === 'forbidden') signIn()
       else if (error instanceof ApiError && error.kind === 'validation' && error.detail) setFailure({ variantId: variant.id, message: `${error.detail} Check your cart or choose another size.` })
@@ -162,94 +172,122 @@ function Details({ product }: { product: Product }) {
   }
 
   return (
-    <View style={styles.details}>
-      {label !== '' && <Text style={type.label}>{`(${label})`}</Text>}
-      <Text testID="product-name" accessibilityRole="header" style={[type.h1, styles.wrap]}>{product.name}</Text>
-      {price && <Text testID="product-price" style={styles.price}>{price}</Text>}
-      {stock && <Text testID="product-stock" style={[styles.stock, stock === 'Sold out' && styles.soldOut]}>{stock}</Text>}
+    <>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <Gallery product={product} />
+        <View style={styles.block}>
+          {/* Name first for a screen reader; the price stays first on screen. */}
+          <View accessible accessibilityRole="header" accessibilityLabel={[product.name, price, stock].filter(Boolean).join(', ')} style={styles.heading}>
+          <View style={styles.priceRow}>
+            {price && <Text testID="product-price" style={styles.price}>{price}</Text>}
+            {stock && <Text testID="product-stock" style={[styles.stock, stock === 'Sold out' && styles.soldOut]}>{stock}</Text>}
+          </View>
+          <Text testID="product-name" accessibilityRole="header" style={[type.h2, styles.wrap]}>{product.name}</Text>
+          </View>
+          {rated && (
+            <Text testID="product-rating" accessibilityLabel={`Rated ${product.rating?.toFixed(1)} out of 5 from ${reviews}`} style={styles.rating}>
+              {`${product.rating?.toFixed(1)} ★ · ${reviews}`}
+            </Text>
+          )}
+          {label !== '' && <Text style={type.label}>{`(${label})`}</Text>}
+        </View>
 
-      {hasColor && (
-        <View style={styles.group}>
-          <Text testID="product-colour-label" style={type.label}>{`(Colour)${chosenColor ? ` ${optionLabel(chosenColor, 'One colour')}` : ''}`}</Text>
-          <View style={styles.row}>
-            {colors.map((c) => {
-              const ok = colorOk(c)
-              const selected = c === chosenColor
-              const hex = hexOf(c)
-              const name = optionLabel(c, 'One colour')
-              return (
-                <Pressable
-                  key={c}
-                  testID={`product-swatch-${c}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={ok ? `Colour ${name}` : `Colour ${name}, unavailable`}
-                  accessibilityState={{ selected, disabled: !ok }}
-                  disabled={!ok}
-                  onPress={() => pickColor(c)}
-                  style={[hex ? styles.swatch : styles.chip, selected && (hex ? styles.selectedSwatch : styles.selectedChip), !ok && styles.off]}>
-                  {hex ? <View style={[styles.swatchFill, { backgroundColor: hex }]} /> : <Text style={[type.label, selected && { color: color.paper }]}>{name}</Text>}
-                  {!ok && <Strike />}
-                </Pressable>
-              )
-            })}
+        {hasColor && (
+          <View style={styles.block}>
+            <Text testID="product-colour-label" style={type.label}>{`(Colour)${chosenColor ? ` ${optionLabel(chosenColor, 'One colour')}` : ''}`}</Text>
+            <View style={styles.row}>
+              {colors.map((c) => {
+                const ok = colorOk(c)
+                const selected = c === chosenColor
+                const hex = hexOf(c)
+                const name = optionLabel(c, 'One colour')
+                const accessibilityLabel = ok ? `Colour ${name}` : `Colour ${name}, unavailable`
+                if (!hex) return <Chip key={c} testID={`product-swatch-${c}`} label={name} accessibilityLabel={accessibilityLabel} selected={selected} disabled={!ok} onPress={() => pickColor(c)} />
+                return (
+                  <PressableScale
+                    key={c}
+                    testID={`product-swatch-${c}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={accessibilityLabel}
+                    accessibilityState={{ selected, disabled: !ok }}
+                    disabled={!ok}
+                    onPress={() => pickColor(c)}
+                    style={[styles.swatch, selected && styles.selectedSwatch, !ok && styles.off]}>
+                    <View style={[styles.swatchFill, { backgroundColor: hex }]} />
+                    {!ok && <Strike />}
+                  </PressableScale>
+                )
+              })}
+            </View>
+          </View>
+        )}
+
+        {hasSize && (
+          <View style={styles.block}>
+            <Text style={type.label}>(Size)</Text>
+            <View style={styles.row}>
+              {sizes.map((s) => {
+                const ok = sizeOk(s)
+                const name = optionLabel(s, 'One size')
+                return <Chip key={s} testID={`product-size-${s}`} label={name} accessibilityLabel={ok ? `Size ${name}` : `Size ${name}, unavailable`} selected={s === chosenSize} disabled={!ok} onPress={() => pickSize(s)} />
+              })}
+            </View>
+          </View>
+        )}
+
+        {product.description && (
+          <View style={styles.block}>
+            <Text style={type.label}>(Description)</Text>
+            <Text testID="product-description" style={styles.description}>{product.description}</Text>
+          </View>
+        )}
+      </ScrollView>
+
+      <View testID="product-bar" onLayout={(event) => { barHeight.current = event.nativeEvent.layout.height }} style={[styles.bar, { paddingBottom: insets.bottom + space.sm }]}>
+        {variants.length === 0 && <Text testID="product-unavailable" style={styles.hint}>Not available to buy yet</Text>}
+        {variants.length > 0 && !variant && !allSoldOut && <Text style={styles.hint}>{`Choose ${missing || 'an option'}.`}</Text>}
+        {failure && failure.variantId === variant?.id && (
+          <View testID="product-inline-error" accessibilityRole="alert" style={styles.banner}>
+            <Text style={type.body}>{failure.message}</Text>
+          </View>
+        )}
+        <View style={styles.barRow}>
+          <HeaderIcon testID="product-cart" name="bag-outline" label="Cart" status={count > 0 ? `${count} ${count === 1 ? 'item' : 'items'}` : undefined} count={count} onPress={() => router.navigate('/cart')} />
+          <View style={styles.barButton}>
+            <Button testID="product-add-to-cart" label={allSoldOut ? 'Sold out' : 'Add to Cart'} disabled={!canBuy} accessibilityHint={!canBuy && !allSoldOut && variants.length > 0 ? `Choose ${missing || 'an option'} first` : undefined} pending={pending} onPress={add} />
           </View>
         </View>
-      )}
-
-      {hasSize && (
-        <View style={styles.group}>
-          <Text style={type.label}>(Size)</Text>
-          <View style={styles.row}>
-            {sizes.map((s) => {
-              const ok = sizeOk(s)
-              const selected = s === chosenSize
-              const name = optionLabel(s, 'One size')
-              return (
-                <Pressable
-                  key={s}
-                  testID={`product-size-${s}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={ok ? `Size ${name}` : `Size ${name}, unavailable`}
-                  accessibilityState={{ selected, disabled: !ok }}
-                  disabled={!ok}
-                  onPress={() => pickSize(s)}
-                  style={[styles.chip, selected && styles.selectedChip, !ok && styles.off]}>
-                  <Text style={[type.label, selected && { color: color.paper }]}>{name}</Text>
-                  {!ok && <Strike />}
-                </Pressable>
-              )
-            })}
-          </View>
-        </View>
-      )}
-
-      {variants.length === 0 && <Text testID="product-unavailable" style={styles.hint}>Not available to buy yet</Text>}
-      {variants.length > 0 && !variant && !allSoldOut && <Text style={styles.hint}>{`Choose ${missing}.`}</Text>}
-      {failure && failure.variantId === variant?.id && (
-        <View testID="product-inline-error" accessibilityRole="alert" style={styles.banner}>
-          <Text style={type.body}>{failure.message}</Text>
-        </View>
-      )}
-
-      <Button testID="product-add-to-cart" label={allSoldOut ? 'Sold out' : 'Add to Cart'} disabled={!canBuy} pending={pending} onPress={add} />
-      {product.description && <Text testID="product-description" style={styles.description}>{product.description}</Text>}
-    </View>
+      </View>
+    </>
   )
 }
 
+// Mirrors the final layout (gallery, price block, one option row, the bar) so nothing shifts when the data lands.
 function ProductSkeleton() {
-  const { width } = useWindowDimensions()
+  const { width, height } = useWindowDimensions()
+  const insets = useSafeAreaInsets()
   return (
-    <View accessible accessibilityLabel="Loading" accessibilityRole="progressbar">
-      <Skeleton height={tileHeight(width)} />
-      <View style={styles.details}>
-        <Skeleton width={120} height={20} />
-        <Skeleton width="80%" height={28} />
-        <View style={styles.priceSkeleton}><Skeleton width={100} height={24} /></View>
-        <View style={styles.row}>
-          {[0, 1, 2].map((key) => <Skeleton key={key} width={TARGET} height={TARGET} />)}
+    <View accessible accessibilityLabel="Loading" accessibilityRole="progressbar" style={styles.fillScreen}>
+      <ScrollView scrollEnabled={false} style={styles.scroll} contentContainerStyle={styles.content}>
+        <Skeleton height={tileHeight(width, height)} />
+        <View style={styles.block}>
+          <Skeleton width={140} height={32} />
+          <Skeleton width="80%" height={24} />
+          <Skeleton width={120} height={20} />
         </View>
-        <Skeleton height={48} />
+        <View style={styles.block}>
+          <Skeleton width={80} height={20} />
+          <View style={styles.row}>
+            {[0, 1, 2].map((key) => <Skeleton key={key} width={TARGET} height={TARGET} />)}
+          </View>
+        </View>
+      </ScrollView>
+      <View style={[styles.bar, { paddingBottom: insets.bottom + space.sm }]}>
+        <Skeleton width={200} height={type.small.lineHeight} />
+        <View style={styles.barRow}>
+          <Skeleton width={TARGET} height={TARGET} />
+          <View style={styles.barButton}><Skeleton height={48} /></View>
+        </View>
       </View>
     </View>
   )
@@ -259,12 +297,11 @@ function ProductSkeleton() {
 export default function ProductScreen() {
   const { id: raw } = useLocalSearchParams<{ id: string | string[] }>()
   const id = typeof raw === 'string' ? raw.trim() : ''
-  const insets = useSafeAreaInsets()
   const { status, data, error, retry } = useRequest(id, (signal) => (id ? fetchProduct(id, signal) : Promise.reject(new ApiError('not-found'))))
   const gone = error instanceof ApiError && error.kind === 'not-found'
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ paddingBottom: insets.bottom + space.xl }}>
+    <View style={styles.screen}>
       {/* A deep link has no screen to go back to. The native back button takes no testID, so only this case gets a custom header-left. */}
       <Stack.Screen
         options={{
@@ -279,7 +316,7 @@ export default function ProductScreen() {
       />
       {status === 'loading' && <ProductSkeleton />}
       {status === 'error' && (
-        <View style={styles.message}>
+        <ScrollView contentContainerStyle={styles.message}>
           {gone ? (
             <StateMessage title="This piece is no longer available" message="It may have been removed from the shop. Head back to see what is in stock." actionLabel="Back to Shop" onAction={() => router.navigate('/')} testID="product-error-back" />
           ) : (
@@ -292,44 +329,44 @@ export default function ProductScreen() {
               testID="product-retry"
             />
           )}
-        </View>
+        </ScrollView>
       )}
-      {data && (
-        <>
-          <Gallery product={data} />
-          <Details product={data} />
-        </>
-      )}
-    </ScrollView>
+      {data && <ProductView product={data} />}
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
+  fillScreen: { flex: 1 },
+  scroll: { flex: 1 },
+  content: { paddingBottom: space.xl },
   message: { padding: space.lg },
   fill: { width: '100%', height: '100%' },
   fallback: { alignItems: 'center', justifyContent: 'center', padding: space.lg },
   fallbackText: { ...type.label, textAlign: 'center' },
-  counter: { position: 'absolute', right: space.md, bottom: space.md, backgroundColor: color.paper, paddingHorizontal: space.sm, paddingVertical: space.xs },
+  counter: { position: 'absolute', right: space.md, bottom: space.md, backgroundColor: color.paper, borderRadius: radius.pill, paddingHorizontal: space.md, paddingVertical: space.xs },
   counterText: { ...type.label, ...type.numeric },
-  details: { padding: space.lg, gap: space.md },
+  block: { paddingHorizontal: space.lg, paddingVertical: space.lg, gap: space.sm, borderBottomWidth: 1, borderBottomColor: color.porcelain },
   wrap: { flexShrink: 1 },
-  price: { ...type.h2, ...type.numeric, textAlign: 'right' },
-  priceSkeleton: { alignItems: 'flex-end' },
-  stock: { ...type.small, color: color.red, textAlign: 'right' },
+  heading: { gap: space.sm },
+  priceRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: space.md },
+  price: { fontFamily: font.bold, fontSize: 24, lineHeight: 32, color: color.red, ...type.numeric },
+  rating: { ...type.small, ...type.numeric, color: color.graphite },
+  stock: { ...type.small, color: color.red },
   soldOut: { color: color.graphite },
-  group: { gap: space.sm },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  swatch: { width: TARGET, height: TARGET, borderWidth: 1, borderColor: color.porcelain, alignItems: 'center', justifyContent: 'center' },
+  swatch: { width: TARGET, height: TARGET, borderRadius: radius.pill, borderWidth: 1, borderColor: color.porcelain, alignItems: 'center', justifyContent: 'center' },
   selectedSwatch: { borderWidth: 2, borderColor: color.obsidian },
-  swatchFill: { width: 28, height: 28, borderWidth: 1, borderColor: color.porcelain },
-  chip: { minWidth: TARGET, minHeight: TARGET, paddingHorizontal: space.md, borderWidth: 1, borderColor: color.obsidian, alignItems: 'center', justifyContent: 'center' },
-  selectedChip: { backgroundColor: color.obsidian },
-  off: { opacity: 0.4, borderStyle: 'dashed', overflow: 'hidden' },
+  swatchFill: { width: 28, height: 28, borderRadius: radius.pill, borderWidth: 1, borderColor: color.porcelain },
+  off: { opacity: 0.4, overflow: 'hidden' },
   strikeWrap: { alignItems: 'center', justifyContent: 'center' },
   strike: { width: 1, height: 64, backgroundColor: color.obsidian, transform: [{ rotate: '45deg' }] },
   headerBack: { minHeight: TARGET, minWidth: TARGET, justifyContent: 'center' },
-  hint: { ...type.body, color: color.graphite },
+  hint: { ...type.small, color: color.graphite },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
   description: { ...type.body, color: color.graphite },
+  bar: { paddingHorizontal: space.lg, paddingTop: space.sm, gap: space.sm, backgroundColor: color.paper, borderTopWidth: 1, borderTopColor: color.porcelain },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  barButton: { flex: 1 },
 })

@@ -40,6 +40,13 @@ Not automatable with Maestro (or too flaky). Run on a real Android and iOS devic
 - [ ] Keyboard open while searching: the Clear search button stays tappable and the keyboard does not hide results you tap (`keyboardShouldPersistTaps`).
 
 ## Product page
+- [ ] Sticky bottom bar (cart button and Add to Cart, `product-cart`, `product-add-to-cart`): always visible while scrolling, sits above the gesture bar or home indicator with no overlap, and the cart badge count matches the Cart tab. After Add to Cart succeeds the badge goes up without leaving the page. The "Added to cart" toast sits just above the bar for about 4.5 s: check it never covers the cart badge or Add to Cart, also when the "Choose ..." hint line is showing.
+- [ ] Gallery scrolls away with the page; swiping it pages one photo at a time (also while the page is scrolled slightly) and does not trigger the vertical scroll by accident. Photos fade in; a failed photo shows the name tile.
+- [ ] Price is the red focal point under the gallery; "From" shows until a colour and size are chosen. The rating row ("4.5 ★ · 12 reviews") only appears for a product with reviews.
+- [ ] 320px wide and font scale at the maximum: the price and "Only N left" wrap onto two lines without overlap, the bar's inline hint or error does not push the Add to Cart button off screen, and chips and swatches stay at least 44px to tap.
+- [ ] Sold-out option (needs a product with a variant at stock 0, e.g. size M sold out in Black): the chip is struck through and dimmed, tapping it does nothing (no selection, no hint change), its accessibility label ends with "unavailable". Pick a colour whose only remaining sizes are in stock: the sold-out size stays disabled. A product with every variant at 0 shows "Sold out" in red-free graphite text and a disabled "Sold out" button.
+- [ ] Gallery swipe inside the vertical scroll (multi-photo product): start the swipe on the photo, slightly diagonal. Horizontal intent pages the photo and the page does not scroll; vertical intent scrolls the page and the photo does not move. Page back to "1 / N". The automated check is flow 43 (it only swipes if the first Shop card has several photos).
+- [ ] Two quick Add to Cart taps (cart badge): the button shows its pending state, only one item is added per tap, and the bar badge matches the Cart tab. Flow 44 covers the badge with a plain double add.
 - [ ] Swipe the gallery: it pages one photo at a time and the "1 / 4" counter follows. A single-photo product shows no counter; a product with no photos shows its name on a Porcelain tile.
 - [ ] A product with a broken photo URL (or the photo host blocked) shows the name tile for that slide, never a broken-image square.
 - [ ] 320px-wide screen: colour swatches and size chips wrap onto new lines, nothing scrolls sideways, a very long product name wraps, and the Add to Cart button clears the bottom edge/gesture bar.
@@ -52,6 +59,7 @@ Not automatable with Maestro (or too flaky). Run on a real Android and iOS devic
 - [ ] Add more than the stock allows needs a variant with stock 1; automating it needs seeded data.
 - [ ] Font scale 200% (Android Font size and Display size, iOS Larger Text): name, chips, price and the Add to Cart label wrap or grow with no clipping or overlap.
 - [ ] Safe area: on a phone with a gesture bar or notch, scroll to the bottom; Add to Cart and the description clear the gesture bar, and the toast does not cover the button.
+- [ ] 360x640 screen: the gallery is capped at half the screen height and the price shows under it without scrolling. TalkBack/VoiceOver reads the product name before the price, each photo as "..., photo 1 of N" (no separate counter), and the disabled Add to Cart announces what to choose first.
 - [ ] Product skeleton on a slow network matches the final layout (gallery block, name, price, chips, button) with no jump.
 - [ ] A product with no variants shows "Not available to buy yet" and a disabled Add to Cart.
 - [ ] TalkBack and VoiceOver: photos read "<name>, photo N of M"; swatches read "Colour <name>"; the price and stock lines are readable.

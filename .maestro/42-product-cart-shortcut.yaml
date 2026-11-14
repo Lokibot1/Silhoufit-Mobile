@@ -1,0 +1,33 @@
+appId: ${APP_ID}
+---
+# Signed in: the cart button in the product page's bottom bar opens the Cart tab. Read-only on the cart.
+# Needs TEST_EMAIL and TEST_PASSWORD and an active product.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: tab-shop
+- extendedWaitUntil:
+    visible:
+      id: 'shop-card-(?!.*-image$).+'
+    timeout: 15000
+- tapOn:
+    id: 'shop-card-(?!.*-image$).+'
+- extendedWaitUntil:
+    visible:
+      id: product-name
+    timeout: 15000
+# The bar is sticky: the cart button and Add to Cart are visible without scrolling.
+- assertVisible:
+    id: product-cart
+- assertVisible:
+    id: product-add-to-cart
+- tapOn:
+    id: product-cart
+- extendedWaitUntil:
+    visible:
+      id: 'cart-list|cart-empty-action'
+    timeout: 20000
+- extendedWaitUntil:
+    notVisible:
+      id: product-add-to-cart
+    timeout: 10000

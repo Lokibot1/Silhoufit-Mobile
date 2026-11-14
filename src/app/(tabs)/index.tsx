@@ -4,11 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { fetchCart } from '@/api/cart'
 import { fetchCategories, fetchProducts, type ProductListItem, type ProductSort } from '@/api/products'
-import { useSession } from '@/auth/session'
 import { useChatUnread } from '@/chat/useChatUnread'
 import { ApiError, errorMessage } from '@/lib/api'
+import { useCartCount } from '@/lib/useCartCount'
 import { Button } from '@/ui/Button'
 import { Chip } from '@/ui/Chip'
 import { HeaderIcon } from '@/ui/HeaderIcon'
@@ -34,14 +33,11 @@ const shopError = (failure: unknown) => (failure instanceof ApiError && failure.
 export default function Shop() {
   const toast = useToast()
   const insets = useSafeAreaInsets()
-  const { session } = useSession()
-  const userId = session?.user.id ?? null
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<string | undefined>()
   const [categories, setCategories] = useState<string[]>([])
   const [sort, setSort] = useState(0)
-  const [cartCount, setCartCount] = useState(0)
   const [reloadKey, setReloadKey] = useState(0)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState('')
@@ -55,22 +51,7 @@ export default function Shop() {
   const opening = useRef(false)
   // A fast double tap must not push the product twice; allow it again when the Shop regains focus.
   useFocusEffect(useCallback(() => { opening.current = false }, []))
-  // A different account must not inherit the previous one's count: reset while rendering, before the fetch effect runs.
-  const [countUser, setCountUser] = useState(userId)
-  if (countUser !== userId) {
-    setCountUser(userId)
-    setCartCount(0)
-  }
-  // The cart badge is a nicety: it needs a session, and a failed load just leaves it as it was.
-  useFocusEffect(
-    useCallback(() => {
-      if (!userId) return
-      const ctl = new AbortController()
-      fetchCart(ctl.signal).then((cart) => setCartCount(cart.totalItems), () => {})
-      return () => ctl.abort()
-    }, [userId]),
-  )
-  const badge = userId ? cartCount : 0
+  const { count: badge } = useCartCount()
   const unread = useChatUnread()
   // Category chips come from the API; if it fails the row simply keeps "All".
   useEffect(() => {

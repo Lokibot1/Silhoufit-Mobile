@@ -7,6 +7,8 @@ jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/api/products', () => ({ fetchProduct: jest.fn() }))
 jest.mock('@/api/cart', () => ({ addCartItem: jest.fn() }))
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
+jest.mock('@/lib/useCartCount', () => ({ useCartCount: () => ({ count: mockCount, refresh: mockRefresh }) }))
+jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn(), canGoBack: jest.fn(() => true) },
   Stack: { Screen: ({ options }: { options: { headerLeft?: () => unknown } }) => options.headerLeft?.() ?? null },
@@ -17,6 +19,8 @@ jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
 const mockToast = jest.fn()
+const mockRefresh = jest.fn()
+let mockCount = 0
 const mockFetch: jest.Mock = jest.requireMock('@/api/products').fetchProduct
 const mockAdd: jest.Mock = jest.requireMock('@/api/cart').addCartItem
 const mockUseSession: jest.Mock = jest.requireMock('@/auth/session').useSession
@@ -31,12 +35,15 @@ const product = (over = {}) => ({
   description: 'Soft linen.',
   images: [{ url: 'https://x.test/1.jpg', altText: null }, { url: 'https://x.test/2.jpg', altText: null }],
   variants: [v('v1', 'Navy', 'M', 10), v('v2', 'Navy', 'L', 0), v('v3', 'Red', 'M', 3, 1300)],
+  rating: 4.5,
+  reviewCount: 12,
   ...over,
 })
 const never = () => new Promise(() => {})
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockCount = 0
   useLocalSearchParams.mockReturnValue({ id: 'p1' })
   router.canGoBack.mockReturnValue(true)
   mockUseSession.mockReturnValue({ session: {} })
@@ -60,7 +67,7 @@ it('renders the name, label and a From price until a variant is chosen, then the
   expect(await screen.findByText('Linen Shirt')).toBeTruthy()
   expect(screen.getByText('(KRAL / Shirt)')).toBeTruthy()
   expect(screen.getByText('From ₱1,250.00')).toBeTruthy()
-  expect(screen.getByText('1 / 2')).toBeTruthy()
+  expect(screen.getByText('1 / 2', { includeHiddenElements: true })).toBeTruthy()
   await pickNavyM()
   expect(screen.getByText('₱1,250.00')).toBeTruthy()
   await fireEvent.press(screen.getByTestId('product-swatch-Red'))
@@ -91,10 +98,12 @@ it('adds the selected variant once and toasts', async () => {
   mockAdd.mockResolvedValue({})
   await render(<ProductScreen />)
   await pickNavyM()
+  await fireEvent(screen.getByTestId('product-bar'), 'layout', { nativeEvent: { layout: { height: 120 } } })
   await fireEvent.press(screen.getByTestId('product-add-to-cart'))
-  await waitFor(() => expect(mockToast).toHaveBeenCalledWith('Added to cart'))
+  await waitFor(() => expect(mockToast).toHaveBeenCalledWith('Added to cart', { bottom: 120 }))
   expect(mockAdd).toHaveBeenCalledTimes(1)
   expect(mockAdd).toHaveBeenCalledWith('v1', 1)
+  expect(mockRefresh).toHaveBeenCalledTimes(1)
   expect(screen.getByRole('button', { name: 'Add to Cart', busy: false })).toBeTruthy()
 })
 
@@ -111,7 +120,7 @@ it('adds once on a double tap', async () => {
     button.props.onClick({})
   })
   await act(async () => finish())
-  await waitFor(() => expect(mockToast).toHaveBeenCalledWith('Added to cart'))
+  await waitFor(() => expect(mockToast).toHaveBeenCalledWith('Added to cart', { bottom: 0 }))
   expect(mockAdd).toHaveBeenCalledTimes(1)
 })
 
@@ -165,6 +174,7 @@ it('keeps Add to Cart disabled until a variant is chosen', async () => {
   await render(<ProductScreen />)
   await screen.findByTestId('product-name')
   expect(screen.getByText('Choose a colour and a size.')).toBeTruthy()
+  expect(screen.getByTestId('product-add-to-cart').props.accessibilityHint).toBe('Choose a colour and a size first')
   await fireEvent.press(screen.getByTestId('product-add-to-cart'))
   expect(mockAdd).not.toHaveBeenCalled()
   expect(router.push).not.toHaveBeenCalled()
@@ -322,10 +332,77 @@ describe('header', () => {
 it('exposes the E2E test ids', async () => {
   mockFetch.mockResolvedValue(product())
   await render(<ProductScreen />)
-  expect(await screen.findByTestId('product-gallery-counter')).toHaveTextContent('1 / 2')
+  expect(await screen.findByTestId('product-gallery-counter', { includeHiddenElements: true })).toHaveTextContent('1 / 2')
   expect(screen.getByTestId('product-description')).toHaveTextContent('Soft linen.')
   expect(screen.getByTestId('product-colour-label')).toHaveTextContent('(Colour)')
   await pickNavyM()
   await fireEvent.press(screen.getByTestId('product-swatch-Red'))
   expect(screen.getByTestId('product-stock')).toHaveTextContent('Only 3 left')
+})
+
+describe('rating', () => {
+  it('shows the average and review count when there are reviews', async () => {
+    mockFetch.mockResolvedValue(product())
+    await render(<ProductScreen />)
+    expect(await screen.findByTestId('product-rating')).toHaveTextContent('4.5 ★ · 12 reviews')
+    expect(screen.getByLabelText('Rated 4.5 out of 5 from 12 reviews')).toBeTruthy()
+  })
+
+  it('says "1 review" for a single review', async () => {
+    mockFetch.mockResolvedValue(product({ reviewCount: 1 }))
+    await render(<ProductScreen />)
+    expect(await screen.findByTestId('product-rating')).toHaveTextContent('4.5 ★ · 1 review')
+  })
+
+  it.each([{ rating: null, reviewCount: 0 }, { rating: 4.5, reviewCount: 0 }])('is hidden for %p', async (over) => {
+    mockFetch.mockResolvedValue(product(over))
+    await render(<ProductScreen />)
+    await screen.findByTestId('product-name')
+    expect(screen.queryByTestId('product-rating')).toBeNull()
+  })
+})
+
+describe('bottom bar', () => {
+  it('shows the Add to Cart button next to a cart shortcut with no badge when the cart is empty', async () => {
+    mockFetch.mockResolvedValue(product())
+    await render(<ProductScreen />)
+    await screen.findByTestId('product-name')
+    expect(screen.getByRole('button', { name: 'Cart' })).toBeTruthy()
+    expect(screen.queryByTestId('product-cart-badge')).toBeNull()
+  })
+
+  it('badges the shortcut with the cart count and opens the cart tab', async () => {
+    mockCount = 3
+    mockFetch.mockResolvedValue(product())
+    await render(<ProductScreen />)
+    expect(await screen.findByLabelText('Cart, 3 items')).toBeTruthy()
+    expect(screen.getByTestId('product-cart-badge')).toHaveTextContent('3')
+    await fireEvent.press(screen.getByTestId('product-cart'))
+    expect(router.navigate).toHaveBeenCalledWith('/cart')
+  })
+
+  it('keeps the bar out of the loading and error states', async () => {
+    mockFetch.mockRejectedValue(new ApiError('network'))
+    await render(<ProductScreen />)
+    await screen.findByTestId('product-retry')
+    expect(screen.queryByTestId('product-cart')).toBeNull()
+    expect(screen.queryByTestId('product-add-to-cart')).toBeNull()
+  })
+})
+
+describe('gallery accessibility', () => {
+  it('keeps the photo position with a backend alt text and hides the visual counter', async () => {
+    mockFetch.mockResolvedValue(product({ images: [{ url: 'https://x.test/1.jpg', altText: 'Front view' }, { url: 'https://x.test/2.jpg', altText: null }] }))
+    await render(<ProductScreen />)
+    expect(await screen.findByLabelText('Front view, photo 1 of 2')).toBeTruthy()
+    expect(screen.getByLabelText('Linen Shirt, photo 2 of 2')).toBeTruthy()
+    expect(screen.queryByTestId('product-gallery-counter')).toBeNull()
+    expect(screen.getByTestId('product-gallery-counter', { includeHiddenElements: true })).toBeTruthy()
+  })
+
+  it('reads the name before the price', async () => {
+    mockFetch.mockResolvedValue(product())
+    await render(<ProductScreen />)
+    expect(await screen.findByLabelText(/^Linen Shirt, From /)).toBeTruthy()
+  })
 })

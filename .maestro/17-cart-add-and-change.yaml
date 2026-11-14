@@ -68,11 +68,6 @@ appId: ${APP_ID}
     id: 'product-size-.+'
     enabled: true
     optional: true
-- scrollUntilVisible:
-    element:
-      id: product-add-to-cart
-    direction: DOWN
-    timeout: 20000
 - tapOn:
     id: product-add-to-cart
 - extendedWaitUntil:

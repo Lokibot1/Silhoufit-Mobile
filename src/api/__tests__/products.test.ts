@@ -68,6 +68,7 @@ const detail = {
     { url: 'https://x.test/1.jpg', altText: 'Front', displayOrder: 0, isPrimary: true },
   ],
   variants: [variant],
+  ratingSummary: { averageRating: 4.5, reviewCount: 12 },
 }
 
 describe('toProduct', () => {
@@ -80,11 +81,14 @@ describe('toProduct', () => {
       description: 'Soft linen.',
       images: [{ url: 'https://x.test/1.jpg', altText: 'Front' }, { url: 'https://x.test/2.jpg', altText: null }],
       variants: [variant],
+      rating: 4.5,
+      reviewCount: 12,
     })
   })
+  it('has no rating without a summary', () => expect(toProduct({ ...detail, ratingSummary: undefined })).toMatchObject({ rating: null, reviewCount: 0 }))
   it('tolerates missing optional fields on the product and a variant', () => {
     const product = toProduct({ id: 'p1', name: 'X', variants: [{ id: 'v1', price: 100 }] })
-    expect(product).toMatchObject({ brand: null, category: null, description: null, images: [] })
+    expect(product).toMatchObject({ brand: null, category: null, description: null, images: [], rating: null, reviewCount: 0 })
     expect(product.variants).toEqual([{ id: 'v1', size: null, color: null, colorHex: null, price: 100, stock: 0, imageUrl: null }])
   })
   it('drops a variant with no id or price', () => {

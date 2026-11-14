@@ -20,6 +20,13 @@ appId: ${APP_ID}
     id: product-gallery
 - assertVisible:
     id: product-price
+# The sticky bar is there from the first frame, and signed out the cart shows no count badge.
+- assertVisible:
+    id: product-add-to-cart
+- assertVisible:
+    id: product-cart
+- assertNotVisible:
+    id: product-cart-badge
 # Hardware back (Android only; Maestro `back` does nothing on iOS) returns to the Shop, then the card is opened again.
 - runFlow:
     when:
@@ -38,7 +45,7 @@ appId: ${APP_ID}
           timeout: 15000
 # Pick the first ENABLED colour and size (sold-out options are disabled and would leave Add to Cart disabled).
 # A single colour or size is preselected; tapping it again only re-derives the same value.
-# Options may sit below the fold, so scroll (bounded) before tapping.
+# Options may sit below the fold, so scroll (bounded) before tapping. Add to Cart sits in the sticky bottom bar, always visible.
 - scrollUntilVisible:
     element:
       id: 'product-swatch-.+'
@@ -59,11 +66,6 @@ appId: ${APP_ID}
     id: 'product-size-.+'
     enabled: true
     optional: true
-- scrollUntilVisible:
-    element:
-      id: product-add-to-cart
-    direction: DOWN
-    timeout: 20000
 # Signed out: Add to Cart goes to sign-in instead of the cart.
 - tapOn:
     id: product-add-to-cart

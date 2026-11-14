@@ -9,13 +9,14 @@ type Props = {
   variant?: 'primary' | 'secondary'
   testID?: string
   accessibilityLabel?: string
+  accessibilityHint?: string
   pending?: boolean
   disabled?: boolean
   icon?: ReactNode
 }
 
 // KRAL button: square, 48px, uppercase. Primary is Red; secondary is an Obsidian outline that fills when pressed.
-export function Button({ label, onPress, variant = 'primary', testID, accessibilityLabel, pending = false, disabled = false, icon }: Props) {
+export function Button({ label, onPress, variant = 'primary', testID, accessibilityLabel, accessibilityHint, pending = false, disabled = false, icon }: Props) {
   const primary = variant === 'primary'
   const off = pending || disabled
   return (
@@ -23,6 +24,7 @@ export function Button({ label, onPress, variant = 'primary', testID, accessibil
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: off, busy: pending }}
       disabled={off}
       onPress={onPress}

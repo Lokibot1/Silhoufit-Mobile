@@ -11,6 +11,11 @@ appId: ${APP_ID}
     id: product-error-back
 - assertNotVisible:
     id: product-retry
+# No product, so no bottom bar either.
+- assertNotVisible:
+    id: product-add-to-cart
+- assertNotVisible:
+    id: product-cart
 - tapOn:
     id: product-error-back
 - extendedWaitUntil:

@@ -46,6 +46,8 @@ export type Product = {
   description: string | null
   images: { url: string; altText: string | null }[]
   variants: ProductVariant[]
+  rating: number | null
+  reviewCount: number
 }
 
 // A variant without an id or a price cannot be bought, so it is dropped; a missing stock counts as none.
@@ -72,6 +74,8 @@ export function toProduct(body: unknown): Product {
     .filter((image) => str(image.url))
     .sort((a, b) => Number(b.isPrimary === true) - Number(a.isPrimary === true) || order(a) - order(b))
     .map((image) => ({ url: image.url as string, altText: str(image.altText) }))
+  const { ratingSummary } = body
+  const rated = isRecord(ratingSummary) && isNum(ratingSummary.averageRating) && isNum(ratingSummary.reviewCount)
   return {
     id: body.id as string,
     name: body.name as string,
@@ -80,6 +84,8 @@ export function toProduct(body: unknown): Product {
     description: str(body.description),
     images,
     variants: (Array.isArray(body.variants) ? body.variants : []).map(toVariant).filter((variant) => variant !== null),
+    rating: rated ? (ratingSummary.averageRating as number) : null,
+    reviewCount: rated ? (ratingSummary.reviewCount as number) : 0,
   }
 }
 

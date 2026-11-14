@@ -33,11 +33,6 @@ appId: ${APP_ID}
     id: 'product-size-.+'
     enabled: true
     optional: true
-- scrollUntilVisible:
-    element:
-      id: product-add-to-cart
-    direction: DOWN
-    timeout: 20000
 - tapOn:
     id: product-add-to-cart
 - extendedWaitUntil:
@@ -66,12 +61,7 @@ appId: ${APP_ID}
     id: sign-in-submit
 - assertVisible:
     id: product-gallery
-# The earlier selection is kept (the screen stayed mounted under the modal), so Add to Cart works straight away.
-- scrollUntilVisible:
-    element:
-      id: product-add-to-cart
-    direction: DOWN
-    timeout: 20000
+# The earlier selection is kept (the screen stayed mounted under the modal), so Add to Cart (sticky bar) works straight away.
 - tapOn:
     id: product-add-to-cart
 - extendedWaitUntil:
