@@ -1,0 +1,35 @@
+appId: ${APP_ID}
+---
+# Shop stays reachable and populated after signing in and after signing out.
+- runFlow: subflows/launch.yaml
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: tab-shop
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertVisible:
+    id: 'shop-card-(?!.*-image$).+'
+- tapOn:
+    id: tab-profile
+- tapOn:
+    id: profile-sign-out
+- extendedWaitUntil:
+    visible:
+      id: profile-sign-in
+    timeout: 10000
+- tapOn:
+    id: tab-shop
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertVisible:
+    id: 'shop-card-(?!.*-image$).+'
+- assertNotVisible:
+    id: sign-in-submit

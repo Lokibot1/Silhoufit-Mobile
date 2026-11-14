@@ -1,6 +1,15 @@
 appId: ${APP_ID}
 ---
 - runFlow: subflows/launch.yaml
+# Signed-out cold start lands on the Shop (first tab), not on Profile or a sign-in screen
+- extendedWaitUntil:
+    visible:
+      id: shop-search
+    timeout: 15000
+- assertNotVisible:
+    id: profile-sign-in
+- assertNotVisible:
+    id: sign-in-submit
 - tapOn:
     id: tab-profile
 - assertVisible:

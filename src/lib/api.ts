@@ -30,10 +30,9 @@ export const isRecord = (value: unknown): value is Record<string, unknown> => ty
 export const isNum = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 export const str = (value: unknown) => (typeof value === 'string' && value ? value : null)
 
-/** Calls the SilhouFit API with the Supabase token. An abort rejects with the AbortError itself. */
-export async function request(method: 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, signal?: AbortSignal): Promise<unknown> {
-  const { data } = await supabase.auth.getSession()
-  const token = data.session?.access_token
+/** Calls the SilhouFit API with the Supabase token (`auth: false` for public endpoints sends none). An abort rejects with the AbortError itself. */
+export async function request(method: 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, signal?: AbortSignal, { auth = true }: { auth?: boolean } = {}): Promise<unknown> {
+  const token = auth ? (await supabase.auth.getSession()).data.session?.access_token : undefined
   signal?.throwIfAborted()
 
   let response: Response

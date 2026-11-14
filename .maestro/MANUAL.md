@@ -14,3 +14,19 @@ Not automatable with Maestro (or too flaky). Run on a real Android and iOS devic
 - [ ] Avatar fallback: with a profile whose avatar URL is broken or empty, Profile shows initials (first + last name), and a generic icon if there is no name; never a broken-image square.
 - [ ] Profile skeleton while loading (slow network) matches the final layout with no jump when the name appears.
 - [ ] Sign Out has no confirmation step (CLAUDE.md asks for confirmation on destructive actions); decide whether sign-out counts, then update flow 06.
+
+## Shop
+- [ ] Pull down on the Shop list: spinner shows, items refresh; with airplane mode on, a toast explains and the items stay.
+- [ ] Scroll to the last page: each page appends without duplicates or a jump, and loading stops when there are no more pieces. (The "N PIECES" count matches.)
+- [ ] Airplane mode on a cold start: Shop shows "Couldn't load the shop" with the reason and Retry (`shop-retry`); Retry works once back online.
+- [ ] Airplane mode while page 2 loads: the loaded items stay and an inline "Couldn't load more pieces" row shows Retry (`shop-load-more-retry`); no endless retry loop.
+- [ ] 320px-wide screen: two columns fit with no horizontal scroll; the skeleton cards match the real cards with no jump.
+- [ ] Very long product names wrap to two lines then clip; prices stay right-aligned and never overlap the "Only N left" or rating text.
+- [ ] A product with a broken or missing photo shows its name on a Porcelain tile, never a broken-image square.
+- [ ] Typing quickly in the search field sends one request after you pause (about 300 ms); stale results never replace newer ones.
+- [ ] TalkBack and VoiceOver: each card reads name, price, stock and rating; the search field, Clear search and Retry buttons are labelled.
+- [ ] Slow network on a cold start: the six skeleton cards show (progressbar "Loading"), then real cards replace them with no layout shift.
+- [ ] Remote product photos load and cache (expo-image); with the photo host blocked the card falls back to the name tile.
+- [ ] Empty catalogue (no active products): Shop shows "No pieces yet" with a Refresh button (`shop-empty-action`); it cannot be automated without an empty backend.
+- [ ] Scroll to load more (page 2+): data-dependent (needs more than 12 products), so not in Maestro. Check `shop-count` against the cards scrolled.
+- [ ] Keyboard open while searching: the Clear search button stays tappable and the keyboard does not hide results you tap (`keyboardShouldPersistTaps`).

@@ -1,0 +1,41 @@
+appId: ${APP_ID}
+---
+# Needs a dev backend with at least one active product.
+# Shop is public and the first tab: signed-out cold start must land here.
+- runFlow: subflows/launch.yaml
+- assertNotVisible:
+    id: sign-in-submit
+- assertNotVisible: Sign in to see your profile
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+# Maestro `id:` is a regex matched against the WHOLE id. A bare "shop-card-.*" would also match
+# "shop-card-<id>-image", so exclude the image suffix to keep taps/asserts on the card itself.
+- assertVisible:
+    id: 'shop-card-(?!.*-image$).+'
+- assertVisible:
+    id: shop-count
+# A nonsense search shows the empty state (the 300 ms debounce is covered by the wait, not asserted immediately)
+- tapOn:
+    id: shop-search
+- inputText: zzqxjkvv
+- extendedWaitUntil:
+    visible:
+      id: shop-empty
+    timeout: 10000
+- assertVisible: No pieces match "zzqxjkvv"
+- assertVisible: (?i)0 pieces
+- assertNotVisible:
+    id: 'shop-card-(?!.*-image$).+'
+# Clearing brings the list back (the clear button exists only while the field has text)
+- tapOn:
+    id: shop-search-clear
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertNotVisible:
+    id: shop-empty
+- assertVisible:
+    id: 'shop-card-(?!.*-image$).+'

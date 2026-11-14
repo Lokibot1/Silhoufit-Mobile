@@ -19,7 +19,7 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen
         name="index"
-        options={{ title: 'Shop', tabBarIcon: ({ focused, size, color: tint }) => <Ionicons name="storefront-outline" size={size} color={focused ? color.red : (tint as string)} /> }}
+        options={{ title: 'Shop', tabBarButtonTestID: 'tab-shop', tabBarIcon: ({ focused, size, color: tint }) => <Ionicons name="storefront-outline" size={size} color={focused ? color.red : (tint as string)} /> }}
       />
       <Tabs.Screen
         name="profile"

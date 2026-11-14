@@ -1,0 +1,36 @@
+appId: ${APP_ID}
+---
+# Needs a dev backend where SEARCH_TERM matches at least one active product (pass -e SEARCH_TERM=...).
+- runFlow: subflows/launch.yaml
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- tapOn:
+    id: shop-search
+- inputText: ${SEARCH_TERM}
+# Debounced: wait for the result instead of asserting right away. The list unmounts while loading and returns when ready.
+- extendedWaitUntil:
+    visible:
+      id: shop-count
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 10000
+- assertNotVisible:
+    id: shop-empty
+- assertNotVisible: No pieces match.*
+- assertVisible:
+    id: 'shop-card-(?!.*-image$).+'
+# Clearing restores the full catalogue
+- tapOn:
+    id: shop-search-clear
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertVisible:
+    id: 'shop-card-(?!.*-image$).+'
+- assertNotVisible:
+    id: shop-search-clear
