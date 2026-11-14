@@ -26,6 +26,28 @@ it('sits at rest, then floats and takes the active colour on focus', async () =>
   expect(StyleSheet.flatten(label().props.style).color).toBe(color.obsidian)
 })
 
+it('floats the label onto the border with the border patch behind it', async () => {
+  await render(<Harness value="a" />)
+  const style = StyleSheet.flatten(label().props.style)
+  expect(style.transform.find((t: object) => 'translateY' in t).translateY).toBeLessThan(0)
+  expect(style.backgroundColor).toBe(color.paper)
+})
+
+it('keeps the border patch while the label is at rest, so blur never exposes the border', async () => {
+  await render(<Harness />)
+  expect(StyleSheet.flatten(label().props.style).backgroundColor).toBe(color.paper)
+})
+
+it('passes focus and blur through to the caller', async () => {
+  const onFocus = jest.fn()
+  const onBlur = jest.fn()
+  await render(<Harness onFocus={onFocus} onBlur={onBlur} />)
+  await fireEvent(screen.getByTestId('f'), 'focus')
+  await fireEvent(screen.getByTestId('f'), 'blur')
+  expect(onFocus).toHaveBeenCalledTimes(1)
+  expect(onBlur).toHaveBeenCalledTimes(1)
+})
+
 it('stays floated when it has a value', async () => {
   await render(<Harness value="a@b.co" />)
   expect(scale()).toBe(14 / 16)
@@ -48,12 +70,12 @@ it('names the input by its label and passes text and maxLength through', async (
   expect(onChangeText).toHaveBeenCalledWith('abc')
 })
 
-it('shows the error in red as a polite live region and hints it on the input', async () => {
+it('shows the error in red as a polite live region, announced once (no hint on the input)', async () => {
   await render(<Harness error="Email is required." />)
   const error = screen.getByText('Email is required.')
   expect(error.props.accessibilityLiveRegion).toBe('polite')
   expect(StyleSheet.flatten(error.props.style).color).toBe(color.red)
-  expect(screen.getByLabelText('Email').props.accessibilityHint).toBe('Email is required.')
+  expect(screen.getByLabelText('Email').props.accessibilityHint).toBeUndefined()
   expect(StyleSheet.flatten(label().props.style).color).toBe(color.red)
 })
 

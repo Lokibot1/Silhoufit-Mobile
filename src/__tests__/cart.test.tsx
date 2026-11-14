@@ -153,7 +153,13 @@ describe('with items', () => {
     await fireEvent.press(screen.getByTestId('cart-open-a'))
     expect(mockPush).toHaveBeenCalledTimes(1)
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/product/[id]', params: { id: 'p-a' } })
-    expect(screen.getByLabelText('Open Tee a')).toBeTruthy()
+    expect(screen.getByLabelText(/^Open Tee a/)).toBeTruthy()
+  })
+
+  it('announces the variant, unit price and warnings in the open label', async () => {
+    api.fetchCart.mockResolvedValue(cartOf([line('w', { quantity: 4, variant: { id: 'v', size: 'M', color: 'Red', price: 1250, stock: 2, imageUrl: null } })]))
+    await render(<CartScreen />)
+    expect((await screen.findByTestId('cart-open-w')).props.accessibilityLabel).toBe('Open Tee w, M / Red, ₱1,250.00 each, Only 2 left. Lower the quantity.')
   })
 
   it('labels the stepper and remove for screen readers', () => {
@@ -212,7 +218,7 @@ it('warns on a row whose stock dropped below its quantity and on an inactive pro
   )
   await render(<CartScreen />)
   expect(await screen.findByText('Only 2 left. Lower the quantity.')).toBeTruthy()
-  expect(screen.getByText('No longer available. Remove it to continue.')).toBeTruthy()
+  expect(screen.getByText('No longer available. Remove it from your cart.')).toBeTruthy()
   expect(screen.getByTestId('cart-inc-a')).toBeDisabled()
   expect(screen.getByTestId('cart-inc-b')).toBeDisabled()
 })
@@ -252,7 +258,7 @@ it('signs out once and toasts on a 401, without showing a sign-in form to a sign
   await render(<CartScreen />)
   await waitFor(() => expect(mockSignOut).toHaveBeenCalledTimes(1))
   expect(mockToast).toHaveBeenCalledTimes(1)
-  expect(mockToast).toHaveBeenCalledWith(...lifted('Your session has expired. Sign in again.'))
+  expect(mockToast).toHaveBeenCalledWith('Your session has expired. Sign in again.', undefined) // signing out removes the bar, so no lift
   expect(screen.queryByTestId('cart-sign-in')).toBeNull()
 })
 
@@ -422,7 +428,26 @@ describe('removing and clearing', () => {
     api.setCartItemQuantity.mockRejectedValue(new ApiError('forbidden', undefined, 401))
     await fireEvent.press(screen.getByTestId('cart-inc-a'))
     await waitFor(() => expect(mockSignOut).toHaveBeenCalledTimes(1))
-    expect(mockToast).toHaveBeenCalledWith(...lifted('Your session has expired. Sign in again.'))
+    expect(mockToast).toHaveBeenCalledWith('Your session has expired. Sign in again.', undefined)
     expect(screen.queryByTestId('cart-row-error-a')).toBeNull()
+  })
+
+  it('does not lift the toast when a 404 removes the last item', async () => {
+    api.fetchCart.mockResolvedValue(cartOf([line('a')]))
+    await act(async () => void mockFocus.current())
+    await screen.findByTestId('cart-row-a')
+    api.setCartItemQuantity.mockRejectedValue(new ApiError('not-found', undefined, 404))
+    await fireEvent.press(screen.getByTestId('cart-inc-a'))
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith('That item is no longer in your cart.', undefined))
+  })
+
+  it('reloads the cart after a validation failure and keeps the row error', async () => {
+    api.setCartItemQuantity.mockRejectedValue(new ApiError('validation', 'Only 1 left.', 422))
+    api.fetchCart.mockClear()
+    api.fetchCart.mockResolvedValue(cartOf([line('a', { variant: { id: 'v-a', size: 'M', color: 'Red', price: 1250, stock: 2, imageUrl: null } }), line('b', { quantity: 1, lineTotal: 1250 })]))
+    await fireEvent.press(screen.getByTestId('cart-inc-a'))
+    await waitFor(() => expect(api.fetchCart).toHaveBeenCalledTimes(1))
+    expect(await screen.findByTestId('cart-row-error-a')).toBeTruthy()
+    expect(screen.getByTestId('cart-inc-a')).toBeDisabled() // the refreshed stock puts the row at its maximum
   })
 })

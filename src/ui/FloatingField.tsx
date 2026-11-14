@@ -60,7 +60,6 @@ export function FloatingField({
           editable={editable}
           secureTextEntry={secureTextEntry && !revealed}
           accessibilityLabel={label}
-          accessibilityHint={message}
           accessibilityState={{ disabled: !editable }}
           maxFontSizeMultiplier={1.2}
           onFocus={(event) => {
@@ -83,7 +82,7 @@ export function FloatingField({
             numberOfLines={1}
             style={[
               styles.label,
-              { color: tint, backgroundColor: floated ? background : 'transparent' },
+              { color: tint, backgroundColor: background }, // always patched: at rest it sits over the empty input, and it must hide the border until it has settled
               {
                 transform: [
                   { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -(height / 2 - 1)] }) },
@@ -119,7 +118,7 @@ const styles = StyleSheet.create({
   input: { ...type.body, minHeight: 56, paddingHorizontal: space.md, paddingVertical: space.lg },
   inputSecure: { paddingRight: 56 },
   outline: { ...StyleSheet.absoluteFill, borderRadius: radius.soft },
-  labelBox: { position: 'absolute', top: 0, bottom: 0, left: space.sm, justifyContent: 'center', alignItems: 'flex-start' },
+  labelBox: { position: 'absolute', top: 0, bottom: 0, left: space.md - space.xs, justifyContent: 'center', alignItems: 'flex-start' },
   label: { ...type.body, paddingHorizontal: space.xs, transformOrigin: 'left center' },
   toggle: { position: 'absolute', right: space.xs, top: 6, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   message: { ...type.small, color: color.graphite, minHeight: 20 },

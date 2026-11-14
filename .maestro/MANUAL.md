@@ -152,7 +152,7 @@ Needs a customer test account and a staff account on the dev backend (web inbox 
 - [ ] Label float: tap Email, the label shrinks and slides up onto the top border in about 180 ms, the border cut behind it looks clean on the Paper background (no seam, no box around the label), and the border and label turn Obsidian with a 2px border. Blur with text keeps it floated; blur empty drops it back inside.
 - [ ] Error: leave a field empty and blur, the border and label turn red and the message reads below it; the label stays floated only if text is present.
 - [ ] Autofill: the Android autofill prompt and iOS password manager fill Email and Password, and the labels float on fill (not stuck over the text).
-- [ ] Large font scale (Settings, largest text): the label is not clipped, the field grows, the floated label is still centred on the border.
+- [ ] Large font scale (Settings, largest text): the label and input text cap at 120%, so the label is not clipped, the field does not grow past that, and the floated label is still centred on the border.
 - [ ] Keyboard: focusing Password on a small phone keeps the field visible above the keyboard.
 - [ ] Reduce Motion on: the label snaps, no slide.
 - [ ] TalkBack/VoiceOver: each field is read once as "Email" or "Password" (the floating label is not read twice), the error is announced when it appears, and Show password reads as a button.

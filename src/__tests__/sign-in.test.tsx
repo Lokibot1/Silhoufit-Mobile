@@ -36,6 +36,13 @@ it('shows the divider and the Google button', async () => {
   expect(screen.getByLabelText('Continue with Google')).toBeTruthy()
 })
 
+it('resolves the field testIDs to the real inputs', async () => {
+  await render(<SignIn />)
+  expect(screen.getByTestId('sign-in-email').props.accessibilityLabel).toBe('Email')
+  expect(screen.getByTestId('sign-in-email').props.keyboardType).toBe('email-address')
+  expect(screen.getByTestId('sign-in-password').props.secureTextEntry).toBe(true)
+})
+
 it('disables Google while the password sign-in is pending', async () => {
   const d = deferred()
   mockSignIn.mockReturnValue(d.promise)

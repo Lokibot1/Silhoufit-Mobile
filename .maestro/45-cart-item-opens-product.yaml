@@ -79,5 +79,5 @@ appId: ${APP_ID}
     timeout: 15000
 - assertVisible:
     id: product-add-to-cart
-- assertNotVisible:
-    id: cart-list
+- assertVisible:
+    id: product-bar

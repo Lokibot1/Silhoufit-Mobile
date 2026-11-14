@@ -26,8 +26,8 @@ const variantLine = ({ size, color: colour }: CartItem['variant']) => [size, col
 
 // What is wrong with the line right now (the server may have lowered the stock or pulled the product since it was added).
 function warning({ quantity, variant, product }: CartItem): string | null {
-  if (!product.active) return 'No longer available. Remove it to continue.'
-  if (variant.stock !== null && variant.stock <= 0) return 'Out of stock. Remove it to continue.'
+  if (!product.active) return 'No longer available. Remove it from your cart.'
+  if (variant.stock !== null && variant.stock <= 0) return 'Out of stock. Remove it from your cart.'
   if (variant.stock !== null && variant.stock < quantity) return `Only ${variant.stock} left. Lower the quantity.`
   return null
 }
@@ -63,9 +63,11 @@ function CartRow({ item, locked, pending, error, onOpen, onQuantity, onRemove }:
   const decLabel = cannotLower ? `Decrease quantity of ${product.name} unavailable. Remove it instead.` : `Decrease quantity of ${product.name}`
   const lowStock = !warn && stock !== null && stock <= LOW_STOCK
   const showImage = product.image && failedUrl !== product.image
+  // The button's label replaces its children for a screen reader, so it carries the details and warnings too.
+  const openLabel = [`Open ${product.name}`, variantLine(variant), `${peso(variant.price)} each`, warn, lowStock ? `Only ${stock} left` : null].filter(Boolean).join(', ')
   return (
     <View testID={`cart-row-${id}`} accessibilityState={{ busy: pending }} style={styles.card}>
-      <PressableScale testID={`cart-open-${id}`} accessibilityRole="button" accessibilityLabel={`Open ${product.name}`} disabled={!product.id} onPress={() => onOpen(item)} style={styles.top}>
+      <PressableScale testID={`cart-open-${id}`} accessibilityRole="button" accessibilityLabel={openLabel} disabled={!product.id} onPress={() => onOpen(item)} style={styles.top}>
         <View style={[styles.tile, unavailable && styles.dim]}>
           {showImage ? (
             <Image source={{ uri: product.image ?? undefined }} accessible={false} contentFit="cover" transition={200} onError={() => setFailedUrl(product.image)} style={styles.fill} />
@@ -99,14 +101,14 @@ function CartRow({ item, locked, pending, error, onOpen, onQuantity, onRemove }:
           <StepButton symbol="+" label={`Increase quantity of ${product.name}`} testID={`cart-inc-${id}`} disabled={locked || atMax} onPress={() => onQuantity(item, quantity + 1)} />
         </View>
         <View style={styles.lineTotal}>
-          {pending ? <ActivityIndicator color={color.obsidian} /> : quantity > 1 && <Text accessibilityLabel={`Line total ${peso(lineTotal)}`} style={styles.total}>{peso(lineTotal)}</Text>}
+          {pending ? <ActivityIndicator color={color.obsidian} /> : quantity > 1 && <Text accessibilityLabel={`Line total ${peso(lineTotal)}`} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.3} style={styles.total}>{peso(lineTotal)}</Text>}
         </View>
       </View>
     </View>
   )
 }
 
-// Same card chrome and heights as CartRow (image, name 2 lines, variant, price, 44px stepper) and the same bar, so the swap does not shift.
+// Same card chrome and heights as CartRow (image, name 2 lines, variant, price, 46px stepper) and the same bar, so the swap does not shift.
 function CartSkeleton() {
   return (
     <View accessible accessibilityLabel="Loading" accessibilityRole="progressbar" style={styles.skeleton}>
@@ -122,7 +124,7 @@ function CartSkeleton() {
               </View>
             </View>
             <View style={styles.controls}>
-              <Skeleton width={134} height={TARGET} radius={radius.soft} />
+              <Skeleton width={134} height={TARGET + 2} radius={radius.soft} />
             </View>
           </View>
         ))}
@@ -206,7 +208,7 @@ export default function CartScreen() {
   const expire = useCallback(() => {
     if (expired.current) return
     expired.current = true
-    notify.current('Your session has expired. Sign in again.')
+    notify.current('Your session has expired. Sign in again.', false) // signing out removes the bar
     void out.current()
   }, [])
 
@@ -259,7 +261,9 @@ export default function CartScreen() {
   const animate = () => {
     if (smooth.current) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
   }
-  // The bar's top edge in the window decides how high a toast must sit; the bar itself is gone once the bag is empty.
+  // The bar's top edge in the window decides how high a toast must sit (the toast host sits at the window bottom, over the tab bar,
+  // so window coordinates are needed). Safe: measureInWindow and useWindowDimensions both include the system bars, and the bar's
+  // onLayout re-fires whenever the window resizes (its y moves), so this is re-measured then. The bar is gone once the bag is empty.
   const measureBar = () =>
     barRef.current?.measureInWindow((_x, y) => {
       lift.current = Math.max(0, windowHeight - y + space.sm - insets.bottom - space.lg)
@@ -281,6 +285,8 @@ export default function CartScreen() {
       if (isExpired(failure)) expire()
       else {
         const message = failure instanceof ApiError && failure.kind === 'validation' && failure.detail ? failure.detail : errorMessage(failure)
+        // The server refused because the stock or the line changed: refresh the row so the stepper and warning match, keeping the error shown.
+        reload = failure instanceof ApiError && (failure.kind === 'validation' || failure.kind === 'conflict')
         // Clear Cart has no row to carry the message, so it toasts.
         if (id === '') notify.current(message)
         else write(uid, { rowError: { id, message } })
@@ -298,7 +304,7 @@ export default function CartScreen() {
       } catch (failure) {
         if (!isGone(failure)) throw failure
         apply(uid, (cur) => ({ cart: cur.cart && without(cur.cart, item.id) }))
-        notify.current('That item is no longer in your cart.')
+        notify.current('That item is no longer in your cart.', (cartRef.current?.items.length ?? 0) > 1)
         return true
       }
     })
@@ -448,11 +454,11 @@ const styles = StyleSheet.create({
   remove: { position: 'absolute', top: space.xs, right: space.xs, width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
   stepper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: color.stonewash, borderRadius: radius.soft, overflow: 'hidden' },
-  step: { width: TARGET, height: TARGET - 2, alignItems: 'center', justifyContent: 'center' },
+  step: { width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
   stepText: { ...type.h2 },
   qty: { ...type.body, ...type.numeric, minWidth: TARGET, textAlign: 'center' },
-  lineTotal: { flex: 1, minHeight: TARGET, alignItems: 'flex-end', justifyContent: 'center' },
-  total: { ...type.h2, ...type.numeric, textAlign: 'right' },
+  lineTotal: { flex: 1, minWidth: 0, minHeight: TARGET, alignItems: 'flex-end', justifyContent: 'center' },
+  total: { ...type.h2, ...type.numeric, textAlign: 'right', flexShrink: 1 },
   off: { opacity: 0.4 },
   clear: { minHeight: TARGET, alignSelf: 'flex-start', marginHorizontal: space.lg, justifyContent: 'center' },
   clearText: { ...type.small, color: color.graphite, textDecorationLine: 'underline' },
