@@ -29,6 +29,11 @@ async function errorBody(response: Response): Promise<{ detail?: string; code?: 
 export const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
 export const isNum = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 export const str = (value: unknown) => (typeof value === 'string' && value ? value : null)
+// Prisma decimals may travel as strings, so a numeric string counts as a number.
+export const num = (value: unknown): number | null => {
+  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value
+  return typeof n === 'number' && Number.isFinite(n) ? n : null
+}
 
 /** Calls the SilhouFit API with the Supabase token (`auth: false` for public endpoints sends none). An abort rejects with the AbortError itself. */
 export async function request(method: 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, signal?: AbortSignal, { auth = true }: { auth?: boolean } = {}): Promise<unknown> {

@@ -1,0 +1,16 @@
+appId: ${APP_ID}
+---
+# Orders needs a session; Shop stays public.
+- runFlow: subflows/launch.yaml
+- tapOn:
+    id: tab-orders
+- extendedWaitUntil:
+    visible:
+      id: orders-sign-in
+    timeout: 10000
+- assertVisible: Sign in to see your orders
+- assertVisible: Your orders are saved to your account once you sign in.
+- assertNotVisible:
+    id: orders-list
+- assertNotVisible:
+    id: 'order-row-(?!error-).+'

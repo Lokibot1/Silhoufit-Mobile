@@ -38,6 +38,15 @@ function Gate() {
           }}
         />
         <Stack.Screen
+          name="orders/[id]"
+          options={{
+            headerTitle: () => <KralLogo width={72} />,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
+        <Stack.Screen
           name="sign-in"
           options={{
             presentation: 'modal',

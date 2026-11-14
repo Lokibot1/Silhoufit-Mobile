@@ -66,3 +66,27 @@ Not automatable with Maestro (or too flaky). Run on a real Android and iOS devic
 - [ ] Delete succeeded but the refetch failed (airplane mode right after confirming Remove): the app explains the failure, and reopening the Cart tab shows the true bag.
 - [ ] Two devices, same account: change the bag on device A, open the Cart tab on device B: rows match after focus; acting on a row already removed elsewhere shows an inline error, no crash.
 - [ ] Native Alert labels: Android may render the buttons uppercase ("REMOVE ITEM"); confirm the flows' `(?i)` taps and the `below` selector in `subflows/confirm-alert.yaml` hit the dialog buttons on both platforms.
+
+## Orders
+Pay and cancel change real orders, so they are manual. Use a dedicated test account with one unpaid order, one paid order and enough orders (more than 10) to page.
+- [ ] Pull down on the Orders list: spinner shows and rows refresh; with airplane mode on, a toast explains and the rows stay.
+- [ ] Scroll to the last page (needs more than 10 orders): each page appends without duplicates or a jump, and loading stops after the last one.
+- [ ] Airplane mode on a cold start: Orders shows "Couldn't load your orders" with the reason and Retry (`orders-retry`); Retry works once back online.
+- [ ] Airplane mode while page 2 loads: the loaded rows stay and an inline "Couldn't load more orders" row shows Retry (`orders-load-more-retry`); no endless retry loop.
+- [ ] Open an order, change nothing, go back: the list keeps its scroll position and loaded pages (the silent refresh on focus replaces rows in place).
+- [ ] Pay Now on an unpaid order (needs a test payment on the payment provider's test mode): the payment page opens in the in-app browser; closing it (iOS) or returning to the app (Android) refreshes the order and its status. Double-tapping Pay Now opens one browser.
+- [ ] Pay Now when the payment link cannot be made (stop the backend's payment provider or use an order with a total under 1.00): an inline message explains it and Pay Now stays available.
+- [ ] Complete a test payment, return to the app: status shows Paid, Pay Now and Cancel Order are gone.
+- [ ] Cancel Order on an unpaid order: "Are you sure?" with Keep Order and Cancel Order; Keep Order, Android back and tapping outside do nothing; Cancel Order shows the "Order cancelled" toast and the status turns Cancelled with the reason in the timeline. There is no undo.
+- [ ] Cancel an order that was paid on another device in the meantime: an inline message with the server's reason shows, and the status refreshes to the real one.
+- [ ] A paid order shows no Pay Now and no Cancel Order.
+- [ ] Deep link `silhoufitmobile://orders/<made-up uuid>` and a real order id of another account: "We couldn't find this order", Back to Orders opens the Orders tab. A link opened from a cold start has an "Orders" header button that goes to the Orders tab, never a blank screen.
+- [ ] 320px-wide screen: rows, the status chips, items, amounts and buttons fit with no horizontal scroll; a very long product name clamps to two lines and a long order number stays on one line.
+- [ ] Font scale 200% (Android Font size and Display size, iOS Larger Text): rows and the detail wrap or grow with no clipping or overlap; both buttons are reachable.
+- [ ] Account switch: sign out, sign in as another account, open Orders: the previous account's orders never show, not even for a moment.
+- [ ] TalkBack and VoiceOver: each row reads "Order <number>, <status>, <n items>, <total>, placed <date>"; status and payment read as words, not colour; the Alert buttons are read.
+- [ ] Times show in Philippine time with AM/PM (for example an order placed at 1:49 PM Manila reads "1:49 PM" on a phone set to another time zone).
+- [ ] Orders skeleton and detail skeleton on a slow network match the final layout with no jump.
+- [ ] Failed payment: pay with a test card that the provider declines (or close the payment page unpaid), return to the app: the order stays unpaid or shows the failed payment status, an inline message explains, and Pay Now stays available to try again.
+- [ ] A cancelled order shows its cancellation reason in the timeline and neither Pay Now nor Cancel Order.
+- [ ] Keep Order in the cancel confirmation changes nothing (status stays, no toast).

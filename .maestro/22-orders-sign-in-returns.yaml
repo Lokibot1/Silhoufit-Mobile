@@ -1,0 +1,37 @@
+appId: ${APP_ID}
+---
+# Signed out: the Orders prompt opens Sign In; signing in closes the modal (router.back()) and lands on the Orders tab, not Profile or Shop.
+# Read-only. Needs a seeded customer; orders are optional (the empty state also counts).
+- runFlow: subflows/launch.yaml
+- tapOn:
+    id: tab-orders
+- extendedWaitUntil:
+    visible:
+      id: orders-sign-in
+    timeout: 10000
+- tapOn:
+    id: orders-sign-in
+- extendedWaitUntil:
+    visible:
+      id: sign-in-submit
+    timeout: 10000
+- tapOn:
+    id: sign-in-email
+- inputText: ${TEST_EMAIL}
+- tapOn:
+    id: sign-in-password
+- inputText: ${TEST_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: sign-in-submit
+# Back on the Orders tab with the account's orders (rows or the empty state).
+- extendedWaitUntil:
+    visible:
+      id: 'orders-list|orders-empty-action'
+    timeout: 20000
+- assertNotVisible:
+    id: sign-in-submit
+- assertNotVisible:
+    id: orders-sign-in
+- assertNotVisible:
+    id: profile-name

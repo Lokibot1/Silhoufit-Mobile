@@ -32,7 +32,7 @@ export function Button({ label, onPress, variant = 'primary', testID, accessibil
       ]}>
       {({ pressed }) =>
         pending ? (
-          <ActivityIndicator color={color.paper} />
+          <ActivityIndicator color={primary ? color.paper : color.obsidian} />
         ) : (
           <Text style={[type.button, { color: primary || pressed ? color.paper : color.obsidian }]}>{label}</Text>
         )

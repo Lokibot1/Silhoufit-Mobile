@@ -1,4 +1,4 @@
-import { ApiError, isRecord, request, str } from '@/lib/api'
+import { ApiError, isRecord, num, request, str } from '@/lib/api'
 
 export type CartItem = {
   id: string
@@ -10,12 +10,6 @@ export type CartItem = {
   product: { id: string; name: string; image: string | null; active: boolean }
 }
 export type Cart = { items: CartItem[]; totalItems: number; subtotal: number }
-
-// Prisma decimals may travel as strings, so a numeric string counts as a number.
-const num = (value: unknown): number | null => {
-  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value
-  return typeof n === 'number' && Number.isFinite(n) ? n : null
-}
 
 function toItem(raw: unknown): CartItem {
   if (!isRecord(raw) || !isRecord(raw.variant) || !isRecord(raw.variant.product)) throw new ApiError('server')

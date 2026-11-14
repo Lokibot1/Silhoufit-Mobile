@@ -1,0 +1,34 @@
+appId: ${APP_ID}
+---
+# Signed in, load Orders, sign out on Profile: the Orders tab then shows the signed-out prompt and none of the previous account's orders.
+# Read-only. Strongest when TEST_EMAIL has at least one order, but passes with none.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: tab-orders
+- extendedWaitUntil:
+    visible:
+      id: 'orders-list|orders-empty-action'
+    timeout: 15000
+- tapOn:
+    id: tab-profile
+- tapOn:
+    id: profile-sign-out
+- extendedWaitUntil:
+    visible:
+      id: profile-sign-in
+    timeout: 10000
+- tapOn:
+    id: tab-orders
+- extendedWaitUntil:
+    visible:
+      id: orders-sign-in
+    timeout: 10000
+- assertVisible: Sign in to see your orders
+- assertNotVisible:
+    id: orders-list
+- assertNotVisible:
+    id: 'order-row-(?!error-).+'
+- assertNotVisible:
+    id: orders-empty-action
+- assertNotVisible: No orders yet

@@ -1,0 +1,77 @@
+appId: ${APP_ID}
+---
+# Read-only: never pays or cancels (those change real data and stay manual, see MANUAL.md).
+# Needs a seeded customer. With no orders the flow ends on the empty state; with orders it opens the first one.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: tab-orders
+- extendedWaitUntil:
+    visible:
+      id: 'orders-list|orders-empty-action'
+    timeout: 15000
+- assertNotVisible:
+    id: orders-sign-in
+- runFlow:
+    when:
+      visible:
+        id: orders-empty-action
+    commands:
+      - assertVisible: No orders yet
+      - assertNotVisible:
+          id: orders-list
+      - assertNotVisible:
+          id: 'order-row-(?!error-).+'
+      # The empty state's action lands on the Shop tab.
+      - tapOn:
+          id: orders-empty-action
+      - extendedWaitUntil:
+          visible:
+            id: shop-list
+          timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: orders-list
+    commands:
+      - assertVisible:
+          id: 'order-row-(?!error-).+'
+      - tapOn:
+          id: 'order-row-(?!error-).+'
+      - extendedWaitUntil:
+          visible:
+            id: order-detail
+          timeout: 15000
+      - assertVisible:
+          id: order-status
+      - assertVisible:
+          id: order-payment-status
+      - scrollUntilVisible:
+          element:
+            id: order-total
+          direction: DOWN
+          timeout: 20000
+      - assertVisible:
+          id: order-total
+      # The detail is a root Stack screen above the tabs: go back to the list.
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - back
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            # The native back button has no testID and its label is the previous screen's title, so match the likely labels
+            # (same pattern as flow 17). A deep-linked detail would show the custom "Orders" header button instead (order-header-back); not the case here.
+            - tapOn:
+                text: '(?i)(back|orders|\(tabs\))'
+      - extendedWaitUntil:
+          visible:
+            id: orders-list
+          timeout: 10000
+      - assertNotVisible:
+          id: order-detail
+      - assertNotVisible:
+          id: orders-sign-in

@@ -1,0 +1,27 @@
+appId: ${APP_ID}
+---
+# Signed in, deep link to an order id that does not exist: the not-found state with Back to Orders.
+# Needs a seeded customer and the dev backend. Scheme comes from app.json ("silhoufitmobile").
+# In a dev build the dev launcher may intercept the link; use a build that opens the app directly.
+# The backend answers 404 both for a non-existent id and for another account's order (it does not answer 403); the screen shows the same copy for both.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- openLink: silhoufitmobile://orders/00000000-0000-0000-0000-000000000000
+- extendedWaitUntil:
+    visible: We couldn't find this order
+    timeout: 15000
+- assertVisible: It may have been removed, or it belongs to a different account.
+- assertVisible:
+    id: order-error-back
+- assertNotVisible:
+    id: order-retry
+- assertNotVisible:
+    id: order-detail
+- tapOn:
+    id: order-error-back
+- extendedWaitUntil:
+    visible:
+      id: 'orders-list|orders-empty-action'
+    timeout: 15000
+- assertNotVisible:
+    id: order-error-back
