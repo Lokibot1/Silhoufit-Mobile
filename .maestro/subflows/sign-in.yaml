@@ -5,6 +5,11 @@ appId: ${APP_ID}
     id: tab-profile
 - tapOn:
     id: profile-sign-in
+# The sign-in screen slides up: wait for it to settle before typing
+- extendedWaitUntil:
+    visible:
+      id: sign-in-submit
+    timeout: 10000
 - tapOn:
     id: sign-in-email
 - inputText: ${TEST_EMAIL}

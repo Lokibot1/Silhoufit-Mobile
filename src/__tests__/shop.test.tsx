@@ -11,6 +11,7 @@ jest.mock('expo-router', () => ({ router: { push: jest.fn(), navigate: jest.fn()
 jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }))
 const mockToast = jest.fn()
 let mockSession: { session: { user: { id: string } } | null } = { session: null }
 const mockFetch: jest.Mock = jest.requireMock('@/api/products').fetchProducts

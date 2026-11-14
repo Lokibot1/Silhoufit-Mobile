@@ -1,0 +1,45 @@
+appId: ${APP_ID}
+---
+# The Shop's top bar is a solid red band holding the search field and the cart button; the tab header (KRAL logo) is hidden on the Shop only.
+# The logo (src/ui/KralLogo.tsx) has no testID: it is an image with accessibilityLabel "KRAL", matched by that text (full-string regex).
+# The intro loader's label is "Loading KRAL", which this exact match never hits. Needs only the backend (signed out).
+- runFlow: subflows/launch.yaml
+- extendedWaitUntil:
+    visible:
+      id: shop-search
+    timeout: 15000
+- assertVisible:
+    id: shop-cart
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertNotVisible: KRAL
+# Tab switches shift: wait for each screen instead of asserting right after the tap.
+- tapOn:
+    id: tab-cart
+- extendedWaitUntil:
+    visible:
+      id: cart-sign-in
+    timeout: 10000
+# The other tabs keep the logo header.
+- extendedWaitUntil:
+    visible: KRAL
+    timeout: 10000
+- assertNotVisible:
+    id: shop-search
+- tapOn:
+    id: tab-shop
+- extendedWaitUntil:
+    visible:
+      id: shop-search
+    timeout: 10000
+- assertVisible:
+    id: shop-cart
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertNotVisible: KRAL
+- assertNotVisible:
+    id: cart-sign-in

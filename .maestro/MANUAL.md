@@ -31,6 +31,12 @@ Not automatable with Maestro (or too flaky). Run on a real Android and iOS devic
 - [ ] A category with no active products: Shop shows "No <category> pieces yet" with Show All (`shop-empty-action`), which restores the full list. Needs a category in `GET /products/filters` with no products, so it is not in Maestro.
 - [ ] Header stays pinned (search, cart button, chips, sort) while the list scrolls; the cart badge shows the item count when signed in and a bag has pieces, and reads "Cart, N items" in TalkBack/VoiceOver.
 - [ ] Scroll to load more (page 2+): data-dependent (needs more than 12 products), so not in Maestro. Check `shop-count` against the cards scrolled.
+- [ ] Shop top bar: one red band under the notch/status bar on Android and iOS (nothing clipped, no gap), with the search field on the left and the cart icon plus count badge on the right.
+- [ ] Status-bar icons are light on Shop and dark again on Cart, Orders and Profile (and after returning from a product).
+- [ ] Screen transitions: pushing a product or order slides in, Sign In slides up from the bottom, tab switches shift; none of them jump.
+- [ ] Reduce Motion (iOS) / "Remove animations" (Android) on: all those transitions become instant. Toggle it with the app open and confirm it follows.
+- [ ] 320px-wide screen: the red band, search field and cart fit with no horizontal overflow.
+- [ ] The amount of red feels right; if it feels loud, fall back to a Paper band with a Porcelain search field.
 - [ ] Keyboard open while searching: the Clear search button stays tappable and the keyboard does not hide results you tap (`keyboardShouldPersistTaps`).
 
 ## Product page

@@ -12,8 +12,10 @@ appId: ${APP_ID}
     id: sign-in-submit
 - tapOn:
     id: tab-profile
-- assertVisible:
-    id: profile-sign-in
+- extendedWaitUntil:
+    visible:
+      id: profile-sign-in
+    timeout: 10000
 - assertVisible: Sign in to see your profile
 - assertNotVisible:
     id: profile-name

@@ -53,7 +53,11 @@ appId: ${APP_ID}
 - hideKeyboard
 - tapOn:
     id: sign-in-submit
-# Back on the product, not the Shop or Profile.
+# Back on the product, not the Shop or Profile. The product stays mounted under the modal, so wait for the modal to slide away first.
+- extendedWaitUntil:
+    notVisible:
+      id: sign-in-submit
+    timeout: 15000
 - extendedWaitUntil:
     visible:
       id: product-name

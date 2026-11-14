@@ -11,6 +11,7 @@ import { IntroLoader } from '@/ui/IntroLoader'
 import { KralLogo } from '@/ui/KralLogo'
 import { color, type } from '@/ui/theme'
 import { ToastProvider } from '@/ui/toast'
+import { useReduceMotion } from '@/ui/useReduceMotion'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -23,10 +24,11 @@ const kralTheme = {
 function Gate() {
   const { loading } = useSession()
   const [done, setDone] = useState(false)
+  const reduce = useReduceMotion()
   return (
     <>
       <StatusBar style={done ? 'dark' : 'light'} />
-      <Stack>
+      <Stack screenOptions={{ animation: reduce ? 'none' : 'ios_from_right' }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="product/[id]"
@@ -51,6 +53,7 @@ function Gate() {
           name="sign-in"
           options={{
             presentation: 'modal',
+            animation: reduce ? 'none' : 'slide_from_bottom',
             headerTitle: () => <Text style={type.h2}>Sign In</Text>,
             headerStyle: { backgroundColor: color.paper },
             headerShadowVisible: false,

@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
+import { StatusBar } from 'expo-status-bar'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { fetchCart } from '@/api/cart'
 import { fetchCategories, fetchProducts, type ProductListItem, type ProductSort } from '@/api/products'
@@ -31,6 +33,10 @@ const shopError = (failure: unknown) => (failure instanceof ApiError && failure.
 // Public: browsing needs no session. The session is read only to badge the cart icon.
 export default function Shop() {
   const toast = useToast()
+  const insets = useSafeAreaInsets()
+  const [focused, setFocused] = useState(false)
+  // Light status-bar icons on the red band only while the Shop is showing.
+  useFocusEffect(useCallback(() => { setFocused(true); return () => setFocused(false) }, []))
   const { session } = useSession()
   const userId = session?.user.id ?? null
   const [query, setQuery] = useState('')
@@ -189,7 +195,8 @@ export default function Shop() {
   return (
     <View style={styles.screen}>
       <Text accessibilityRole="header" style={styles.heading}>Shop</Text>
-      <View style={styles.header}>
+      {focused && <StatusBar style="light" />}
+      <View style={[styles.band, { paddingTop: insets.top + space.sm }]}>
         <View style={styles.searchRow}>
           <View style={styles.search}>
             <Ionicons name="search" size={24} color={color.graphite} style={styles.searchIcon} />
@@ -218,7 +225,7 @@ export default function Shop() {
             accessibilityLabel={badge > 0 ? `Cart, ${badge} ${badge === 1 ? 'item' : 'items'}` : 'Cart'}
             onPress={() => router.navigate('/cart')}
             style={styles.cart}>
-            <Ionicons name="bag-outline" size={24} color={color.obsidian} />
+            <Ionicons name="bag-outline" size={24} color={color.paper} />
             {badge > 0 && (
               <View testID="shop-cart-badge" style={styles.badge}>
                 <Text maxFontSizeMultiplier={1} style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
@@ -226,6 +233,8 @@ export default function Shop() {
             )}
           </PressableScale>
         </View>
+      </View>
+      <View style={styles.header}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.chips}>
           <Chip testID="shop-category-all" label="All" selected={category === undefined} onPress={() => pickCategory(undefined)} />
           {categories.map((name) => (
@@ -285,15 +294,16 @@ const Gap = () => <View style={styles.gap} />
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
+  band: { backgroundColor: color.red, paddingBottom: space.sm },
   header: { paddingVertical: space.sm, gap: space.sm },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg },
-  search: { flex: 1, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: color.porcelain },
+  search: { flex: 1, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: color.paper },
   searchIcon: { position: 'absolute', left: space.md },
   input: { ...type.body, minHeight: 44, paddingVertical: space.sm, paddingLeft: 48, paddingRight: 44 },
   clear: { position: 'absolute', right: 0, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   cart: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  badge: { position: 'absolute', top: 0, right: 0, minWidth: 20, height: 20, paddingHorizontal: space.xs, borderRadius: radius.pill, backgroundColor: color.red, alignItems: 'center', justifyContent: 'center' },
-  badgeText: { fontFamily: font.semibold, fontSize: 14, lineHeight: 20, color: color.paper, ...type.numeric },
+  badge: { position: 'absolute', top: 0, right: 0, minWidth: 20, height: 20, paddingHorizontal: space.xs, borderRadius: radius.pill, backgroundColor: color.paper, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { fontFamily: font.semibold, fontSize: 14, lineHeight: 20, color: color.red, ...type.numeric },
   // Screen-reader heading only: 1px, clipped, transparent, out of layout (no visible title).
   heading: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
   chips: { gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.xs },
