@@ -46,3 +46,6 @@ example
 .env
 .env.local
 CLAUDE.md
+.claude/agents/
+.claude/skills/
+.claude/AGENTS-GUIDE.txt

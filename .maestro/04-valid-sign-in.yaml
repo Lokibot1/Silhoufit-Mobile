@@ -1,0 +1,26 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: shop-sign-in
+- tapOn:
+    id: sign-in-email
+- inputText: ${TEST_EMAIL}
+- tapOn:
+    id: sign-in-password
+- inputText: ${TEST_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: sign-in-submit
+- extendedWaitUntil:
+    visible:
+      id: shop-profile-name
+    timeout: 15000
+# Modal closed
+- assertNotVisible:
+    id: sign-in-submit
+# Toast auto-dismisses after 4.5 s, so assert it right away
+- assertVisible:
+    id: toast
+- assertVisible: Signed in as ${TEST_EMAIL}

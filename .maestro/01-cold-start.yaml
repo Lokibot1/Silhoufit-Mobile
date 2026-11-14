@@ -1,0 +1,12 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: shop-sign-in
+- assertVisible: Shop
+- assertNotVisible:
+    id: shop-profile-name
+# No redirect to the sign-in screen
+- assertNotVisible:
+    id: sign-in-submit

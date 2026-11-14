@@ -1,0 +1,16 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: shop-sign-out
+- extendedWaitUntil:
+    visible:
+      id: shop-sign-in
+    timeout: 10000
+- assertVisible:
+    id: toast
+- assertVisible: Signed out
+- assertNotVisible:
+    id: shop-profile-name
