@@ -1,3 +1,4 @@
+import { apiBaseUrl } from './apiBase'
 import { supabase } from './supabase'
 
 export type ApiErrorKind = 'network' | 'rate-limit' | 'not-found' | 'server' | 'validation' | 'conflict' | 'forbidden'
@@ -51,7 +52,7 @@ export async function request(method: 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE
 
   let response: Response
   try {
-    response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}${path}`, {
+    response = await fetch(`${apiBaseUrl()}${path}`, {
       method,
       headers: { ...(token && { Authorization: `Bearer ${token}` }), ...(body !== undefined && { 'Content-Type': 'application/json' }) },
       body: body === undefined ? undefined : JSON.stringify(body),
