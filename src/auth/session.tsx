@@ -13,6 +13,8 @@ export type SessionValue = {
   loading: boolean
   error: string | null
   retry(): void
+  /** Replaces the loaded profile, e.g. with the answer to a save. */
+  update(me: Me): void
   signIn(email: string, password: string): Promise<SignInResult>
   signOut(): Promise<void>
 }
@@ -87,6 +89,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     retry() {
       setFailed(null)
       setAttempt((n) => n + 1)
+    },
+    update(me) {
+      setLoaded(me)
+      setFailed(null)
     },
     async signIn(email, password) {
       const { error: failure } = await supabase.auth.signInWithPassword({ email: email.trim(), password })

@@ -182,15 +182,38 @@ Needs the owner setup below first. Use a dedicated Google test account (a test u
 - [ ] 320px-wide screen: divider and button fit with no horizontal scroll.
 
 ## Profile (menu and shortcuts)
-- [ ] Signed in, Profile shows the avatar, name, email and "Member since <date>" (Manila date); the edit icon at the right is dimmed and VoiceOver/TalkBack read "Edit profile, Coming soon, dimmed/disabled".
+- [ ] Signed in, Profile shows the avatar, name, email and "Member since <date>" (Manila date); the edit icon at the right opens Edit Profile; VoiceOver/TalkBack skip it (the Edit Profile row announces the same action once).
 - [ ] My Orders shows "View all" and four tiles (To pay, To ship, To receive, Completed), each at least 44px tall with a visible label; each opens the Orders tab on the matching sub-tab, and View all opens Orders unfiltered. Back from Orders returns to Profile.
-- [ ] Menu rows are 56px with hairline dividers; Edit Profile, Delivery Addresses and Body Profile are dimmed with the visible "Coming soon" caption, do nothing when tapped and are announced as disabled. Sign Out shows a chevron-less row with a spinner while signing out.
+- [ ] Menu rows are 56px with hairline dividers; Delivery Addresses and Body Profile are dimmed with the visible "Coming soon" caption, do nothing when tapped and are announced as disabled. Sign Out shows a chevron-less row with a spinner while signing out.
 - [ ] Sign Out shows the native Alert "Are you sure?" with Cancel and a red/destructive "Sign Out"; Cancel keeps the session, Sign Out shows the "Signed out" toast. On Android the buttons may be uppercase. The error state's Sign Out button asks the same way.
 - [ ] Avatar fallback on the new header: broken URL shows initials, no name shows the person icon, same name gives the same colour.
 - [ ] At 320px wide and at the largest font scale: the header, tile labels ("To receive" wraps to two lines at most) and rows do not clip or overlap, there is no horizontal scroll, and the screen scrolls to Sign Out.
 - [ ] Skeleton while loading has the same blocks as the loaded screen (header, tiles, four rows) with no jump when the data arrives.
 - [ ] Profile shortcut after manually changing the Orders tab lands on the shortcut's tab: open Orders, pick All, go to Profile, tap To pay (Orders shows To pay); pick Completed, return to Profile, tap View all (Orders shows All); tap To pay twice from Profile with a manual tab change between. Sign out and sign in as another account: Orders starts on All.
-- [ ] Order detail at 320px and the largest font scale: the Status and Payment chips wrap their label instead of clipping, with no horizontal scroll. Disabled Profile rows show readable dark "Coming soon" captions with a dimmed icon, and screen readers announce Edit Profile once (not the header icon too).
+- [ ] Order detail at 320px and the largest font scale: the Status and Payment chips wrap their label instead of clipping, with no horizontal scroll. Disabled Profile rows (Delivery Addresses, Body Profile) show readable dark "Coming soon" captions with a dimmed icon, and screen readers announce Edit Profile once (not the header icon too).
+
+## Edit Profile (changes real account data: use a test account)
+- [ ] Profile > Edit Profile (row or header icon) opens the form pre-filled with first, middle, last name, suffix, birthday and gender; the header shows the logo and a back arrow, and a double tap opens it once.
+- [ ] Save Changes is disabled until something changes, disables again if the change is undone, and shows a spinner while saving.
+- [ ] Change the first name and save: toast "Profile updated", the screen goes back, and Profile shows the new name at once with no reload flash. Reopen: the new value is pre-filled.
+- [ ] Clear the middle name, suffix and birthday and pick "Not specified" gender, then save: all four are cleared on the server (reopen, and check the web profile), the other fields are untouched.
+- [ ] Validation: errors appear when leaving a field, then update as you type. First/last name required; digits or symbols rejected; a word over 30 letters rejected; an emoji (keyboard emoji) is rejected with "Emoji aren't allowed in this field." in a name and the suffix. The suffix counter reads n/20 and stops at 20. Birthday: "1995/5/9" tidies to 1995-05-09 on leaving the field; 2023-02-31 and a future date show their message and block Save.
+- [ ] Hermes runs the emoji pattern without a crash (a RegExp error on first open would show a red screen).
+- [ ] Keyboard: the Return key moves First, Middle, Last, Suffix, Birthday and then closes the keyboard; the focused field and the Save button stay reachable above the keyboard on Android and iOS, at 320px wide and at the largest font scale; the birthday field opens the numbers-and-punctuation keyboard on iOS (dash and slash on it) and the standard keyboard on Android (a numeric Android keyboard may have no dash); a loosely spaced "1995 / 5 / 9" is not cut off.
+- [ ] Android edge-to-edge: with the keyboard open, the last field (Birthday) and Save Changes stay above the keyboard and the system bars.
+- [ ] Airplane mode, then Save: the banner explains the connection problem and Save works again once it is back; the typed values are kept. A server rejection (for example from a deliberately bad value) shows the server's reason in the banner.
+- [ ] Expire the session (revoke it in Supabase), then Save: toast "Your session has expired. Sign in again." and the screen shows the sign-in prompt.
+- [ ] Signed out, deep link `silhoufitmobile://profile/edit`: "Sign in to edit your profile" with a Sign In button.
+- [ ] Reduce Motion on: the floating labels settle without animating. TalkBack and VoiceOver read every field's label and error, the gender chips as selected or not, and the banner when it appears.
+
+## Checkout review (no order is created yet)
+- [ ] Open it by deep link `silhoufitmobile://checkout` (the Cart's Checkout button is still disabled). Signed out it shows "Sign in to check out"; with an empty cart it shows "Nothing to check out" and Back to Cart.
+- [ ] Address sheet: tapping Change opens it and the screen reader starts at "Choose delivery address"; each row is read as a radio with its selected state; Close, Cancel, the dim area and Android Back all close it, and where focus lands afterwards is left to the platform (check it does not jump to the top of the page; Change is the ideal target but not guaranteed). The dim area also covers the status and navigation bars on Android. The page behind is not reachable while it is open.
+- [ ] An address without a map pin (add one on the web and clear its pin) is dimmed, cannot be selected, and reads "Needs a map pin: add it on the web"; TalkBack/VoiceOver announce it as disabled with that reason. It is never auto-selected, even when it is the default.
+- [ ] Change to another address: the Shipping row shows its skeleton, then the new courier and fee, and the total updates. In airplane mode the Shipping row shows the connection message and Retry, and the rest of the page stays usable.
+- [ ] Failed product image shows the name tile (56x72), no broken square. A line with too little stock shows its red warning.
+- [ ] 320px wide and the largest font scale: no horizontal scroll, the item rows, the address card, the summary and the bar do not clip or overlap, and the scroll reaches Summary above the bar. The numbers stay right-aligned.
+- [ ] Gesture-bar and 3-button phones: the bar clears the system bar, and Place Order is disabled with "Placing orders is coming next" visible. With Reduce Motion on, the sheet opens without sliding.
 
 ## Owner setup checklist (Google sign-in, not code)
 - [ ] Supabase > Authentication > URL Configuration > Redirect URLs: add `silhoufitmobile://auth/callback` (dev builds and release) and the Expo Go address that `Linking.createURL('auth/callback')` prints, for example `exp://192.168.1.225:8081/--/auth/callback`. The LAN IP changes, so on the dev project only you may use `exp://**/--/auth/callback`; remove it before release.

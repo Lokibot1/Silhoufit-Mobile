@@ -120,6 +120,25 @@ it('maps 429 and banned accounts to friendly copy', async () => {
   expect(result).toEqual({ ok: false, message: 'This account has been deactivated. Contact the store for help.' })
 })
 
+it('update() sets the loaded profile and clears a profile error, without refetching', async () => {
+  mockFetchMe.mockRejectedValueOnce(new Error('boom'))
+  await render(<SessionProvider><Probe /></SessionProvider>)
+  await act(async () => emit({ user: { id: 'u1' } }))
+  expect(current.error).toBeTruthy()
+  await act(async () => current.update({ ...me, firstName: 'Anna' } as never))
+  expect(current.error).toBeNull()
+  expect(current.profile?.firstName).toBe('Anna')
+  expect(mockFetchMe).toHaveBeenCalledTimes(1)
+})
+
+it('update() replaces a loaded profile', async () => {
+  mockFetchMe.mockResolvedValue(me)
+  await render(<SessionProvider><Probe /></SessionProvider>)
+  await act(async () => emit({ user: { id: 'u1' } }))
+  await act(async () => current.update({ ...me, firstName: 'Anna' } as never))
+  expect(await screen.findByText('Anna')).toBeTruthy()
+})
+
 it('stops auto refresh in the background and restarts it when active', async () => {
   let listener: (state: string) => void = () => {}
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, cb) => {

@@ -100,6 +100,11 @@ export default function Profile() {
       { cancelable: true, onDismiss: release },
     )
   }
+  const openEdit = () => {
+    if (opening.current) return
+    opening.current = true
+    router.push('/profile/edit')
+  }
   const name = profile ? profile.fullName?.trim() || `${profile.firstName} ${profile.lastName}`.trim() : ''
 
   return (
@@ -157,7 +162,7 @@ export default function Profile() {
             </View>
             {/* Hidden from screen readers: the Edit Profile row below announces it once. */}
             <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-              <HeaderIcon testID="profile-edit" name="create-outline" label="Edit profile" status={SOON} disabled onPress={() => {}} />
+              <HeaderIcon testID="profile-edit" name="create-outline" label="Edit profile" onPress={openEdit} />
             </View>
           </View>
 
@@ -189,7 +194,7 @@ export default function Profile() {
           </View>
 
           <View style={styles.card}>
-            <MenuRow testID="profile-menu-edit" icon="person-outline" label="Edit Profile" disabled divider={false} />
+            <MenuRow testID="profile-menu-edit" icon="person-outline" label="Edit Profile" onPress={openEdit} divider={false} />
             <MenuRow testID="profile-menu-addresses" icon="location-outline" label="Delivery Addresses" disabled />
             <MenuRow testID="profile-menu-body" icon="body-outline" label="Body Profile" disabled />
             <MenuRow testID="profile-sign-out" icon="log-out-outline" label="Sign Out" pending={signingOut} onPress={confirmSignOut} />

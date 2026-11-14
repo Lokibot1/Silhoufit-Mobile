@@ -49,6 +49,24 @@ function Gate() {
           }}
         />
         <Stack.Screen
+          name="profile/edit"
+          options={{
+            headerTitle: () => <KralLogo width={72} />,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
+        <Stack.Screen
+          name="checkout"
+          options={{
+            headerTitle: () => <KralLogo width={72} />,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
+        <Stack.Screen
           name="messages"
           options={{
             headerTitle: () => <Text style={type.h2}>Messages</Text>,

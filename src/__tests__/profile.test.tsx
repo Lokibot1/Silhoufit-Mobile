@@ -156,28 +156,37 @@ describe('signed-in layout', () => {
     expect(mockNavigate).toHaveBeenCalledWith({ pathname: '/orders', params: { tab: 'all', nav: expect.stringMatching(/^\d+$/) } })
   })
 
-  it('shows the unbuilt rows as disabled and captioned', async () => {
+  it('shows the unbuilt rows as disabled and captioned, and Edit Profile as enabled', async () => {
     await render(<Profile />)
-    for (const id of ['profile-menu-edit', 'profile-menu-addresses', 'profile-menu-body']) {
+    expect(screen.getByTestId('profile-menu-edit').props.accessibilityState).toMatchObject({ disabled: false })
+    for (const id of ['profile-menu-addresses', 'profile-menu-body']) {
       expect(screen.getByTestId(id).props.accessibilityState).toMatchObject({ disabled: true })
       await fireEvent.press(screen.getByTestId(id))
     }
-    expect(screen.getAllByText('Coming soon')).toHaveLength(3)
+    expect(screen.getAllByText('Coming soon')).toHaveLength(2)
     expect(mockNavigate).not.toHaveBeenCalled()
     expect(mockPush).not.toHaveBeenCalled()
   })
 
-  it('keeps the edit icon disabled until Edit Profile exists', async () => {
+  it('opens Edit Profile from the row', async () => {
+    await render(<Profile />)
+    await fireEvent.press(screen.getByTestId('profile-menu-edit'))
+    expect(mockPush).toHaveBeenCalledWith('/profile/edit')
+  })
+
+  it('opens Edit Profile from the edit icon, once on a double tap', async () => {
     await render(<Profile />)
     const icon = screen.getByTestId('profile-edit', { includeHiddenElements: true })
-    expect(icon.props.accessibilityState).toMatchObject({ disabled: true })
+    expect(icon.props.accessibilityState).toMatchObject({ disabled: false })
     await fireEvent.press(icon)
-    expect(mockPush).not.toHaveBeenCalled()
+    await fireEvent.press(icon)
+    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith('/profile/edit')
   })
 
   it('hides the duplicate edit icon from screen readers; the row announces it', async () => {
     await render(<Profile />)
     expect(screen.queryByTestId('profile-edit')).toBeNull() // default queries skip hidden elements
-    expect(screen.getByLabelText('Edit Profile, Coming soon')).toBe(screen.getByTestId('profile-menu-edit'))
+    expect(screen.getByLabelText('Edit Profile')).toBe(screen.getByTestId('profile-menu-edit'))
   })
 })

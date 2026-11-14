@@ -1,0 +1,38 @@
+appId: ${APP_ID}
+---
+# Read-only: opens Edit Profile, checks Save is disabled with nothing changed, and goes back without saving.
+# Saving changes real account data, so the save path is a device check (MANUAL.md, Edit Profile).
+# Needs a seeded customer.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: profile-menu-edit
+- extendedWaitUntil:
+    visible:
+      id: edit-save
+    timeout: 10000
+- assertVisible: Edit Profile
+- assertVisible:
+    id: edit-first-name
+- assertVisible:
+    id: edit-save
+    enabled: false
+# The root Stack screen sits above the tabs: go back to Profile.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # The native back button has no testID and its label is the previous screen's title (same pattern as flow 21).
+      - tapOn:
+          text: '(?i)(back|profile|\(tabs\))'
+- extendedWaitUntil:
+    visible:
+      id: profile-name
+    timeout: 10000
+- assertNotVisible:
+    id: edit-save
