@@ -19,7 +19,7 @@ export type Order = {
   /** The address as it was when the order was placed; null when the API sent none. */
   address: { recipient: string | null; phone: string | null; line: string; city: string } | null
   items: OrderItem[]
-  shipment: { status: string; pickupTime: string | null; deliveredAt: string | null } | null
+  shipment: { status: string; pickupTime: string | null; deliveredAt: string | null; trackingUrl: string | null } | null
 }
 export type OrdersPage = { items: Order[]; total: number; page: number; hasNextPage: boolean }
 
@@ -73,7 +73,7 @@ export function toOrder(raw: unknown): Order {
     cancellationReason: str(raw.cancellationReason),
     address: a && { recipient: str(a.recipientName), phone: str(a.phone), line: join([a.streetAddress, a.addressLine2, a.barangay]), city: join([a.cityMunicipality, a.province, a.postalCode]) },
     items,
-    shipment: s && str(s.status) ? { status: s.status as string, pickupTime: str(s.pickupTime), deliveredAt: str(s.deliveredAt) } : null,
+    shipment: s && str(s.status) ? { status: s.status as string, pickupTime: str(s.pickupTime), deliveredAt: str(s.deliveredAt), trackingUrl: str(s.trackingUrl) } : null,
   }
 }
 
@@ -87,6 +87,21 @@ export function toOrdersPage(body: unknown, requestedPage = 1): OrdersPage {
 /** GET /orders, newest first (needs a session). */
 export async function fetchOrdersPage({ page, limit }: { page: number; limit: number }, signal?: AbortSignal): Promise<OrdersPage> {
   return toOrdersPage(await request('GET', `/orders?page=${page}&limit=${limit}`, undefined, signal), page)
+}
+
+const ALL_LIMIT = 100
+const ALL_PAGES = 5
+
+/** Every order of the account, newest first: follows hasNextPage and drops a row a moving page repeated. */
+// shortcut: max 500 orders, add a counts endpoint if customers exceed it
+export async function fetchAllOrders(signal?: AbortSignal): Promise<Order[]> {
+  const byId = new Map<string, Order>()
+  for (let page = 1; page <= ALL_PAGES; page++) {
+    const result = await fetchOrdersPage({ page, limit: ALL_LIMIT }, signal)
+    for (const order of result.items) if (!byId.has(order.id)) byId.set(order.id, order)
+    if (!result.hasNextPage) break
+  }
+  return [...byId.values()]
 }
 
 /** GET /orders/:id. The API answers 404 for another account's order too, so that is "not found". */
@@ -149,6 +164,33 @@ export const shipmentLabel = (status: string) => SHIPMENT[status] ?? humanize(st
 export const awaitsPayment = ({ status, paymentStatus }: Pick<Order, 'status' | 'paymentStatus'>) =>
   (status === 'PENDING_PAYMENT' || status === 'PAYMENT_FAILED') && paymentStatus !== 'PAID'
 
+export type OrderTab = 'all' | 'to-pay' | 'to-ship' | 'to-receive' | 'completed' | 'cancelled' | 'returns'
+
+/** The status tabs, grouped as on the web. A tab with `statuses: null` shows everything; a status the API adds later shows under All only. */
+export const ORDER_TABS: { id: OrderTab; label: string; statuses: string[] | null }[] = [
+  { id: 'all', label: 'All', statuses: null },
+  { id: 'to-pay', label: 'To pay', statuses: ['PENDING_PAYMENT', 'PAYMENT_FAILED'] },
+  { id: 'to-ship', label: 'To ship', statuses: ['PAID', 'PROCESSING'] },
+  { id: 'to-receive', label: 'To receive', statuses: ['DISPATCHED', 'OUT_FOR_DELIVERY'] },
+  { id: 'completed', label: 'Completed', statuses: ['DELIVERED'] },
+  { id: 'cancelled', label: 'Cancelled', statuses: ['CANCELLED'] },
+  { id: 'returns', label: 'Returns/Refund', statuses: ['REFUNDED'] },
+]
+
+export function matchesTab(order: Pick<Order, 'status'>, tab: OrderTab) {
+  const statuses = ORDER_TABS.find((t) => t.id === tab)?.statuses
+  return !statuses || statuses.includes(order.status)
+}
+
+export const tabCounts = (orders: Pick<Order, 'status'>[]) =>
+  Object.fromEntries(ORDER_TABS.map((tab) => [tab.id, orders.filter((order) => matchesTab(order, tab.id)).length])) as Record<OrderTab, number>
+
+/** The courier's tracking page for an order on its way; only a web address is ever linked. */
+export function trackingLink({ status, shipment }: Pick<Order, 'status' | 'shipment'>): string | null {
+  const url = shipment?.trackingUrl
+  return (status === 'DISPATCHED' || status === 'OUT_FOR_DELIVERY') && url && /^https?:\/\//i.test(url) ? url : null
+}
+
 /** The steps the API has a time for, in order: nothing is invented for stages with no timestamp. */
 export function orderTimeline(order: Order): { label: string; at: string; note?: string }[] {
   const { shipment } = order
@@ -184,4 +226,23 @@ export function orderUpdates(orders: Order[]): NotificationEvent[] {
         .map(({ kind, label, at, note }) => ({ id: `${order.id}-${kind}`, orderId: order.id, orderNumber: order.orderNumber, kind, label, at, ...(note ? { note } : {}) }))
     })
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+}
+
+export type ShippingQuote = { quotationId: string; courier: string; shippingFee: number; expiresAt: string }
+
+/** POST /orders/quote-shipping. Throws ApiError('server') when the answer lacks an id, a fee or a valid expiry. */
+export async function quoteShipping(addressId: string, signal?: AbortSignal): Promise<ShippingQuote> {
+  const body = await request('POST', '/orders/quote-shipping', { addressId }, signal)
+  if (!isRecord(body)) throw new ApiError('server')
+  const quotationId = str(body.quotationId)
+  const shippingFee = num(body.shippingFee)
+  const expiresAt = str(body.expiresAt)
+  if (!quotationId || shippingFee === null || !expiresAt || Number.isNaN(Date.parse(expiresAt))) throw new ApiError('server')
+  return { quotationId, courier: str(body.courier) ?? 'Courier', shippingFee, expiresAt }
+}
+
+/** POST /orders. The API rejects unknown keys, so the body holds only these (quotationId only when given). */
+export async function createOrder(input: { addressId: string; cartItemIds: string[]; quotationId?: string }, signal?: AbortSignal): Promise<Order> {
+  const { addressId, cartItemIds, quotationId } = input
+  return toOrder(await request('POST', '/orders', { addressId, cartItemIds, ...(quotationId !== undefined && { quotationId }) }, signal))
 }

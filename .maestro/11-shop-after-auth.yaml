@@ -17,8 +17,17 @@ appId: ${APP_ID}
     id: 'shop-card-(?!.*-image$).+'
 - tapOn:
     id: tab-profile
+- scrollUntilVisible:
+    element:
+      id: profile-sign-out
+    direction: DOWN
+    timeout: 10000
 - tapOn:
     id: profile-sign-out
+- runFlow:
+    file: subflows/confirm-alert.yaml
+    env:
+      BUTTON: '(?i)Sign Out'
 - extendedWaitUntil:
     visible:
       id: profile-sign-in

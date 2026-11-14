@@ -1,0 +1,63 @@
+appId: ${APP_ID}
+---
+# Read-only: taps the status tabs and never pays, cancels or opens the payment browser.
+# Needs a seeded customer. With no orders at all there is no tab row, so the flow ends on the empty state.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: tab-orders
+- extendedWaitUntil:
+    visible:
+      id: 'orders-list|orders-empty-action'
+    timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: orders-empty-action
+    commands:
+      - assertVisible: No orders yet
+      - assertNotVisible:
+          id: orders-tab-all
+- runFlow:
+    when:
+      visible:
+        id: orders-list
+    commands:
+      - assertVisible:
+          id: orders-tab-all
+      - tapOn:
+          id: orders-tab-to-pay
+      # Wait for the tab itself to be selected, then for its rows or its empty state (the list stays mounted).
+      - extendedWaitUntil:
+          visible:
+            id: orders-tab-to-pay
+            selected: true
+          timeout: 5000
+      - extendedWaitUntil:
+          visible:
+            id: 'order-row-(?!error-).+|orders-tab-empty-action'
+          timeout: 5000
+      - tapOn:
+          id: orders-tab-completed
+      - extendedWaitUntil:
+          visible:
+            id: orders-tab-completed
+            selected: true
+          timeout: 5000
+      - extendedWaitUntil:
+          visible:
+            id: 'order-row-(?!error-).+|orders-tab-empty-action'
+          timeout: 5000
+      - tapOn:
+          id: orders-tab-all
+      - extendedWaitUntil:
+          visible:
+            id: orders-tab-all
+            selected: true
+          timeout: 5000
+      - assertVisible:
+          id: orders-list
+      - assertNotVisible:
+          id: orders-tab-empty-action
+      - assertNotVisible:
+          id: orders-sign-in

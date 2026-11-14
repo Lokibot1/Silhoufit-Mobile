@@ -93,10 +93,15 @@ Not automatable with Maestro (or too flaky). Run on a real Android and iOS devic
 ## Orders
 Pay and cancel change real orders, so they are manual. Use a dedicated test account with one unpaid order, one paid order and enough orders (more than 10) to page.
 - [ ] Pull down on the Orders list: spinner shows and rows refresh; with airplane mode on, a toast explains and the rows stay.
-- [ ] Scroll to the last page (needs more than 10 orders): each page appends without duplicates or a jump, and loading stops after the last one.
+- [ ] Tab row (All, To pay, To ship, To receive, Completed, Cancelled, Returns/Refund): it scrolls sideways on a narrow phone with no clipped chip; each label shows its count, the selected chip is filled, and TalkBack/VoiceOver reads "To pay, 2 orders, selected". The tab stays selected after opening an order and going back, or switching tabs and returning.
+- [ ] An empty tab (for example Cancelled with none) shows "No cancelled orders" and "Show All Orders" returns to All.
+- [ ] Order card at 320px wide: number, status pill, date, two item lines with thumbnail, "+N more items" and "Total (N items)" fit with no horizontal scroll; a very long product name clamps to two lines.
+- [ ] A product image that fails to load (airplane mode after the list loaded, or an order whose image link is dead) shows the product name in the grey tile, never a broken square.
+- [ ] Track: an order that is shipped or out for delivery with a courier link shows Track (`order-track-<id>`) and it opens the courier page in the in-app browser; an order without a link shows no Track. Review & Pay (`order-pay-<id>`) on an unpaid card opens the order detail, it does not start a payment.
+- [ ] More than 100 orders (needs a seeded account): all of them load and the tab counts add up (the app reads at most 500).
 - [ ] Airplane mode on a cold start: Orders shows "Couldn't load your orders" with the reason and Retry (`orders-retry`); Retry works once back online.
-- [ ] Airplane mode while page 2 loads: the loaded rows stay and an inline "Couldn't load more orders" row shows Retry (`orders-load-more-retry`); no endless retry loop.
-- [ ] Open an order, change nothing, go back: the list keeps its scroll position and loaded pages (the silent refresh on focus replaces rows in place).
+- [ ] Airplane mode after the list loaded, then return to the Orders tab: the rows stay and a toast explains (no error screen).
+- [ ] Open an order, change nothing, go back: the list keeps its scroll position and tab (the silent refresh on focus replaces rows in place).
 - [ ] Pay Now on an unpaid order (needs a test payment on the payment provider's test mode): the payment page opens in the in-app browser; closing it (iOS) or returning to the app (Android) refreshes the order and its status. Double-tapping Pay Now opens one browser.
 - [ ] Pay Now when the payment link cannot be made (stop the backend's payment provider or use an order with a total under 1.00): an inline message explains it and Pay Now stays available.
 - [ ] Complete a test payment, return to the app: status shows Paid, Pay Now and Cancel Order are gone.
@@ -107,7 +112,7 @@ Pay and cancel change real orders, so they are manual. Use a dedicated test acco
 - [ ] 320px-wide screen: rows, the status chips, items, amounts and buttons fit with no horizontal scroll; a very long product name clamps to two lines and a long order number stays on one line.
 - [ ] Font scale 200% (Android Font size and Display size, iOS Larger Text): rows and the detail wrap or grow with no clipping or overlap; both buttons are reachable.
 - [ ] Account switch: sign out, sign in as another account, open Orders: the previous account's orders never show, not even for a moment.
-- [ ] TalkBack and VoiceOver: each row reads "Order <number>, <status>, <n items>, <total>, placed <date>"; status and payment read as words, not colour; the Alert buttons are read.
+- [ ] TalkBack and VoiceOver: each card reads "Order <number>, <status>, <n items>, total <amount>, placed <date>"; status and payment read as words, not colour; the Alert buttons are read.
 - [ ] Times show in Philippine time with AM/PM (for example an order placed at 1:49 PM Manila reads "1:49 PM" on a phone set to another time zone).
 - [ ] Orders skeleton and detail skeleton on a slow network match the final layout with no jump.
 - [ ] Failed payment: pay with a test card that the provider declines (or close the payment page unpaid), return to the app: the order stays unpaid or shows the failed payment status, an inline message explains, and Pay Now stays available to try again.
@@ -175,6 +180,17 @@ Needs the owner setup below first. Use a dedicated Google test account (a test u
 - [ ] Failed exchange copy (link reused or expired): "Google sign-in didn't finish. The sign-in expired or was already used, so you're not signed in. Tap Continue with Google to try again."
 - [ ] TalkBack and VoiceOver read "Continue with Google" and skip the "(OR)" divider (it is hidden from accessibility on purpose, which is also why Maestro may not see `sign-in-divider`).
 - [ ] 320px-wide screen: divider and button fit with no horizontal scroll.
+
+## Profile (menu and shortcuts)
+- [ ] Signed in, Profile shows the avatar, name, email and "Member since <date>" (Manila date); the edit icon at the right is dimmed and VoiceOver/TalkBack read "Edit profile, Coming soon, dimmed/disabled".
+- [ ] My Orders shows "View all" and four tiles (To pay, To ship, To receive, Completed), each at least 44px tall with a visible label; each opens the Orders tab on the matching sub-tab, and View all opens Orders unfiltered. Back from Orders returns to Profile.
+- [ ] Menu rows are 56px with hairline dividers; Edit Profile, Delivery Addresses and Body Profile are dimmed with the visible "Coming soon" caption, do nothing when tapped and are announced as disabled. Sign Out shows a chevron-less row with a spinner while signing out.
+- [ ] Sign Out shows the native Alert "Are you sure?" with Cancel and a red/destructive "Sign Out"; Cancel keeps the session, Sign Out shows the "Signed out" toast. On Android the buttons may be uppercase. The error state's Sign Out button asks the same way.
+- [ ] Avatar fallback on the new header: broken URL shows initials, no name shows the person icon, same name gives the same colour.
+- [ ] At 320px wide and at the largest font scale: the header, tile labels ("To receive" wraps to two lines at most) and rows do not clip or overlap, there is no horizontal scroll, and the screen scrolls to Sign Out.
+- [ ] Skeleton while loading has the same blocks as the loaded screen (header, tiles, four rows) with no jump when the data arrives.
+- [ ] Profile shortcut after manually changing the Orders tab lands on the shortcut's tab: open Orders, pick All, go to Profile, tap To pay (Orders shows To pay); pick Completed, return to Profile, tap View all (Orders shows All); tap To pay twice from Profile with a manual tab change between. Sign out and sign in as another account: Orders starts on All.
+- [ ] Order detail at 320px and the largest font scale: the Status and Payment chips wrap their label instead of clipping, with no horizontal scroll. Disabled Profile rows show readable dark "Coming soon" captions with a dimmed icon, and screen readers announce Edit Profile once (not the header icon too).
 
 ## Owner setup checklist (Google sign-in, not code)
 - [ ] Supabase > Authentication > URL Configuration > Redirect URLs: add `silhoufitmobile://auth/callback` (dev builds and release) and the Expo Go address that `Linking.createURL('auth/callback')` prints, for example `exp://192.168.1.225:8081/--/auth/callback`. The LAN IP changes, so on the dev project only you may use `exp://**/--/auth/callback`; remove it before release.

@@ -1,19 +1,30 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
+import { Alert } from 'react-native'
+
 import Profile from '../app/(tabs)/profile'
 
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
-jest.mock('expo-router', () => ({ router: { push: jest.fn() }, useFocusEffect: jest.fn() }))
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), navigate: jest.fn() }, useFocusEffect: jest.fn() }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
+jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
 const mockToast = jest.fn()
 const mockUseSession = jest.requireMock('@/auth/session').useSession
-const mockPush = jest.requireMock('expo-router').router.push
+const { push: mockPush, navigate: mockNavigate } = jest.requireMock('expo-router').router
+const alertSpy = jest.spyOn(Alert, 'alert')
+const pressAlert = async (text: string) => {
+  const buttons = alertSpy.mock.calls.at(-1)?.[2] ?? []
+  await act(async () => buttons.find((b) => b.text === text)?.onPress?.())
+}
 
-beforeEach(() => jest.clearAllMocks())
+beforeEach(() => {
+  jest.clearAllMocks()
+  alertSpy.mockImplementation(() => {})
+})
 
 const base = { session: null, profile: null, loading: false, error: null, retry: jest.fn(), signOut: jest.fn().mockResolvedValue(undefined) }
-const me = { id: 'u1', email: 'ana@example.com', role: 'customer', firstName: 'Ana', lastName: 'Cruz', fullName: null, avatarUrl: null }
+const me = { id: 'u1', email: 'ana@example.com', role: 'customer', firstName: 'Ana', lastName: 'Cruz', fullName: null, avatarUrl: null, createdAt: '2026-03-02T01:00:00.000Z' }
 
 it('shows the skeleton, not the prompt, while loading', async () => {
   mockUseSession.mockReturnValue({ ...base, loading: true })
@@ -36,8 +47,21 @@ it('shows the profile and signs out with a toast', async () => {
   expect(screen.getByTestId('profile-name').props.children).toBe('Ana Cruz')
   expect(screen.getByText('ana@example.com')).toBeTruthy()
   await fireEvent.press(screen.getByTestId('profile-sign-out'))
+  expect(alertSpy.mock.calls[0].slice(0, 2)).toEqual(['Are you sure?', expect.any(String)])
+  expect(base.signOut).not.toHaveBeenCalled()
+  await pressAlert('Sign Out')
   await waitFor(() => expect(mockToast).toHaveBeenCalledWith('Signed out'))
   expect(base.signOut).toHaveBeenCalledTimes(1)
+})
+
+it('does not sign out when the confirmation is cancelled', async () => {
+  mockUseSession.mockReturnValue({ ...base, session: {}, profile: me })
+  await render(<Profile />)
+  await fireEvent.press(screen.getByTestId('profile-sign-out'))
+  await pressAlert('Cancel')
+  await fireEvent.press(screen.getByTestId('profile-sign-out'))
+  expect(alertSpy).toHaveBeenCalledTimes(2)
+  expect(base.signOut).not.toHaveBeenCalled()
 })
 
 it('falls back to first and last name when fullName is blank', async () => {
@@ -57,6 +81,7 @@ it('toasts a failure when sign out rejects', async () => {
   mockUseSession.mockReturnValue({ ...base, session: {}, profile: me, signOut: jest.fn().mockRejectedValue(new Error('x')) })
   await render(<Profile />)
   await fireEvent.press(screen.getByTestId('profile-sign-out'))
+  await pressAlert('Sign Out')
   await waitFor(() => expect(mockToast).toHaveBeenCalledWith("Couldn't sign out. Try again."))
   expect(mockToast).not.toHaveBeenCalledWith('Signed out')
 })
@@ -66,11 +91,12 @@ it('runs sign out once on a double tap', async () => {
   const signOut = jest.fn(() => new Promise<void>((resolve) => { finish = resolve }))
   mockUseSession.mockReturnValue({ ...base, session: {}, profile: me, signOut })
   await render(<Profile />)
-  const button = screen.getByTestId('profile-sign-out')
+  await fireEvent.press(screen.getByTestId('profile-sign-out'))
+  const confirm = alertSpy.mock.calls[0][2]?.find((b) => b.text === 'Sign Out')
   // Both taps land before React re-renders, so only the in-flight guard can stop the second.
   await act(async () => {
-    button.props.onClick({})
-    button.props.onClick({})
+    confirm?.onPress?.()
+    confirm?.onPress?.()
   })
   await act(async () => finish())
   await waitFor(() => expect(mockToast).toHaveBeenCalledWith('Signed out'))
@@ -83,6 +109,7 @@ it('offers Sign Out in the error state', async () => {
   mockUseSession.mockReturnValue({ ...base, session: {}, error: 'Server is down', signOut })
   await render(<Profile />)
   await fireEvent.press(screen.getByTestId('profile-sign-out'))
+  await pressAlert('Sign Out')
   await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1))
 })
 
@@ -101,4 +128,56 @@ it('shows the error with a working Retry', async () => {
   expect(screen.getByText('Server is down')).toBeTruthy()
   await fireEvent.press(screen.getByTestId('profile-retry'))
   expect(base.retry).toHaveBeenCalled()
+})
+
+describe('signed-in layout', () => {
+  beforeEach(() => mockUseSession.mockReturnValue({ ...base, session: {}, profile: me }))
+
+  it('shows the member since date', async () => {
+    await render(<Profile />)
+    expect(screen.getByText('Member since Mar 2, 2026')).toBeTruthy()
+  })
+
+  it('hides member since when the date is unknown', async () => {
+    mockUseSession.mockReturnValue({ ...base, session: {}, profile: { ...me, createdAt: null } })
+    await render(<Profile />)
+    expect(screen.queryByTestId('profile-member-since')).toBeNull()
+  })
+
+  it.each([['to-pay'], ['to-ship'], ['to-receive'], ['completed']])('opens the %s orders tab', async (id) => {
+    await render(<Profile />)
+    await fireEvent.press(screen.getByTestId(`profile-orders-${id}`))
+    expect(mockNavigate).toHaveBeenCalledWith({ pathname: '/orders', params: { tab: id, nav: expect.stringMatching(/^\d+$/) } })
+  })
+
+  it('View all opens Orders on All with a fresh nav', async () => {
+    await render(<Profile />)
+    await fireEvent.press(screen.getByTestId('profile-orders-all'))
+    expect(mockNavigate).toHaveBeenCalledWith({ pathname: '/orders', params: { tab: 'all', nav: expect.stringMatching(/^\d+$/) } })
+  })
+
+  it('shows the unbuilt rows as disabled and captioned', async () => {
+    await render(<Profile />)
+    for (const id of ['profile-menu-edit', 'profile-menu-addresses', 'profile-menu-body']) {
+      expect(screen.getByTestId(id).props.accessibilityState).toMatchObject({ disabled: true })
+      await fireEvent.press(screen.getByTestId(id))
+    }
+    expect(screen.getAllByText('Coming soon')).toHaveLength(3)
+    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('keeps the edit icon disabled until Edit Profile exists', async () => {
+    await render(<Profile />)
+    const icon = screen.getByTestId('profile-edit', { includeHiddenElements: true })
+    expect(icon.props.accessibilityState).toMatchObject({ disabled: true })
+    await fireEvent.press(icon)
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('hides the duplicate edit icon from screen readers; the row announces it', async () => {
+    await render(<Profile />)
+    expect(screen.queryByTestId('profile-edit')).toBeNull() // default queries skip hidden elements
+    expect(screen.getByLabelText('Edit Profile, Coming soon')).toBe(screen.getByTestId('profile-menu-edit'))
+  })
 })

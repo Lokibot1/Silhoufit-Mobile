@@ -1,7 +1,7 @@
 import { ApiError, isRecord, request, str } from '@/lib/api'
 
 export type Role = 'superadmin' | 'admin' | 'staff' | 'customer'
-export type Me = { id: string; email: string; role: Role; firstName: string; lastName: string; fullName: string | null; avatarUrl: string | null }
+export type Me = { id: string; email: string; role: Role; firstName: string; lastName: string; fullName: string | null; avatarUrl: string | null; createdAt: string | null }
 
 const ROLES: unknown[] = ['superadmin', 'admin', 'staff', 'customer']
 
@@ -10,7 +10,7 @@ export function toMe(body: unknown): Me | null {
   if (!isRecord(body)) return null
   const { id, email, firstName, lastName, role } = body
   if (!str(id) || !str(email) || !str(firstName) || !str(lastName) || !ROLES.includes(role)) return null
-  return { id, email, firstName, lastName, role, fullName: str(body.fullName), avatarUrl: str(body.avatarUrl) } as Me
+  return { id, email, firstName, lastName, role, fullName: str(body.fullName), avatarUrl: str(body.avatarUrl), createdAt: str(body.createdAt) } as Me
 }
 
 // The role comes from here, never from the JWT (whose role is just "authenticated").

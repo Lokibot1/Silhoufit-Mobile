@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { awaitsPayment, cancelOrder, createCheckoutSession, fetchOrder, fetchOrdersPage, orderTimeline, orderUpdates, paymentLabel, shipmentLabel, statusLabel, toOrder, toOrdersPage } from '../orders'
+import { awaitsPayment, cancelOrder, createCheckoutSession, createOrder, quoteShipping, fetchAllOrders, fetchOrder, fetchOrdersPage, matchesTab, ORDER_TABS, orderTimeline, tabCounts, trackingLink, orderUpdates, paymentLabel, shipmentLabel, statusLabel, toOrder, toOrdersPage } from '../orders'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -56,7 +56,7 @@ describe('toOrder', () => {
     expect(order.items[0]).toMatchObject({ quantity: 2, unitPrice: 1250, lineTotal: 2500 })
   })
   it('keeps a shipment with its times and ignores one with no status', () => {
-    expect(toOrder(raw({ shipment: { status: 'ON_GOING', pickupTime: '2026-11-15T01:00:00Z', deliveredAt: null } })).shipment).toEqual({ status: 'ON_GOING', pickupTime: '2026-11-15T01:00:00Z', deliveredAt: null })
+    expect(toOrder(raw({ shipment: { status: 'ON_GOING', pickupTime: '2026-11-15T01:00:00Z', deliveredAt: null, trackingUrl: 'https://t.test/1' } })).shipment).toEqual({ status: 'ON_GOING', pickupTime: '2026-11-15T01:00:00Z', deliveredAt: null, trackingUrl: 'https://t.test/1' })
     expect(toOrder(raw({ shipment: { courier: 'x' } })).shipment).toBeNull()
   })
   it('throws ApiError(server) on a bad shape', () => {
@@ -102,6 +102,28 @@ describe('labels and rules', () => {
     expect(orderTimeline(full).map((s) => s.label)).toEqual(['Placed', 'Paid', 'Handed to courier', 'Delivered'])
     const cancelled = toOrder(raw({ status: 'CANCELLED', cancelledAt: '2026-11-14T07:00:00Z', cancellationReason: 'Cancelled by customer' }))
     expect(orderTimeline(cancelled).at(-1)).toEqual({ label: 'Cancelled', at: '2026-11-14T07:00:00Z', note: 'Cancelled by customer' })
+  })
+})
+
+describe('order tabs', () => {
+  const all = ['PENDING_PAYMENT', 'PAYMENT_FAILED', 'PAID', 'PROCESSING', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'REFUNDED', 'SOMETHING_NEW'].map((status) => ({ status }))
+  it('groups statuses like the web and shows an unknown status only under All', () => {
+    expect(tabCounts(all)).toEqual({ all: 10, 'to-pay': 2, 'to-ship': 2, 'to-receive': 2, completed: 1, cancelled: 1, returns: 1 })
+    expect(ORDER_TABS.map((t) => t.label)).toEqual(['All', 'To pay', 'To ship', 'To receive', 'Completed', 'Cancelled', 'Returns/Refund'])
+  })
+  it('matches an order to its tab', () => {
+    expect(matchesTab({ status: 'PAID' }, 'to-ship')).toBe(true)
+    expect(matchesTab({ status: 'PAID' }, 'to-pay')).toBe(false)
+    expect(matchesTab({ status: 'SOMETHING_NEW' }, 'all')).toBe(true)
+  })
+  it('links tracking only for an order on its way and only to a web address', () => {
+    const shipment = (trackingUrl: string | null) => ({ status: 'ON_GOING', pickupTime: null, deliveredAt: null, trackingUrl })
+    expect(trackingLink({ status: 'DISPATCHED', shipment: shipment('https://t.test/1') })).toBe('https://t.test/1')
+    expect(trackingLink({ status: 'OUT_FOR_DELIVERY', shipment: shipment('HTTP://t.test/1') })).toBe('HTTP://t.test/1')
+    expect(trackingLink({ status: 'DELIVERED', shipment: shipment('https://t.test/1') })).toBeNull()
+    expect(trackingLink({ status: 'DISPATCHED', shipment: shipment('javascript:alert(1)') })).toBeNull()
+    expect(trackingLink({ status: 'DISPATCHED', shipment: shipment(null) })).toBeNull()
+    expect(trackingLink({ status: 'DISPATCHED', shipment: null })).toBeNull()
   })
 })
 
@@ -157,6 +179,26 @@ describe('requests', () => {
     expect((await fetchOrdersPage({ page: 2, limit: 10 }, signal)).page).toBe(2)
     expect(mockRequest).toHaveBeenCalledWith('GET', '/orders?page=2&limit=10', undefined, signal)
   })
+  describe('fetchAllOrders', () => {
+    const pageBody = (ids: string[], page: number, hasNextPage: boolean) => ({ data: ids.map((id) => raw({ id })), meta: { total: 9, page, hasNextPage } })
+    it('reads pages of 100 until there is no next page and drops a repeated order', async () => {
+      mockRequest.mockResolvedValueOnce(pageBody(['a', 'b'], 1, true)).mockResolvedValueOnce(pageBody(['b', 'c'], 2, false))
+      const signal = new AbortController().signal
+      expect((await fetchAllOrders(signal)).map((o) => o.id)).toEqual(['a', 'b', 'c'])
+      expect(mockRequest).toHaveBeenNthCalledWith(1, 'GET', '/orders?page=1&limit=100', undefined, signal)
+      expect(mockRequest).toHaveBeenNthCalledWith(2, 'GET', '/orders?page=2&limit=100', undefined, signal)
+      expect(mockRequest).toHaveBeenCalledTimes(2)
+    })
+    it('stops at 5 pages', async () => {
+      mockRequest.mockImplementation(async (_m: string, path: string) => pageBody([path], Number(/page=(\d+)/.exec(path)?.[1]), true))
+      expect(await fetchAllOrders()).toHaveLength(5)
+      expect(mockRequest).toHaveBeenCalledTimes(5)
+    })
+    it('fails when a page fails', async () => {
+      mockRequest.mockResolvedValueOnce(pageBody(['a'], 1, true)).mockRejectedValueOnce(new ApiError('network'))
+      await expect(fetchAllOrders()).rejects.toMatchObject({ kind: 'network' })
+    })
+  })
   it('GETs one order with the id encoded', async () => {
     mockRequest.mockResolvedValue(raw())
     await fetchOrder('a/b c')
@@ -188,5 +230,44 @@ describe('requests', () => {
     mockRequest.mockResolvedValue({ anything: true })
     await expect(cancelOrder('o 1')).resolves.toBeUndefined()
     expect(mockRequest).toHaveBeenCalledWith('POST', '/orders/o%201/cancel', {}, undefined)
+  })
+})
+
+describe('quoteShipping', () => {
+  beforeEach(() => mockRequest.mockReset())
+  const quote = { quotationId: 'q1', courier: 'Lalamove', shippingFee: '150.50', expiresAt: '2026-11-15T10:00:00.000Z' }
+  it('POSTs the address and parses the quote', async () => {
+    mockRequest.mockResolvedValue(quote)
+    expect(await quoteShipping('a1')).toEqual({ ...quote, shippingFee: 150.5 })
+    expect(mockRequest).toHaveBeenCalledWith('POST', '/orders/quote-shipping', { addressId: 'a1' }, undefined)
+  })
+  it('falls back to Courier when none is named', async () => {
+    mockRequest.mockResolvedValue({ ...quote, courier: undefined })
+    expect((await quoteShipping('a1')).courier).toBe('Courier')
+  })
+  it('rejects a bad shape', async () => {
+    for (const body of [null, {}, { ...quote, quotationId: '' }, { ...quote, shippingFee: 'free' }, { ...quote, expiresAt: 'soon' }, { ...quote, expiresAt: undefined }]) {
+      mockRequest.mockResolvedValueOnce(body)
+      await expect(quoteShipping('a1')).rejects.toMatchObject({ kind: 'server' })
+    }
+  })
+})
+
+describe('createOrder', () => {
+  beforeEach(() => mockRequest.mockReset())
+  it('sends exactly addressId, cartItemIds and quotationId, and parses the order', async () => {
+    mockRequest.mockResolvedValue(raw())
+    const order = await createOrder({ addressId: 'a1', cartItemIds: ['c1'], quotationId: 'q1' })
+    expect(order.id).toBe('o1')
+    expect(mockRequest).toHaveBeenCalledWith('POST', '/orders', { addressId: 'a1', cartItemIds: ['c1'], quotationId: 'q1' }, undefined)
+  })
+  it('omits quotationId when absent', async () => {
+    mockRequest.mockResolvedValue(raw())
+    await createOrder({ addressId: 'a1', cartItemIds: ['c1'] })
+    expect(mockRequest.mock.calls[0][2]).toStrictEqual({ addressId: 'a1', cartItemIds: ['c1'] })
+  })
+  it('rejects a malformed order', async () => {
+    mockRequest.mockResolvedValue({})
+    await expect(createOrder({ addressId: 'a1', cartItemIds: ['c1'] })).rejects.toMatchObject({ kind: 'server' })
   })
 })

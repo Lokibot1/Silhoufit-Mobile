@@ -2,8 +2,17 @@ appId: ${APP_ID}
 ---
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/sign-in.yaml
+- scrollUntilVisible:
+    element:
+      id: profile-sign-out
+    direction: DOWN
+    timeout: 10000
 - tapOn:
     id: profile-sign-out
+- runFlow:
+    file: subflows/confirm-alert.yaml
+    env:
+      BUTTON: '(?i)Sign Out'
 - extendedWaitUntil:
     visible:
       id: profile-sign-in

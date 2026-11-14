@@ -12,8 +12,17 @@ appId: ${APP_ID}
     timeout: 15000
 - tapOn:
     id: tab-profile
+- scrollUntilVisible:
+    element:
+      id: profile-sign-out
+    direction: DOWN
+    timeout: 10000
 - tapOn:
     id: profile-sign-out
+- runFlow:
+    file: subflows/confirm-alert.yaml
+    env:
+      BUTTON: '(?i)Sign Out'
 - extendedWaitUntil:
     visible:
       id: profile-sign-in

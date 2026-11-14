@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   body: { ...type.body, color: color.graphite },
   recipient: { ...type.body, fontFamily: font.semibold },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.lg },
-  chipGroup: { gap: space.xs },
+  chipGroup: { gap: space.xs, flexShrink: 1, maxWidth: '100%' },
   section: { gap: space.sm },
   item: { flexDirection: 'row', gap: space.md },
   tile: { width: IMG_W, height: IMG_H, backgroundColor: color.porcelain },
