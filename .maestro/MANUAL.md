@@ -71,6 +71,13 @@ Not automatable with Maestro (or too flaky). Run on a real Android and iOS devic
 - [ ] Increase past the stock (or a variant whose stock is 1 and a second device holding it): the server's message shows inline on that row only, the quantity does not change, the + button stays tappable until the stock is reached.
 - [ ] 320px-wide screen: rows, stepper, Remove and the subtotal fit with no horizontal scroll; a very long product name clamps to two lines.
 - [ ] Font scale 200% (Android Font size and Display size, iOS Larger Text): name, variant line, prices, stepper and Remove wrap or grow with no clipping or overlap; the last row and Clear Cart are reachable.
+- [ ] Sticky summary bar (`cart-bar`: Subtotal, item count, disabled Checkout and "Checkout is coming soon"): stays pinned while the list scrolls, sits directly above the tab bar with no gap or overlap on a phone with a gesture bar, and the last card and Clear Cart can scroll fully clear of it.
+- [ ] Toast above the bar: Remove an item (with two or more in the bag) and change nothing else; "Item removed" sits just above the bar and never covers the subtotal or Checkout. After removing the last item or Clear Cart the toast drops to the normal low position. Check on Android and iOS (the lift is measured from the bar's window position).
+- [ ] Card image: turn the network off or use an item whose image URL is broken; the card shows a Porcelain tile with the product name, not a blank or broken square. Photos fade in.
+- [ ] Stepper at the stock limit: at quantity equal to the stock the + button is disabled and a low-stock item says "Only N left"; at 1 the - button is disabled; both stay 44px and read "Quantity N, increase/decrease" in TalkBack/VoiceOver.
+- [ ] Tap a card (image or name): the product page opens once even on a fast double tap; Back returns to the Cart with the list where it was.
+- [ ] Removing a card slides the rest up (not a jump); with Reduce Motion on, it snaps.
+- [ ] 320px wide and font scale 200%: the subtotal and "Subtotal / N Items" fit on one row or wrap without clipping, the Checkout button label wraps, the trash icon never overlaps a two-line name.
 - [ ] Close and reopen the app: the cart is still there (it lives on the account, not the device).
 - [ ] Lower an item's stock in the backend (or deactivate its product), then open the Cart: that row shows "Only N left. Lower the quantity." (or "No longer available"), + is disabled, nothing crashes, and Remove still works.
 - [ ] Sign out from Profile, then open the Cart tab: "Sign in to see your cart"; after signing in the app returns to the Cart tab and the rows load. A different account never sees the previous account's rows.
@@ -139,6 +146,16 @@ Needs a customer test account and a staff account on the dev backend (web inbox 
 - [ ] Keyboard gap: with the keyboard open the composer sits directly on the keys (no empty band, Android gesture-nav and iOS home-indicator devices); closed, it keeps the safe-area padding.
 - [ ] Screen reader: TalkBack reads a new staff reply once when it arrives live (Android uses a live region on that bubble, check it actually speaks); VoiceOver announces "KRAL said: ..." once. Opening the screen does not read the history aloud. The failed bubble reads "Not sent, <text>".
 - [ ] Counter: "n/2000" shows right-aligned in Graphite when the input is focused or has text, and turns red from 1,900.
+
+## Floating-label fields (Sign In)
+
+- [ ] Label float: tap Email, the label shrinks and slides up onto the top border in about 180 ms, the border cut behind it looks clean on the Paper background (no seam, no box around the label), and the border and label turn Obsidian with a 2px border. Blur with text keeps it floated; blur empty drops it back inside.
+- [ ] Error: leave a field empty and blur, the border and label turn red and the message reads below it; the label stays floated only if text is present.
+- [ ] Autofill: the Android autofill prompt and iOS password manager fill Email and Password, and the labels float on fill (not stuck over the text).
+- [ ] Large font scale (Settings, largest text): the label is not clipped, the field grows, the floated label is still centred on the border.
+- [ ] Keyboard: focusing Password on a small phone keeps the field visible above the keyboard.
+- [ ] Reduce Motion on: the label snaps, no slide.
+- [ ] TalkBack/VoiceOver: each field is read once as "Email" or "Password" (the floating label is not read twice), the error is announced when it appears, and Show password reads as a button.
 
 ## Google sign-in
 Needs the owner setup below first. Use a dedicated Google test account (a test user while the consent screen is unpublished).

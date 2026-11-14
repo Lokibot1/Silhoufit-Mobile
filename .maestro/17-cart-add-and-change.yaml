@@ -108,6 +108,11 @@ appId: ${APP_ID}
     text: '(Quantity )?1'
 - assertVisible:
     id: cart-subtotal
+# No checkout exists yet: the sticky bar says so and the button stays disabled.
+- assertVisible:
+    id: cart-checkout
+    enabled: false
+- assertVisible: Checkout is coming soon
 - copyTextFrom:
     id: cart-subtotal
 - tapOn:

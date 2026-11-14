@@ -36,4 +36,8 @@ appId: ${APP_ID}
 - assertNotVisible:
     id: cart-clear
 - assertNotVisible:
+    id: cart-bar
+- assertNotVisible:
+    id: cart-checkout
+- assertNotVisible:
     id: cart-empty-action

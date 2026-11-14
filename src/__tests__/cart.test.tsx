@@ -19,11 +19,16 @@ const mockFocus: { current: () => void | (() => void) } = { current: () => {} }
 const mockFocused = { on: true }
 jest.mock('expo-image', () => ({ Image: () => null }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
+jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
+jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }))
+jest.mock('@/ui/useReduceMotion', () => ({ useReduceMotion: () => false }))
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 20 }) }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
 const mockToast = jest.fn()
 const api = jest.requireMock('@/api/cart')
 const mockUseSession = jest.requireMock('@/auth/session').useSession
 const { push: mockPush, navigate: mockNavigate } = jest.requireMock('expo-router').router
+const lifted = (message: string) => [message, { bottom: expect.any(Number) }] as const
 const alertSpy = jest.spyOn(Alert, 'alert')
 
 const mockSignOut = jest.fn()
@@ -59,8 +64,10 @@ it('shows the skeleton on the first load, then the rows with name, variant, tota
   await act(async () => resolve(cartOf([line('a'), line('b', { quantity: 1, lineTotal: 1250 })])))
   expect(screen.queryByRole('progressbar')).toBeNull()
   expect(screen.getByText('Tee a')).toBeTruthy()
-  expect(screen.getAllByText('Size M // Red')).toHaveLength(2)
-  expect(screen.getByText('₱1,250.00', { exact: true })).toBeTruthy() // line b total
+  expect(screen.getAllByText('M / Red')).toHaveLength(2)
+  expect(screen.getAllByText('₱1,250.00')).toHaveLength(2) // unit price of both rows
+  expect(screen.getByLabelText('Line total ₱2,500.00')).toBeTruthy() // only a quantity above 1 shows a line total
+  expect(screen.queryByLabelText('Line total ₱1,250.00')).toBeNull()
   expect(screen.getByTestId('cart-subtotal').props.children).toBe('₱3,750.00')
   expect(screen.getByTestId('cart-count').props.children).toBe('3 Items')
   expect(screen.getByTestId('cart-list')).toBeTruthy()
@@ -136,9 +143,52 @@ describe('with items', () => {
     await pressAlert('Remove Item')
     expect(api.removeCartItem).toHaveBeenCalledTimes(1)
     expect(api.removeCartItem).toHaveBeenCalledWith('a')
-    expect(mockToast).toHaveBeenCalledWith('Item removed')
+    expect(mockToast).toHaveBeenCalledWith(...lifted('Item removed'))
     await waitFor(() => expect(screen.queryByTestId('cart-row-a')).toBeNull())
     expect(screen.getByTestId('cart-row-b')).toBeTruthy()
+  })
+
+  it('opens the product page from the item, once even on a double tap', async () => {
+    await fireEvent.press(screen.getByTestId('cart-open-a'))
+    await fireEvent.press(screen.getByTestId('cart-open-a'))
+    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/product/[id]', params: { id: 'p-a' } })
+    expect(screen.getByLabelText('Open Tee a')).toBeTruthy()
+  })
+
+  it('labels the stepper and remove for screen readers', () => {
+    expect(screen.getByLabelText('Increase quantity of Tee a')).toBeTruthy()
+    expect(screen.getByLabelText('Decrease quantity of Tee a')).toBeTruthy()
+    expect(screen.getByLabelText('Quantity 2')).toBeTruthy()
+    expect(screen.getByLabelText('Remove Tee a')).toBeTruthy()
+  })
+
+  it('shows the sticky bar with the count, the subtotal and a disabled Checkout that says why', () => {
+    expect(screen.getByTestId('cart-bar')).toBeTruthy()
+    expect(screen.getByTestId('cart-count').props.children).toBe('3 Items')
+    expect(screen.getByTestId('cart-subtotal').props.children).toBe('₱3,750.00')
+    expect(screen.getByTestId('cart-checkout')).toBeDisabled()
+    expect(screen.getByTestId('cart-checkout-note')).toHaveTextContent('Checkout is coming soon')
+    fireEvent.press(screen.getByTestId('cart-checkout'))
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('lifts toasts above the bar by its measured top edge', async () => {
+    const bar = screen.getByTestId('cart-bar')
+    // window 1334 high, bar top at 500, safe-area bottom 20: 1334 - 500 + 8 (gap) - 20 - 16 (toast base) = 806
+    const view = jest.requireActual('react-native').View.prototype
+    const original = view.measureInWindow
+    view.measureInWindow = (done: (x: number, y: number) => void) => done(0, 500)
+    try {
+      await fireEvent(bar, 'layout', { nativeEvent: { layout: { x: 0, y: 500, width: 400, height: 140 } } })
+      api.removeCartItem.mockResolvedValue(undefined)
+      api.fetchCart.mockResolvedValue(cartOf([line('b', { quantity: 1, lineTotal: 1250 })]))
+      await fireEvent.press(screen.getByTestId('cart-remove-a'))
+      await pressAlert('Remove Item')
+      expect(mockToast).toHaveBeenCalledWith('Item removed', { bottom: 806 })
+    } finally {
+      view.measureInWindow = original
+    }
   })
 
   it('asks before clearing, then shows the empty state', async () => {
@@ -151,7 +201,7 @@ describe('with items', () => {
     await fireEvent.press(screen.getByTestId('cart-clear'))
     await pressAlert('Clear All Items')
     expect(api.clearCart).toHaveBeenCalledTimes(1)
-    expect(mockToast).toHaveBeenCalledWith('Cart cleared')
+    expect(mockToast).toHaveBeenCalledWith('Cart cleared', undefined) // the bar is gone with the last item, so no lift
     expect(await screen.findByText('Your cart is empty')).toBeTruthy()
   })
 })
@@ -192,7 +242,7 @@ it('refreshes silently on focus (no skeleton) and keeps the rows with a toast wh
   expect(screen.queryByRole('progressbar')).toBeNull()
   expect(await screen.findByTestId('cart-row-b')).toBeTruthy()
   await act(async () => void mockFocus.current())
-  expect(mockToast).toHaveBeenCalledWith("Can't reach the server. Check your connection and try again.")
+  expect(mockToast).toHaveBeenCalledWith(...lifted("Can't reach the server. Check your connection and try again."))
   expect(screen.getByTestId('cart-row-a')).toBeTruthy()
   expect(screen.queryByTestId('cart-retry')).toBeNull()
 })
@@ -202,7 +252,7 @@ it('signs out once and toasts on a 401, without showing a sign-in form to a sign
   await render(<CartScreen />)
   await waitFor(() => expect(mockSignOut).toHaveBeenCalledTimes(1))
   expect(mockToast).toHaveBeenCalledTimes(1)
-  expect(mockToast).toHaveBeenCalledWith('Your session has expired. Sign in again.')
+  expect(mockToast).toHaveBeenCalledWith(...lifted('Your session has expired. Sign in again.'))
   expect(screen.queryByTestId('cart-sign-in')).toBeNull()
 })
 
@@ -316,8 +366,8 @@ describe('removing and clearing', () => {
     expect(screen.getByTestId('cart-row-b')).toBeTruthy()
     expect(screen.getByTestId('cart-subtotal').props.children).toBe('₱1,250.00')
     expect(screen.queryByTestId('cart-row-error-b')).toBeNull()
-    expect(mockToast).toHaveBeenCalledWith('Item removed')
-    expect(mockToast).toHaveBeenCalledWith(soft)
+    expect(mockToast).toHaveBeenCalledWith(...lifted('Item removed'))
+    expect(mockToast).toHaveBeenCalledWith(...lifted(soft))
   })
 
   it('treats a 404 on remove as gone', async () => {
@@ -334,7 +384,7 @@ describe('removing and clearing', () => {
     api.fetchCart.mockResolvedValue(cartOf([line('b', { quantity: 1, lineTotal: 1250 })]))
     await fireEvent.press(screen.getByTestId('cart-inc-a'))
     await waitFor(() => expect(screen.queryByTestId('cart-row-a')).toBeNull())
-    expect(mockToast).toHaveBeenCalledWith('That item is no longer in your cart.')
+    expect(mockToast).toHaveBeenCalledWith(...lifted('That item is no longer in your cart.'))
   })
 
   it('clears locally when the refetch fails after Clear Cart', async () => {
@@ -343,8 +393,8 @@ describe('removing and clearing', () => {
     await fireEvent.press(screen.getByTestId('cart-clear'))
     await pressAlert('Clear All Items')
     expect(await screen.findByText('Your cart is empty')).toBeTruthy()
-    expect(mockToast).toHaveBeenCalledWith('Cart cleared')
-    expect(mockToast).toHaveBeenCalledWith(soft)
+    expect(mockToast).toHaveBeenCalledWith('Cart cleared', undefined) // the bar is gone with the last item, so no lift
+    expect(mockToast).toHaveBeenCalledWith(soft, undefined)
   })
 
   it('opens one Alert on a double tap; the lock is released after Cancel and after a failed action', async () => {
@@ -372,7 +422,7 @@ describe('removing and clearing', () => {
     api.setCartItemQuantity.mockRejectedValue(new ApiError('forbidden', undefined, 401))
     await fireEvent.press(screen.getByTestId('cart-inc-a'))
     await waitFor(() => expect(mockSignOut).toHaveBeenCalledTimes(1))
-    expect(mockToast).toHaveBeenCalledWith('Your session has expired. Sign in again.')
+    expect(mockToast).toHaveBeenCalledWith(...lifted('Your session has expired. Sign in again.'))
     expect(screen.queryByTestId('cart-row-error-a')).toBeNull()
   })
 })
