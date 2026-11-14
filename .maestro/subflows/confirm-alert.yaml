@@ -1,0 +1,11 @@
+# Reusable: tap a button of the native Alert ("Are you sure?"). An Alert has no testID, so buttons are matched by text.
+# Pass BUTTON as a regex, e.g. '(?i)Remove Item', '(?i)Clear All Items', '(?i)Cancel' (Android may render the labels uppercase).
+# "below" the title is a cheap safeguard so the match stays on the dialog; the confirm labels (Remove Item, Clear All Items, Cancel) no longer collide with the footer "Clear Cart" button, so it is not strictly needed.
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible: '(?i)Are you sure\?'
+    timeout: 5000
+- tapOn:
+    text: '${BUTTON}'
+    below: '(?i)Are you sure\?'

@@ -1,0 +1,14 @@
+appId: ${APP_ID}
+---
+# Cart is the one tab that needs a session; Shop stays public.
+- runFlow: subflows/launch.yaml
+- tapOn:
+    id: tab-cart
+- extendedWaitUntil:
+    visible:
+      id: cart-sign-in
+    timeout: 10000
+- assertVisible: Sign in to see your cart
+- assertVisible: Your bag is saved to your account once you sign in.
+- assertNotVisible:
+    id: cart-list

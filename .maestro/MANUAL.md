@@ -47,3 +47,22 @@ Not automatable with Maestro (or too flaky). Run on a real Android and iOS devic
 - [ ] Product skeleton on a slow network matches the final layout (gallery block, name, price, chips, button) with no jump.
 - [ ] A product with no variants shows "Not available to buy yet" and a disabled Add to Cart.
 - [ ] TalkBack and VoiceOver: photos read "<name>, photo N of M"; swatches read "Colour <name>"; the price and stock lines are readable.
+
+## Cart
+- [ ] Airplane mode on opening the Cart tab for the first time: "Couldn't load your cart" with the reason and Retry (`cart-retry`); Retry works once back online.
+- [ ] Airplane mode after the cart has loaded, then switch tabs and back: the rows stay and a toast explains; no error screen.
+- [ ] Add a piece on the Product page, go to the Cart tab: the row is there without a manual refresh and the skeleton does not flash on later visits.
+- [ ] Increase past the stock (or a variant whose stock is 1 and a second device holding it): the server's message shows inline on that row only, the quantity does not change, the + button stays tappable until the stock is reached.
+- [ ] 320px-wide screen: rows, stepper, Remove and the subtotal fit with no horizontal scroll; a very long product name clamps to two lines.
+- [ ] Font scale 200% (Android Font size and Display size, iOS Larger Text): name, variant line, prices, stepper and Remove wrap or grow with no clipping or overlap; the last row and Clear Cart are reachable.
+- [ ] Close and reopen the app: the cart is still there (it lives on the account, not the device).
+- [ ] Lower an item's stock in the backend (or deactivate its product), then open the Cart: that row shows "Only N left. Lower the quantity." (or "No longer available"), + is disabled, nothing crashes, and Remove still works.
+- [ ] Sign out from Profile, then open the Cart tab: "Sign in to see your cart"; after signing in the app returns to the Cart tab and the rows load. A different account never sees the previous account's rows.
+- [ ] Remove and Clear Cart (confirm button "Clear All Items") ask "Are you sure?" with Cancel; Android back or tapping outside the dialog does nothing; there is no undo after confirming.
+- [ ] TalkBack and VoiceOver: steppers read "Decrease quantity of <name>" / "Increase ...", the quantity is announced when it changes, prices read as pesos, Remove reads "Remove <name> from cart".
+- [ ] Double-tap + quickly: one request goes out, the row's spinner shows, and the other rows' buttons are dimmed until it finishes.
+- [ ] Increase past the stock: the server's 400 message shows inline on that row only (`cart-row-error-<itemId>`), quantity unchanged. Needs a variant at its stock limit or a second device holding the last unit.
+- [ ] Airplane mode during a mutation (+, -, Remove): the row shows the error inline and re-enables the other rows; a failing Clear Cart shows a toast.
+- [ ] Delete succeeded but the refetch failed (airplane mode right after confirming Remove): the app explains the failure, and reopening the Cart tab shows the true bag.
+- [ ] Two devices, same account: change the bag on device A, open the Cart tab on device B: rows match after focus; acting on a row already removed elsewhere shows an inline error, no crash.
+- [ ] Native Alert labels: Android may render the buttons uppercase ("REMOVE ITEM"); confirm the flows' `(?i)` taps and the `below` selector in `subflows/confirm-alert.yaml` hit the dialog buttons on both platforms.

@@ -22,6 +22,10 @@ export default function TabsLayout() {
         options={{ title: 'Shop', tabBarButtonTestID: 'tab-shop', tabBarIcon: ({ focused, size, color: tint }) => <Ionicons name="storefront-outline" size={size} color={focused ? color.red : (tint as string)} /> }}
       />
       <Tabs.Screen
+        name="cart"
+        options={{ title: 'Cart', tabBarButtonTestID: 'tab-cart', tabBarIcon: ({ focused, size, color: tint }) => <Ionicons name="bag-outline" size={size} color={focused ? color.red : (tint as string)} /> }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',

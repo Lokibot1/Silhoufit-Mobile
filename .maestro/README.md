@@ -10,7 +10,7 @@ UNRUN: written without Maestro or a device available. Expect small selector/timi
 | Var | Meaning |
 |---|---|
 | `APP_ID` | Bundle/package id of the build (required) |
-| `TEST_EMAIL` | Seeded customer email (required) |
+| `TEST_EMAIL` | Seeded customer email (required). Use a DEDICATED test account: flow 17 empties and changes its real cart |
 | `TEST_PASSWORD` | Its password (required) |
 | `WRONG_PASSWORD` | Optional, only 03. Defaults to `Wrong-Password-1!` (declared in the flow header) |
 | `SEARCH_TERM` | Only 10. A search word that matches at least one active product on the dev backend |
@@ -42,11 +42,17 @@ All auth lives on the Profile tab, not Shop; Shop is public. Ids used: `shop-lis
 | 13 | Signed in: open a product, pick colour and size, Add to Cart shows the "Added to cart" toast. Needs a seeded customer and an in-stock product . Repeated runs add to the same cart and the backend counts it against stock (400): use a high-stock product or clear the cart (`DELETE /cart`) first |
 | 14 | Signed out: Add to Cart opens sign-in; after signing in the app returns to the same product and Add to Cart shows "Added to cart". Needs a seeded customer and an in-stock product . Repeated runs add to the same cart and the backend counts it against stock (400): use a high-stock product or clear the cart (`DELETE /cart`) first |
 | 15 | Deep link `silhoufitmobile://product/<made-up uuid>`: "This piece is no longer available", Back to Shop returns to the Shop. Needs only the backend |
+| 16 | Cart (Cycle 4), signed out: the Cart tab shows "Sign in to see your cart" with `cart-sign-in` and no list |
+| 17 | Cart, signed in: clears the bag through the UI if it has rows, adds exactly one piece from the Shop, asserts row, quantity 1, count and subtotal, then + and - (quantity and subtotal change and return), Remove asks first (Cancel keeps it, Remove Item empties the bag), then `cart-empty-action` lands on the Shop (`shop-list`). Changes the real cart of `TEST_EMAIL` and ends empty, so use a dedicated test account. Needs a product with stock of at least 3 as the first Shop card |
+| 18 | Cart, signed out: tap `cart-sign-in`, sign in, the modal closes and the Cart tab shows `cart-list` or `cart-empty-action` (not Profile, not Shop). Read-only |
+| 19 | Cart, signed in then signed out on Profile: the Cart tab shows the signed-out prompt and no rows, count, subtotal or Clear Cart from the previous account. Read-only; strongest when the bag already has a row |
+
+Cart ids: `tab-cart`, `cart-list`, `cart-row-<itemId>`, `cart-qty-<itemId>`, `cart-inc-<itemId>`, `cart-dec-<itemId>`, `cart-remove-<itemId>`, `cart-row-error-<itemId>`, `cart-clear`, `cart-subtotal`, `cart-count`, `cart-sign-in`, `cart-retry`, `cart-empty-action`. Remove and Clear Cart confirm with a native `Alert`, so Maestro taps its buttons by text ("Cancel", "Remove Item", "Clear All Items"); there are no `cart-confirm-*` ids. Flows 16 to 19 are UNRUN like the rest. Collision guard: `cart-row-<id>` is also a prefix of `cart-row-error-<id>`, so flows match rows with `cart-row-(?!error-).+`. The quantity Text carries an accessibility label ("Quantity N"), so quantity asserts use `(Quantity )?N`. Native Alert buttons are tapped through `subflows/confirm-alert.yaml` (`BUTTON` env, `(?i)` regex because Android may uppercase labels, `below: (?i)Are you sure\?` kept as a safeguard only: the confirm labels no longer collide with the footer Clear Cart button). The product page sits above the tabs, so flow 17 goes back (Android `back`, iOS header back by label) and waits for `tab-cart` before opening the Cart.
 
 Product ids: `product-gallery`, `product-name`, `product-price`, `product-swatch-<color>`, `product-size-<size>`, `product-add-to-cart`, `product-retry`, `product-error-back`, `product-inline-error`, `product-unavailable`. Flows 12 to 14 open the first Shop card, then tap the first enabled swatch and size (`product-swatch-.+`, `product-size-.+` with `enabled: true`) after a bounded `scrollUntilVisible`. The backend therefore needs an in-stock product with variants as the first Shop card; 14 also needs `TEST_EMAIL` and `TEST_PASSWORD`, 15 needs neither. The deep-link scheme is `silhoufitmobile` (app.json). `back` in 12 only runs on Android. Flow 15 may be interrupted by the dev launcher in a dev build.
 
 Note: Maestro `id:` is a full-string regex. Tab labels and `type.label` text render uppercase on Android, so match them with `(?i)`.
 
-Helpers: `subflows/launch.yaml` (clear state, wait up to 10 s for `intro-loader` to vanish), `subflows/relaunch.yaml` (same, keeps session), `subflows/sign-in.yaml` (Profile tab, Sign In, fill, submit, wait for `profile-name`).
+Helpers: `subflows/confirm-alert.yaml` (native Alert button by text), `subflows/launch.yaml` (clear state, wait up to 10 s for `intro-loader` to vanish), `subflows/relaunch.yaml` (same, keeps session), `subflows/sign-in.yaml` (Profile tab, Sign In, fill, submit, wait for `profile-name`).
 
 Device-only checks are in `MANUAL.md`.
