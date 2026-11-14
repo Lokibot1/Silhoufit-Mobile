@@ -1,0 +1,8 @@
+# Reusable: launch WITHOUT clearing state (keeps the stored session), then wait for the intro loader to finish.
+appId: ${APP_ID}
+---
+- launchApp
+- extendedWaitUntil:
+    notVisible:
+      id: intro-loader
+    timeout: 10000

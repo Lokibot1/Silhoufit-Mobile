@@ -1,13 +1,17 @@
 appId: ${APP_ID}
 ---
-- launchApp:
-    clearState: true
+- runFlow: subflows/launch.yaml
 - runFlow: subflows/sign-in.yaml
 - stopApp
-- launchApp
+- runFlow: subflows/relaunch.yaml
+- tapOn:
+    id: tab-profile
+# The loader holds until the session is restored, so the signed-out prompt must never appear here.
+- assertNotVisible:
+    id: profile-sign-in
 - extendedWaitUntil:
     visible:
-      id: shop-profile-name
+      id: profile-name
     timeout: 15000
 - assertNotVisible:
-    id: shop-sign-in
+    id: profile-sign-in

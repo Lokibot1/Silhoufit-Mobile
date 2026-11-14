@@ -1,12 +1,13 @@
 appId: ${APP_ID}
 ---
-- launchApp:
-    clearState: true
+- runFlow: subflows/launch.yaml
+- tapOn:
+    id: tab-profile
 - assertVisible:
-    id: shop-sign-in
-- assertVisible: Shop
+    id: profile-sign-in
+- assertVisible: Sign in to see your profile
 - assertNotVisible:
-    id: shop-profile-name
+    id: profile-name
 # No redirect to the sign-in screen
 - assertNotVisible:
     id: sign-in-submit

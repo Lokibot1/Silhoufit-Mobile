@@ -1,0 +1,9 @@
+appId: ${APP_ID}
+---
+- runFlow: subflows/launch.yaml
+- tapOn:
+    id: tab-profile
+- assertVisible:
+    id: profile-sign-in
+- assertVisible: Sign in to see your profile
+- assertVisible: Your details and orders appear here once you sign in.

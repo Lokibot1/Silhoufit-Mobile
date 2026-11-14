@@ -1,8 +1,10 @@
-# Reusable: from the signed-out Shop, sign in with the seeded customer.
+# Reusable: from the launched app, sign in with the seeded customer via the Profile tab.
 appId: ${APP_ID}
 ---
 - tapOn:
-    id: shop-sign-in
+    id: tab-profile
+- tapOn:
+    id: profile-sign-in
 - tapOn:
     id: sign-in-email
 - inputText: ${TEST_EMAIL}
@@ -14,5 +16,5 @@ appId: ${APP_ID}
     id: sign-in-submit
 - extendedWaitUntil:
     visible:
-      id: shop-profile-name
+      id: profile-name
     timeout: 15000

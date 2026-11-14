@@ -1,0 +1,10 @@
+# Reusable: cold start with cleared state, then wait for the intro loader to finish.
+# Use subflows/relaunch.yaml instead to keep the stored session.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    notVisible:
+      id: intro-loader
+    timeout: 10000

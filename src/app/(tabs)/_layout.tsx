@@ -14,12 +14,20 @@ export default function TabsLayout() {
         headerShadowVisible: false,
         tabBarStyle: { backgroundColor: color.paper, borderTopWidth: 1, borderTopColor: color.porcelain, elevation: 0 },
         tabBarActiveTintColor: color.red,
-        tabBarInactiveTintColor: color.stonewash,
+        tabBarInactiveTintColor: color.graphite,
         tabBarLabelStyle: { fontFamily: font.medium, fontSize: 14, letterSpacing: 1.1, textTransform: 'uppercase' },
       }}>
       <Tabs.Screen
         name="index"
-        options={{ title: 'Shop', tabBarIcon: ({ focused, size }) => <Ionicons name="storefront-outline" size={size} color={focused ? color.red : color.stonewash} /> }}
+        options={{ title: 'Shop', tabBarIcon: ({ focused, size, color: tint }) => <Ionicons name="storefront-outline" size={size} color={focused ? color.red : (tint as string)} /> }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarButtonTestID: 'tab-profile',
+          tabBarIcon: ({ focused, size, color: tint }) => <Ionicons name="person-outline" size={size} color={focused ? color.red : (tint as string)} />,
+        }}
       />
     </Tabs>
   )

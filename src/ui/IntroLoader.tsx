@@ -97,6 +97,7 @@ export function IntroLoader({ ready, onFinished }: { ready: boolean; onFinished:
 
   return (
     <Animated.View
+      testID="intro-loader"
       accessibilityRole="progressbar"
       accessibilityLabel="Loading KRAL"
       accessibilityValue={{ min: 0, max: 100, now: percent }}
