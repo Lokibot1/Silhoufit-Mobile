@@ -6,6 +6,7 @@ import Shop from '../app/(tabs)/index'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/api/products', () => ({ fetchProducts: jest.fn(), fetchCategories: jest.fn() }))
 jest.mock('@/api/cart', () => ({ fetchCart: jest.fn() }))
+jest.mock('@/api/chat', () => ({ fetchMyConversation: jest.fn() }))
 jest.mock('@/auth/session', () => ({ useSession: () => mockSession }))
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), navigate: jest.fn() }, useFocusEffect: jest.fn((cb) => jest.requireActual('react').useEffect(cb, [cb])) }))
 jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
@@ -17,6 +18,7 @@ let mockSession: { session: { user: { id: string } } | null } = { session: null 
 const mockFetch: jest.Mock = jest.requireMock('@/api/products').fetchProducts
 const mockCategories: jest.Mock = jest.requireMock('@/api/products').fetchCategories
 const mockCart: jest.Mock = jest.requireMock('@/api/cart').fetchCart
+const mockChat: jest.Mock = jest.requireMock('@/api/chat').fetchMyConversation
 const mockNavigate: jest.Mock = jest.requireMock('expo-router').router.navigate
 const mockPush: jest.Mock = jest.requireMock('expo-router').router.push
 
@@ -29,6 +31,7 @@ beforeEach(() => {
   jest.useRealTimers()
   mockSession = { session: null }
   mockCategories.mockResolvedValue(['Hoodie', 'Shirt'])
+  mockChat.mockResolvedValue({ id: 'c1', hasUnreadMessages: false })
 })
 
 it('shows the skeleton while loading', async () => {
@@ -229,6 +232,44 @@ it('badges the cart with the item count when signed in', async () => {
   await render(<Shop />)
   expect(await screen.findByText('3')).toBeTruthy()
   expect(screen.getByLabelText('Cart, 3 items')).toBeTruthy()
+})
+
+it('opens Messages from the band, with no dot when signed out and no chat request', async () => {
+  mockFetch.mockResolvedValue(page(['a']))
+  await render(<Shop />)
+  await screen.findByTestId('shop-card-a')
+  expect(screen.getByLabelText('Messages')).toBeTruthy()
+  expect(screen.queryByTestId('shop-messages-badge')).toBeNull()
+  expect(mockChat).not.toHaveBeenCalled()
+  await fireEvent.press(screen.getByTestId('shop-messages'))
+  await fireEvent.press(screen.getByTestId('shop-messages'))
+  expect(mockPush).toHaveBeenCalledTimes(1)
+  expect(mockPush).toHaveBeenCalledWith('/messages')
+})
+
+it('shows a dot on Messages when the store has an unread reply', async () => {
+  mockSession = { session: { user: { id: 'u1' } } }
+  mockCart.mockResolvedValue({ totalItems: 0 })
+  mockChat.mockResolvedValue({ id: 'c1', hasUnreadMessages: true })
+  mockFetch.mockResolvedValue(page(['a']))
+  await render(<Shop />)
+  expect(await screen.findByLabelText('Messages, unread messages')).toBeTruthy()
+  expect(screen.getByTestId('shop-messages-badge')).toBeTruthy()
+})
+
+it('shows no dot when the replies are read', async () => {
+  mockSession = { session: { user: { id: 'u1' } } }
+  mockCart.mockResolvedValue({ totalItems: 0 })
+  mockFetch.mockResolvedValue(page(['a']))
+  await render(<Shop />)
+  await waitFor(() => expect(mockChat).toHaveBeenCalled())
+  expect(screen.queryByTestId('shop-messages-badge')).toBeNull()
+})
+
+it('keeps the search field labelled for screen readers behind the short placeholder', async () => {
+  mockFetch.mockResolvedValue(page(['a']))
+  await render(<Shop />)
+  expect(screen.getByLabelText('Search pieces').props.placeholder).toBe('Search')
 })
 
 it('exposes a Shop heading to screen readers', async () => {

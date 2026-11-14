@@ -1,0 +1,47 @@
+appId: ${APP_ID}
+---
+# Signed in, read-only: waits for messages-list or messages-empty-action. With messages it only asserts the list.
+# The empty state ("No messages yet", Write a Message) is reached only by an account that has never written to the store,
+# which flow 38 ends for its account: use a fresh account (or run this before 38 ever ran) to exercise it, else see MANUAL.md.
+# Needs TEST_EMAIL/TEST_PASSWORD.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: tab-shop
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- tapOn:
+    id: shop-messages
+- extendedWaitUntil:
+    visible:
+      id: 'messages-list|messages-empty-action'
+    timeout: 20000
+- assertNotVisible:
+    id: messages-sign-in
+- runFlow:
+    when:
+      visible:
+        id: messages-empty-action
+    commands:
+      - assertVisible: No messages yet
+      - assertNotVisible:
+          id: messages-list
+      - assertVisible:
+          id: messages-input
+      # The action focuses the composer, so the keyboard opens; hide it again.
+      - tapOn:
+          id: messages-empty-action
+      - hideKeyboard
+      - assertVisible:
+          id: messages-input
+- runFlow:
+    when:
+      visible:
+        id: messages-list
+    commands:
+      - assertNotVisible:
+          id: messages-empty-action
+      - assertVisible:
+          id: messages-input

@@ -48,6 +48,15 @@ function Gate() {
             headerTintColor: color.obsidian,
           }}
         />
+        <Stack.Screen
+          name="messages"
+          options={{
+            headerTitle: () => <Text style={type.h2}>Messages</Text>,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
         <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
         <Stack.Screen
           name="sign-in"

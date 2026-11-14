@@ -1,0 +1,43 @@
+appId: ${APP_ID}
+---
+# Signed in: open Messages from the Shop band and send a message; its bubble shows and the input clears.
+# WARNING: this posts a REAL message to the store's inbox on EVERY run (the text is unique per run: "Maestro e2e <timestamp>").
+# Needs a DEDICATED test account (TEST_EMAIL, TEST_PASSWORD) that staff know to ignore; the first open also creates its conversation.
+# Messages cannot be deleted from the app, so the conversation grows with each run.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: tab-shop
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- tapOn:
+    id: shop-messages
+# Messages slides in; the composer only shows once the conversation has loaded (empty or not).
+- extendedWaitUntil:
+    visible:
+      id: messages-input
+    timeout: 20000
+- assertNotVisible:
+    id: messages-sign-in
+- evalScript: ${output.text = 'Maestro e2e ' + Date.now()}
+- tapOn:
+    id: messages-input
+- inputText: ${output.text}
+# The composer rides above the keyboard, but hide it so Send is never behind it.
+- hideKeyboard
+- tapOn:
+    id: messages-send
+# The sent bubble (its accessibility label is "You, <text>, <time>", so the match is wrapped in .*).
+- extendedWaitUntil:
+    visible: '.*${output.text}.*'
+    timeout: 15000
+- assertNotVisible:
+    id: message-failed-retry
+- assertNotVisible:
+    id: message-unsent
+- assertVisible:
+    id: messages-list
+# The input cleared: its placeholder is back, so the text above is the bubble and not the field.
+- assertVisible: Write a message

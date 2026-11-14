@@ -31,12 +31,12 @@ Not automatable with Maestro (or too flaky). Run on a real Android and iOS devic
 - [ ] A category with no active products: Shop shows "No <category> pieces yet" with Show All (`shop-empty-action`), which restores the full list. Needs a category in `GET /products/filters` with no products, so it is not in Maestro.
 - [ ] Header stays pinned (search, cart button, chips, sort) while the list scrolls; the cart badge shows the item count when signed in and a bag has pieces, and reads "Cart, N items" in TalkBack/VoiceOver.
 - [ ] Scroll to load more (page 2+): data-dependent (needs more than 12 products), so not in Maestro. Check `shop-count` against the cards scrolled.
-- [ ] Shop top bar: one red band under the notch/status bar on Android and iOS (nothing clipped, no gap), with the search field on the left and the cart icon plus count badge on the right.
-- [ ] Status-bar icons are light on Shop and dark again on Cart, Orders and Profile (and after returning from a product).
+- [ ] Shop top bar: one Paper band with a Porcelain hairline under the notch/status bar on Android and iOS (nothing clipped, no gap), with the search field on the left and the cart and messages icons on the right.
+- [ ] Status-bar icons are dark on Shop, same as Cart, Orders and Profile (and after returning from a product).
 - [ ] Screen transitions: pushing a product or order slides in, Sign In slides up from the bottom, tab switches shift; none of them jump.
 - [ ] Reduce Motion (iOS) / "Remove animations" (Android) on: all those transitions become instant. Toggle it with the app open and confirm it follows.
-- [ ] 320px-wide screen: the red band, search field and cart fit with no horizontal overflow.
-- [ ] The amount of red feels right; if it feels loud, fall back to a Paper band with a Porcelain search field.
+- [ ] 320px-wide screen: the Paper band, search field, cart and messages icons fit with no horizontal overflow.
+- [ ] Cart count badge and unread dot (red with Paper text) are readable against the Paper band; they are the only red on the bar.
 - [ ] Keyboard open while searching: the Clear search button stays tappable and the keyboard does not hide results you tap (`keyboardShouldPersistTaps`).
 
 ## Product page
@@ -110,6 +110,27 @@ Updates are built on the device from the customer's 20 newest orders (no API fee
 - [ ] Opening a row opens that order; Back returns to Alerts. Pull down refreshes; with airplane mode on a toast explains and the rows stay; on a cold start "Couldn't load your updates" shows Retry (`notifications-retry`).
 - [ ] Sign out then sign in as another account: the previous account's updates never show, not even for a moment.
 - [ ] 320px-wide: rows (including a long cancellation reason) wrap with no horizontal scroll; the skeleton matches the rows with no jump. TalkBack/VoiceOver read "<label>, order <number>, <time>".
+
+## Messages (chat with the store)
+Needs a customer test account and a staff account on the dev backend (web inbox open as staff). Realtime on React Native has never run in this app, so this section is the first real test of it.
+- [ ] Android keyboard: open Messages, tap the input. The composer rides above the keyboard (not hidden behind it, no big gap), the newest bubble stays visible, and the header and status bar are not pushed. Closing the keyboard drops the composer back to the bottom. Repeat with a multi-line message (the input grows to about 5 lines, then scrolls) and on iOS. The app uses `behavior="padding"` with the screen's own distance from the window top as the offset, chosen because Android is edge-to-edge on SDK 58; if it is off by the header height, that offset is the first place to look.
+- [ ] Realtime, store to customer: with Messages open on the phone, reply from the staff web inbox. The reply appears within a couple of seconds with no pull or reopening, once, labelled "KRAL". Do it again with the app in the Shop tab, then open Messages: the reply is there (refetch on focus).
+- [ ] Realtime, customer to store: send from the phone; the staff inbox shows it live. The bubble on the phone appears once, not twice.
+- [ ] Realtime blocked: turn off the Realtime or private-channel policy (or airplane mode, then on): the screen shows nothing alarming; sending and reopening still work; after the connection returns the missed reply appears (refetch on reconnect).
+- [ ] Unread dot: a staff reply while the customer is elsewhere shows the dot on `shop-messages` (Shop band) and `header-messages` (other tabs) after returning to that tab; opening Messages clears it on the next visit. Silent until the next focus is the known limit (no live badge).
+- [ ] The dot reads "Messages, unread messages" in TalkBack/VoiceOver; a new customer's first open creates their conversation (no error).
+- [ ] Failed send: airplane mode, send: the bubble stays with "Not sent. We couldn't reach the server..." and Retry (`message-failed-retry`); turning the network on and tapping Retry sends it once. Double-tapping Send sends one message.
+- [ ] 2,000-character limit: the count appears from 1,800 characters and the input stops at 2,000.
+- [ ] Empty state (no flow reaches it reliably): a brand-new customer account, first open of Messages shows "No messages yet" with Write a Message, which focuses the input and opens the keyboard. Flow 41 covers it only if the account never wrote to the store.
+- [ ] Second actor, exact steps for realtime and the dot (not automatable: Maestro drives one device). Setup: customer test account on the phone, a staff account in the web inbox in a desktop browser. (1) Phone on Messages, staff replies: the reply shows within about 2 s, once, labelled "KRAL". (2) Phone on Messages, send: staff sees it live; the phone shows one bubble. (3) Phone on Orders, staff replies; return to the Shop tab then Orders: `shop-messages-badge` / `header-messages-badge` shows (the dot is evaluated on focus, not live). (4) Tap the icon: the reply is there; go back: the dot is gone after the next focus.
+- [ ] Sign out while on Messages (or open it signed out): "Sign in to message the store"; signing in returns to Messages with the conversation. Another account never sees the previous one's messages or draft.
+- [ ] 320px-wide: the Shop band fits search, cart and messages with no horizontal scroll (the field is about 184px wide, "Search" readable, the clear button appears only with text); long messages and the "Not sent" copy wrap.
+- [ ] Times read in 12-hour form ("1:49 PM") and the tab-header messages button does not crowd the KRAL logo at 320px.
+- [ ] Failed send: turn on airplane mode, send. The bubble shows "Not sent" with Retry (`message-failed-retry`) and Discard (`message-failed-discard`); Send stays disabled and the text is kept until you act. Discard clears it and re-enables Send. A refused-as-invalid message shows only Discard.
+- [ ] Lost response: while the failed bubble shows, have the saved copy arrive (staff inbox shows it, or reconnect so the resync runs): the failed bubble disappears and only one copy remains. Known limit: identical text sent twice on purpose is treated as one.
+- [ ] Keyboard gap: with the keyboard open the composer sits directly on the keys (no empty band, Android gesture-nav and iOS home-indicator devices); closed, it keeps the safe-area padding.
+- [ ] Screen reader: TalkBack reads a new staff reply once when it arrives live (Android uses a live region on that bubble, check it actually speaks); VoiceOver announces "KRAL said: ..." once. Opening the screen does not read the history aloud. The failed bubble reads "Not sent, <text>".
+- [ ] Counter: "n/2000" shows right-aligned in Graphite when the input is focused or has text, and turns red from 1,900.
 
 ## Google sign-in
 Needs the owner setup below first. Use a dedicated Google test account (a test user while the consent screen is unpublished).

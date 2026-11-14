@@ -1,0 +1,24 @@
+appId: ${APP_ID}
+---
+# The Paper header of the other tabs carries the messages button (header-messages); the Shop does not (it has its own band).
+# Signed out, so Messages shows the sign-in prompt. Needs only the backend.
+- runFlow: subflows/launch.yaml
+- tapOn:
+    id: tab-orders
+- extendedWaitUntil:
+    visible:
+      id: orders-sign-in
+    timeout: 10000
+- assertNotVisible:
+    id: header-messages-badge
+- tapOn:
+    id: header-messages
+- extendedWaitUntil:
+    visible:
+      id: messages-sign-in
+    timeout: 10000
+- assertVisible: Sign in to message the store
+- assertNotVisible:
+    id: messages-input
+- assertNotVisible:
+    id: messages-list

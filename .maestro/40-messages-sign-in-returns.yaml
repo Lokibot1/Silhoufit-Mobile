@@ -1,0 +1,43 @@
+appId: ${APP_ID}
+---
+# Signed out: Messages' sign-in action opens Sign In; signing in closes it (router.back()) and lands back on Messages
+# (not Profile or Shop), now with the composer. Read-only: sends nothing. Needs TEST_EMAIL/TEST_PASSWORD.
+- runFlow: subflows/launch.yaml
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- tapOn:
+    id: shop-messages
+- extendedWaitUntil:
+    visible:
+      id: messages-sign-in
+    timeout: 10000
+- tapOn:
+    id: messages-sign-in
+- extendedWaitUntil:
+    visible:
+      id: sign-in-submit
+    timeout: 10000
+- tapOn:
+    id: sign-in-email
+- inputText: ${TEST_EMAIL}
+- tapOn:
+    id: sign-in-password
+- inputText: ${TEST_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: sign-in-submit
+# The conversation loads (first open may create it), so allow time.
+- extendedWaitUntil:
+    visible:
+      id: messages-input
+    timeout: 20000
+- assertNotVisible:
+    id: sign-in-submit
+- assertNotVisible:
+    id: messages-sign-in
+- assertNotVisible:
+    id: profile-name
+- assertNotVisible:
+    id: shop-list

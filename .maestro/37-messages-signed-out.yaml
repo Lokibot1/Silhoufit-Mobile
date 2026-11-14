@@ -1,0 +1,23 @@
+appId: ${APP_ID}
+---
+# The Shop band messages button (shop-messages) opens Messages. Signed out: the sign-in prompt, no composer, no dot.
+# Needs only the backend.
+- runFlow: subflows/launch.yaml
+- extendedWaitUntil:
+    visible:
+      id: shop-list
+    timeout: 15000
+- assertNotVisible:
+    id: shop-messages-badge
+- tapOn:
+    id: shop-messages
+# Messages slides in from the right: wait for the prompt instead of asserting right after the tap.
+- extendedWaitUntil:
+    visible:
+      id: messages-sign-in
+    timeout: 10000
+- assertVisible: Sign in to message the store
+- assertNotVisible:
+    id: messages-input
+- assertNotVisible:
+    id: messages-list

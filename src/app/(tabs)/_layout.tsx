@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons'
-import { Tabs } from 'expo-router'
+import { router, Tabs, useFocusEffect } from 'expo-router'
+import { useCallback, useRef } from 'react'
 import { Text, type ColorValue } from 'react-native'
 
+import { useChatUnread } from '@/chat/useChatUnread'
+import { HeaderIcon } from '@/ui/HeaderIcon'
 import { KralLogo } from '@/ui/KralLogo'
 import { color, font } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
@@ -21,6 +24,20 @@ function TabLabel({ children, color: tint }: { children: string; color: ColorVal
   )
 }
 
+// The Shop has its own band with the same button, so this one only shows on the other tabs' header.
+function HeaderMessages() {
+  const unread = useChatUnread()
+  const opening = useRef(false)
+  // A fast double tap must not push Messages twice; allow it again when this tab regains focus.
+  useFocusEffect(useCallback(() => { opening.current = false }, []))
+  const open = () => {
+    if (opening.current) return
+    opening.current = true
+    router.push('/messages')
+  }
+  return <HeaderIcon testID="header-messages" name="chatbubble-ellipses-outline" label="Messages" status={unread ? 'unread messages' : undefined} dot={unread} onPress={open} />
+}
+
 export default function TabsLayout() {
   const reduce = useReduceMotion()
   return (
@@ -29,6 +46,7 @@ export default function TabsLayout() {
         animation: reduce ? 'none' : 'shift',
         headerTitle: () => <KralLogo />,
         headerTitleAlign: 'left',
+        headerRight: () => <HeaderMessages />,
         headerStyle: { backgroundColor: color.paper, borderBottomWidth: 1, borderBottomColor: color.porcelain },
         headerShadowVisible: false,
         tabBarStyle: { backgroundColor: color.paper, borderTopWidth: 1, borderTopColor: color.porcelain, elevation: 0 },

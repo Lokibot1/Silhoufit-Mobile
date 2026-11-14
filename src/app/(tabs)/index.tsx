@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
-import { StatusBar } from 'expo-status-bar'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -8,13 +7,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { fetchCart } from '@/api/cart'
 import { fetchCategories, fetchProducts, type ProductListItem, type ProductSort } from '@/api/products'
 import { useSession } from '@/auth/session'
+import { useChatUnread } from '@/chat/useChatUnread'
 import { ApiError, errorMessage } from '@/lib/api'
 import { Button } from '@/ui/Button'
 import { Chip } from '@/ui/Chip'
-import { PressableScale } from '@/ui/PressableScale'
+import { HeaderIcon } from '@/ui/HeaderIcon'
 import { ProductCard, ProductCardSkeleton } from '@/ui/ProductCard'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { color, radius, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const LIMIT = 12
@@ -30,13 +30,10 @@ const SORTS: { label: string; params: ProductSort }[] = [
 // The shop is public, so a 401/403 is never a session problem.
 const shopError = (failure: unknown) => (failure instanceof ApiError && failure.kind === 'forbidden' ? "The shop couldn't be loaded. Try again." : errorMessage(failure))
 
-// Public: browsing needs no session. The session is read only to badge the cart icon.
+// Public: browsing needs no session. The session is read only to badge the cart and messages icons.
 export default function Shop() {
   const toast = useToast()
   const insets = useSafeAreaInsets()
-  const [focused, setFocused] = useState(false)
-  // Light status-bar icons on the red band only while the Shop is showing.
-  useFocusEffect(useCallback(() => { setFocused(true); return () => setFocused(false) }, []))
   const { session } = useSession()
   const userId = session?.user.id ?? null
   const [query, setQuery] = useState('')
@@ -74,6 +71,7 @@ export default function Shop() {
     }, [userId]),
   )
   const badge = userId ? cartCount : 0
+  const unread = useChatUnread()
   // Category chips come from the API; if it fails the row simply keeps "All".
   useEffect(() => {
     const ctl = new AbortController()
@@ -84,6 +82,11 @@ export default function Shop() {
     if (opening.current) return
     opening.current = true
     router.push({ pathname: '/product/[id]', params: { id } })
+  }
+  const openMessages = () => {
+    if (opening.current) return
+    opening.current = true
+    router.push('/messages')
   }
   // A ref keeps the effect below from re-running (and refetching) if the toast function's identity changes.
   const toastRef = useRef(toast)
@@ -195,7 +198,6 @@ export default function Shop() {
   return (
     <View style={styles.screen}>
       <Text accessibilityRole="header" style={styles.heading}>Shop</Text>
-      {focused && <StatusBar style="light" />}
       <View style={[styles.band, { paddingTop: insets.top + space.sm }]}>
         <View style={styles.searchRow}>
           <View style={styles.search}>
@@ -203,9 +205,9 @@ export default function Shop() {
             <TextInput
               testID="shop-search"
               accessibilityLabel="Search pieces"
-              placeholder="Search pieces"
+              placeholder="Search"
               placeholderTextColor={color.graphite}
-              style={styles.input}
+              style={[styles.input, query !== '' && styles.inputClearable]}
               value={query}
               onChangeText={setQuery}
               maxLength={80}
@@ -219,19 +221,15 @@ export default function Shop() {
               </Pressable>
             )}
           </View>
-          <PressableScale
+          <HeaderIcon
             testID="shop-cart"
-            accessibilityRole="button"
-            accessibilityLabel={badge > 0 ? `Cart, ${badge} ${badge === 1 ? 'item' : 'items'}` : 'Cart'}
+            name="bag-outline"
+            label="Cart"
+            status={badge > 0 ? `${badge} ${badge === 1 ? 'item' : 'items'}` : undefined}
+            count={badge}
             onPress={() => router.navigate('/cart')}
-            style={styles.cart}>
-            <Ionicons name="bag-outline" size={24} color={color.paper} />
-            {badge > 0 && (
-              <View testID="shop-cart-badge" style={styles.badge}>
-                <Text maxFontSizeMultiplier={1} style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
-              </View>
-            )}
-          </PressableScale>
+          />
+          <HeaderIcon testID="shop-messages" name="chatbubble-ellipses-outline" label="Messages" status={unread ? 'unread messages' : undefined} dot={unread} onPress={openMessages} />
         </View>
       </View>
       <View style={styles.header}>
@@ -294,16 +292,14 @@ const Gap = () => <View style={styles.gap} />
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
-  band: { backgroundColor: color.red, paddingBottom: space.sm },
+  band: { backgroundColor: color.paper, borderBottomWidth: 1, borderBottomColor: color.porcelain, paddingBottom: space.sm },
   header: { paddingVertical: space.sm, gap: space.sm },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg },
-  search: { flex: 1, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: color.paper },
+  search: { flex: 1, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: color.porcelain },
   searchIcon: { position: 'absolute', left: space.md },
-  input: { ...type.body, minHeight: 44, paddingVertical: space.sm, paddingLeft: 48, paddingRight: 44 },
+  input: { ...type.body, color: color.obsidian, minHeight: 44, paddingVertical: space.sm, paddingLeft: 48, paddingRight: space.md },
+  inputClearable: { paddingRight: 44 },
   clear: { position: 'absolute', right: 0, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  cart: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  badge: { position: 'absolute', top: 0, right: 0, minWidth: 20, height: 20, paddingHorizontal: space.xs, borderRadius: radius.pill, backgroundColor: color.paper, alignItems: 'center', justifyContent: 'center' },
-  badgeText: { fontFamily: font.semibold, fontSize: 14, lineHeight: 20, color: color.red, ...type.numeric },
   // Screen-reader heading only: 1px, clipped, transparent, out of layout (no visible title).
   heading: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
   chips: { gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.xs },
