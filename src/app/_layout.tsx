@@ -111,7 +111,7 @@ function Gate() {
         <Stack.Screen
           name="addresses/new"
           options={{
-            headerTitle: () => <Text style={type.h2}>Add Address</Text>,
+            headerTitle: () => <Text accessibilityRole="header" style={type.h2}>Add Address</Text>,
             headerStyle: { backgroundColor: color.paper },
             headerShadowVisible: false,
             headerTintColor: color.obsidian,
@@ -120,7 +120,7 @@ function Gate() {
         <Stack.Screen
           name="addresses/[id]"
           options={{
-            headerTitle: () => <Text style={type.h2}>Edit Address</Text>,
+            headerTitle: () => <Text accessibilityRole="header" style={type.h2}>Edit Address</Text>,
             headerStyle: { backgroundColor: color.paper },
             headerShadowVisible: false,
             headerTintColor: color.obsidian,
@@ -129,7 +129,7 @@ function Gate() {
         <Stack.Screen
           name="profile/password"
           options={{
-            headerTitle: () => <Text style={type.h2}>Change Password</Text>,
+            headerTitle: () => <Text accessibilityRole="header" style={type.h2}>Change Password</Text>,
             headerStyle: { backgroundColor: color.paper },
             headerShadowVisible: false,
             headerTintColor: color.obsidian,
@@ -138,7 +138,7 @@ function Gate() {
         <Stack.Screen
           name="profile/body"
           options={{
-            headerTitle: () => <Text style={type.h2}>Body Profile</Text>,
+            headerTitle: () => <Text accessibilityRole="header" style={type.h2}>Body Profile</Text>,
             headerStyle: { backgroundColor: color.paper },
             headerShadowVisible: false,
             headerTintColor: color.obsidian,

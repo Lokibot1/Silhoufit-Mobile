@@ -124,7 +124,6 @@ function Form({ saved: initial }: { saved: BodyProfile | null }) {
   return (
     <KeyboardScreen style={styles.flex}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: space.lg + insets.bottom }]} keyboardShouldPersistTaps="handled">
-        <Text accessibilityRole="header" style={type.h1}>Body Profile</Text>
         <Text testID="body-intro" style={styles.copy}>
           {saved ? 'Keep your measurements up to date for the best size advice.' : 'Your measurements help us suggest the right size and power AR try-on.'}
         </Text>

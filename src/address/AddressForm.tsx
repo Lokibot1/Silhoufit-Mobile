@@ -240,7 +240,6 @@ export function AddressForm({ saved, fromCheckout }: Props) {
     <KeyboardScreen style={styles.flex}>
       <ScrollView testID="addr-scroll" contentContainerStyle={[styles.content, { paddingBottom: space.lg + insets.bottom }]} keyboardShouldPersistTaps="handled">
         <Text style={type.label}>(Delivery)</Text>
-        <Text accessibilityRole="header" style={type.h1}>{saved ? 'Edit Address' : 'Add Address'}</Text>
         {saved?.resolved.note && <Text testID="addr-resolve-note" style={styles.body}>{saved.resolved.note}</Text>}
 
         <FloatingField

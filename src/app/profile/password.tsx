@@ -126,7 +126,6 @@ export default function ChangePassword() {
   return (
     <KeyboardScreen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text accessibilityRole="header" style={type.h1}>Change Password</Text>
         <FloatingField
           {...field}
           ref={currentRef}

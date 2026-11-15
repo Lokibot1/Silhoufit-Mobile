@@ -83,7 +83,6 @@ describe('create', () => {
   it('pre-fills the recipient name from the profile', async () => {
     await render(<AddressForm />)
     expect(screen.getByTestId('addr-name').props.value).toBe('Ana Cruz')
-    expect(screen.getByText('Add Address')).toBeTruthy()
   })
 
   it('Save on an empty form shows every error, saves nothing, and does not need a pin to say so', async () => {
@@ -366,7 +365,6 @@ describe('edit', () => {
 
   it('opens pre-filled with the pickers chosen, and Save is disabled until something changes', async () => {
     await render(<AddressForm saved={saved} />)
-    expect(screen.getByText('Edit Address')).toBeTruthy()
     expect(screen.getByTestId('addr-phone').props.value).toBe('09171234567')
     expect(screen.getByTestId('addr-label-home').props.accessibilityState).toMatchObject({ checked: true })
     expect(screen.getByText('Makati')).toBeTruthy()
