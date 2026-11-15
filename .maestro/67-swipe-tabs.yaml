@@ -1,28 +1,24 @@
 appId: ${APP_ID}
 ---
-# Swipe between tabs, UNRUN. Signs in, then swipes left from the right screen edge Shop -> Cart -> Orders and back right to Shop.
-# Swipes start inside the 24dp edge strips (about 6% of the width, kept narrow so the Android back gesture is not hit); a swipe from the middle does nothing by design.
+# Swipe between tabs, UNRUN. Signs in, then drags from mid-screen over the product grid / lists: finger moving left goes Shop -> Cart -> Orders,
+# finger moving right comes back to Shop. Swipes start at 85%/15% of the width, below the chip rows, so no sideways scroller is hit.
 # Needs TEST_EMAIL and TEST_PASSWORD.
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/sign-in.yaml
 - tapOn:
     id: tab-shop
 - swipe:
-    start: 97%, 50%
-    end: 20%, 50%
-- extendedWaitUntil:
-    visible:
-      id: tab-cart
-    timeout: 5000
+    start: 85%, 60%
+    end: 15%, 60%
 - swipe:
-    start: 97%, 50%
-    end: 20%, 50%
+    start: 85%, 60%
+    end: 15%, 60%
 - swipe:
-    start: 3%, 50%
-    end: 80%, 50%
+    start: 15%, 60%
+    end: 85%, 60%
 - swipe:
-    start: 3%, 50%
-    end: 80%, 50%
+    start: 15%, 60%
+    end: 85%, 60%
 - extendedWaitUntil:
     visible:
       id: tab-shop

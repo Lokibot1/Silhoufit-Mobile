@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { fetchCategories, fetchProducts, type ProductListItem, type ProductSort } from '@/api/products'
@@ -15,6 +15,7 @@ import { ProductCard, ProductCardSkeleton } from '@/ui/ProductCard'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, radius, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
+import { SideScroll } from '@/ui/PagedTabs'
 
 const LIMIT = 12
 const DEBOUNCE_MS = 300
@@ -214,12 +215,12 @@ export default function Shop() {
         </View>
       </View>
       <View style={styles.header}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.chips}>
+        <SideScroll showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.chips}>
           <Chip testID="shop-category-all" label="All" selected={category === undefined} onPress={() => pickCategory(undefined)} />
           {categories.map((name) => (
             <Chip key={name} testID={`shop-category-${name}`} label={name} selected={category === name} onPress={() => pickCategory(name)} />
           ))}
-        </ScrollView>
+        </SideScroll>
         <View style={styles.meta}>
           <Text testID="shop-count" numberOfLines={1} maxFontSizeMultiplier={1.3} style={styles.count}>{status === 'ready' ? `${meta.total} ${meta.total === 1 ? 'piece' : 'pieces'}` : ''}</Text>
           <Chip testID="shop-sort" label={SORTS[sort].label} accessibilityLabel={`Sort by ${SORTS[sort].label}. Tap to change.`} selected={sort !== 0} onPress={nextSort} />

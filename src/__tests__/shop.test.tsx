@@ -3,6 +3,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { ApiError } from '@/lib/api'
 import Shop from '../app/(tabs)/index'
 
+// The real SideScroll is a gesture-handler view that needs GestureHandlerRootView.
+jest.mock('@/ui/PagedTabs', () => ({ SideScroll: (props: object) => jest.requireActual('react').createElement(jest.requireActual('react-native').ScrollView, { horizontal: true, ...props }) }))
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/api/products', () => ({ fetchProducts: jest.fn(), fetchCategories: jest.fn() }))
 jest.mock('@/api/cart', () => ({ fetchCart: jest.fn() }))

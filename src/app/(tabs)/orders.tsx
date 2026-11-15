@@ -2,7 +2,7 @@ import { Image } from 'expo-image'
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { openBrowserAsync } from 'expo-web-browser'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { FlatList, StyleSheet, Text, View } from 'react-native'
 
 import { awaitsPayment, fetchAllOrders, matchesTab, ORDER_TABS, ordersSignature, statusLabel, tabCounts, trackingLink, type Order, type OrderItem, type OrderTab } from '@/api/orders'
 import { useSession } from '@/auth/session'
@@ -17,6 +17,7 @@ import { StateMessage } from '@/ui/StateMessage'
 import { CHIP_HEIGHT, StatusChip } from '@/ui/StatusChip'
 import { color, font, radius, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
+import { SideScroll } from '@/ui/PagedTabs'
 
 const THUMB_W = 56
 const THUMB_H = 72
@@ -284,7 +285,7 @@ export default function OrdersScreen() {
   )
   const counts = items ? tabCounts(items) : null
   const tabs = (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={styles.tabScroll} contentContainerStyle={styles.tabs}>
+    <SideScroll showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={styles.tabScroll} contentContainerStyle={styles.tabs}>
       {ORDER_TABS.map(({ id, label }) => (
         <Chip
           key={id}
@@ -295,7 +296,7 @@ export default function OrdersScreen() {
           onPress={() => setTab(id)}
         />
       ))}
-    </ScrollView>
+    </SideScroll>
   )
 
   if (loading || (signedIn && !items && !error)) {

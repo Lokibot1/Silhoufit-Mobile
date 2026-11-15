@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react-native'
 import { Text } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
-import { PagedTabs } from '../PagedTabs'
+import { PagedTabs, SideScroll } from '../PagedTabs'
 import { swipeTarget, tabIndex } from '../tabSwipe'
 
 jest.mock('expo-router', () => ({ router: { navigate: jest.fn() }, usePathname: () => '/orders' }))
@@ -33,7 +33,10 @@ describe('tabIndex', () => {
   })
 })
 
-it('PagedTabs renders its content', async () => {
-  await render(<GestureHandlerRootView><PagedTabs><Text>tab content</Text></PagedTabs></GestureHandlerRootView>)
+it('PagedTabs renders its content, including a SideScroll inside and outside it', async () => {
+  await render(<GestureHandlerRootView><PagedTabs><Text>tab content</Text><SideScroll><Text>chips</Text></SideScroll></PagedTabs></GestureHandlerRootView>)
   expect(screen.getByText('tab content')).toBeTruthy()
+  expect(screen.getByText('chips')).toBeTruthy()
+  await render(<GestureHandlerRootView><SideScroll><Text>alone</Text></SideScroll></GestureHandlerRootView>)
+  expect(screen.getByText('alone')).toBeTruthy()
 })
