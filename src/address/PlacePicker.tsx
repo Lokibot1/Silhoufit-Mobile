@@ -102,7 +102,7 @@ function Sheet<T extends Item>({ title, selected, testID, loadKey, load, onClose
               testID={`${testID}-search`}
               accessibilityLabel={`Search ${title.toLowerCase()}`}
               placeholder="Search"
-              placeholderTextColor={color.stonewash}
+              placeholderTextColor={color.graphite}
               value={query}
               onChangeText={setQuery}
               autoCorrect={false}
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   box: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56, paddingHorizontal: space.md, paddingVertical: space.sm, borderWidth: 1, borderRadius: radius.soft },
   off: { opacity: 0.5 },
   pressed: { backgroundColor: color.porcelain },
-  placeholder: { color: color.stonewash },
+  placeholder: { color: color.graphite },
   message: { ...type.small, minHeight: 20 },
   messageError: { color: color.red },
   scrim: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(22,17,19,0.5)' },
