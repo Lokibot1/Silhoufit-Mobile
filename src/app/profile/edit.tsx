@@ -17,9 +17,9 @@ import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
+import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
 type Field = 'firstName' | 'middleName' | 'lastName' | 'suffix' | 'birthday'
-import { KeyboardScreen } from '@/ui/KeyboardScreen'
 type Values = Record<Field, string> & { gender: Gender | null }
 
 const ORDER: Field[] = ['firstName', 'middleName', 'lastName', 'suffix', 'birthday']
@@ -227,14 +227,14 @@ function Form({ me }: { me: Me }) {
             {GENDER_OPTIONS.map((option) => (
               <Chip
                 key={option.label}
+                tall
+                radio
                 testID={`edit-gender-${option.value ?? 'none'}`}
                 label={option.label}
                 selected={values.gender === option.value}
                 disabled={locked}
                 onPress={() => set({ gender: option.value })}
               />
-                tall
-                radio
             ))}
           </View>
         </View>

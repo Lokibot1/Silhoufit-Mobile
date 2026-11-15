@@ -28,8 +28,8 @@ import { PasswordChecklist } from '@/ui/PasswordChecklist'
 import { PressableScale } from '@/ui/PressableScale'
 import { color, font, hairline, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
-
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
+
 type Field = 'firstName' | 'lastName' | 'middleName' | 'suffix' | 'email' | 'birthday' | 'password' | 'confirm'
 const ORDER: Field[] = ['firstName', 'lastName', 'middleName', 'suffix', 'email', 'birthday', 'password', 'confirm']
 const IDS: Record<Field, string> = { firstName: 'first-name', lastName: 'last-name', middleName: 'middle-name', suffix: 'suffix', email: 'email', birthday: 'birthday', password: 'password', confirm: 'confirm' }

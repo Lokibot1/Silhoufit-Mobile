@@ -2,8 +2,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { Alert } from 'react-native'
 
 import { ApiError } from '@/lib/api'
-import EditProfile from '../app/profile/edit'
 import { pickBirthday } from '@/test/pickBirthday'
+import EditProfile from '../app/profile/edit'
 
 jest.mock('@/api/me', () => ({ updateMe: jest.fn() }))
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
