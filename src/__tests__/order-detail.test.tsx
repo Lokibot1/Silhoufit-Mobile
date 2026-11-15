@@ -10,6 +10,12 @@ jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('expo-web-browser', () => ({ openBrowserAsync: jest.fn() }))
 jest.mock('expo-image', () => ({ Image: () => null }))
+jest.mock('react-native-webview', () => {
+  const { useEffect } = jest.requireActual('react')
+  const { View } = jest.requireActual('react-native')
+  return { WebView: (props: object) => { useEffect(() => { mockMapMounts() }, []); return <View testID="tracking-map" {...props} /> } }
+})
+const mockMapMounts = jest.fn()
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn(), setParams: jest.fn(), canGoBack: jest.fn(() => true) },
   Stack: { Screen: ({ options }: { options: { headerLeft?: () => unknown } }) => options.headerLeft?.() ?? null },
@@ -203,7 +209,8 @@ describe('delivery tracking', () => {
     await screen.findByTestId('order-detail')
     expect(screen.getByTestId('order-tracking')).toHaveTextContent(/Courier: Driver on the way/)
     expect(screen.getByTestId('order-track-delivery')).toBeTruthy()
-    expect(screen.getByText('Opens the live courier map in your browser.')).toBeTruthy()
+    expect(screen.getByText('Map not showing? Open it in your browser')).toBeTruthy()
+    expect(screen.getByTestId('tracking-map').props.source).toEqual({ uri: 'https://share.lalamove.test/1' })
     expect(screen.queryByTestId('order-tracking-pending')).toBeNull()
     const tree = JSON.stringify(screen.toJSON())
     expect(tree.indexOf('"order-tracking"')).toBeLessThan(tree.indexOf('"order-timeline"'))
@@ -215,6 +222,7 @@ describe('delivery tracking', () => {
     await screen.findByTestId('order-detail')
     expect(screen.getByTestId('order-tracking-pending')).toHaveTextContent("Tracking link isn't available yet. It appears once the courier assigns a driver.")
     expect(screen.queryByTestId('order-track-delivery')).toBeNull()
+    expect(screen.queryByTestId('tracking-map')).toBeNull()
   })
 
   it.each(['javascript:alert(1)', 'http://share.lalamove.test/1'])('%s counts as no link: only https is offered', async (url) => {
@@ -246,6 +254,7 @@ describe('delivery tracking', () => {
     await render(<OrderScreen />)
     await screen.findByTestId('order-detail')
     expect(screen.queryByTestId('order-tracking')).toBeNull()
+    expect(screen.queryByTestId('tracking-map')).toBeNull()
   })
 
   it('Track Delivery opens the courier page in the browser', async () => {
@@ -615,8 +624,21 @@ describe('live polling', () => {
     await open()
     expect(screen.queryByTestId('order-tracking')).toBeNull()
     await tick(POLL)
-    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.queryByLabelText('Loading')).toBeNull()
     expect(screen.getByTestId('order-track-delivery')).toBeTruthy()
+  })
+
+  it('a poll that changes the order but not the link keeps the same map; leaving the road unmounts it', async () => {
+    const at = (status: string) => paid({ status, updatedAt: status, shipment: { status: 'ON_GOING', pickupTime: null, deliveredAt: null, trackingUrl: 'https://share.lalamove.test/1' } })
+    mockMapMounts.mockClear()
+    api.fetchOrder.mockResolvedValueOnce(at('DISPATCHED')).mockResolvedValueOnce(at('OUT_FOR_DELIVERY')).mockResolvedValue(at('DELIVERED'))
+    await open()
+    expect(mockMapMounts).toHaveBeenCalledTimes(1)
+    await tick(POLL)
+    expect(screen.getByTestId('order-status')).toHaveTextContent('Out for delivery')
+    expect(mockMapMounts).toHaveBeenCalledTimes(1)
+    await tick(POLL)
+    expect(screen.queryByTestId('tracking-map')).toBeNull()
   })
 
   it('stops once the order is closed', async () => {

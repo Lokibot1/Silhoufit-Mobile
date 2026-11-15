@@ -15,6 +15,7 @@ import { Button } from '@/ui/Button'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { CHIP_HEIGHT, StatusChip } from '@/ui/StatusChip'
+import { TrackingMap } from '@/ui/TrackingMap'
 import { color, font, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
@@ -143,8 +144,8 @@ function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props
           {shipment && <Text style={styles.body}>{`Courier: ${shipmentLabel(shipment.status)}`}</Text>}
           {tracking ? (
             <>
-              <Button testID="order-track-delivery" label="Track Delivery" onPress={() => onTrack(tracking)} />
-              <Text style={styles.variant}>Opens the live courier map in your browser.</Text>
+              <TrackingMap key={tracking} url={tracking} />
+              <Button testID="order-track-delivery" variant="secondary" label="Map not showing? Open it in your browser" onPress={() => onTrack(tracking)} labelStyle={styles.wrapLabel} />
             </>
           ) : (
             <Text testID="order-tracking-pending" style={styles.body}>Tracking link isn&apos;t available yet. It appears once the courier assigns a driver.</Text>
@@ -435,6 +436,7 @@ const styles = StyleSheet.create({
   content: { padding: space.lg, gap: space.md },
   grow: { flex: 1 },
   wrap: { flexShrink: 1 },
+  wrapLabel: { flexShrink: 1, textAlign: 'center' }, // the long fallback label wraps on a 320px screen
   body: { ...type.body, color: color.graphite },
   recipient: { ...type.body, fontFamily: font.semibold },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.lg },

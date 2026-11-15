@@ -286,3 +286,16 @@ Real emails and a real account: use a test inbox you can open. Owner setup first
 - [ ] Keyboard: every field scrolls clear of the keyboard on a small phone (iOS especially: the long form is the risk) and Next moves down the form; the password manager offers to save the new password.
 - [ ] Google age step: sign in with Google using an account that has never signed in (or whose birthday is empty): the Confirm Your Age screen opens after the toast. An adult date saves and returns to where you were; the screen cannot be swiped away. A date under 18 signs out and shows the under-age message with Back to Sign In (the account stays in Supabase without a birthday and the screen opens again on its next Google sign-in). "Back to Sign In" on the form also signs out. An existing account with a birthday skips the screen.
 - [ ] TalkBack/VoiceOver: the consent box reads as a checkbox with its checked state, banners and the checklist are announced as they change, and the resend countdown reads "Resend link in N seconds".
+
+## Live delivery map (order page, dev build with react-native-webview)
+Needs a rebuilt dev client (the WebView is a native module) and an order that is Shipped / Out for delivery with a Lalamove link.
+- [ ] The map loads inline in "(Delivery Tracking)": a 360px box with a hairline border and "Loading live map…" over a pulse, which gives way to the courier's page without the content below jumping.
+- [ ] The Lalamove share page really renders inside the WebView (some pages refuse embedding or need a browser feature): if it stays blank or errors, the fallback button below is the answer.
+- [ ] Android and iOS: dragging inside the map pans/zooms the map; dragging on the page padding or text around it scrolls the page. The page can always be scrolled past the map.
+- [ ] Airplane mode, then open the order: after at most 20 seconds the box reads "Couldn't load the live map." with Retry (44px+); network back, Retry loads the map.
+- [ ] While the order is open, a poll that does not change the link leaves the map where it was (no reload or flash); when the order becomes Delivered the map disappears.
+- [ ] A link inside the map that leaves https (a store or app link) does nothing; the map stays.
+- [ ] 320px wide / large font: the box fits with no sideways scroll, and "Map not showing? Open it in your browser" wraps and stays 44px+ tall.
+- [ ] "Map not showing? Open it in your browser" opens the courier page in the system browser; a double tap opens it once; with no browser it toasts "Couldn't open the tracking page. Try again."
+- [ ] An order with no link keeps "Tracking link isn't available yet..." and shows no map.
+- [ ] Dark mode is not applicable (the app is light only); TalkBack/VoiceOver reads the box as "Live delivery map" and the loading and error states are announced.
