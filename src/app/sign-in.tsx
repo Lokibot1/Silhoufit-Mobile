@@ -1,6 +1,6 @@
 import { router, useNavigation } from 'expo-router'
 import { useRef, useState, type ComponentRef } from 'react'
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { signInWithGoogle } from '@/auth/google'
 import { useSession } from '@/auth/session'
@@ -77,18 +77,17 @@ export default function SignIn() {
     inFlight.current = true
     setPending('google')
     setFailure(null)
-    let result
     try {
-      result = await signInWithGoogle()
+      const result = await signInWithGoogle()
+      if (!result.ok) return result.cancelled ? undefined : setFailure(result.message)
+      toast('Signed in with Google')
+      leave() // the root gate sends a customer with no birthday to the age step
     } catch {
-      return setFailure('Sign-in failed on our side. Please try again.')
+      setFailure('Sign-in failed on our side. Please try again.')
     } finally {
       inFlight.current = false
       setPending(null)
     }
-    if (!result.ok) return result.cancelled ? undefined : setFailure(result.message)
-    toast('Signed in with Google')
-    leave()
   }
 
   return (
@@ -134,6 +133,10 @@ export default function SignIn() {
           onSubmitEditing={submit}
         />
 
+        <Pressable testID="sign-in-forgot" accessibilityRole="link" accessibilityLabel="Forgot password?" onPress={() => router.push('/forgot-password')} style={styles.forgot}>
+          <Text style={[type.body, styles.forgotText]}>Forgot password?</Text>
+        </Pressable>
+
         {failure && (
           <View testID="sign-in-banner" accessibilityRole="alert" style={styles.banner}>
             <Text style={type.body}>{failure}</Text>
@@ -158,6 +161,14 @@ export default function SignIn() {
           disabled={pending === 'password'}
           onPress={google}
         />
+
+        <Pressable testID="sign-in-no-email" accessibilityRole="link" accessibilityLabel="Didn't get a confirmation email?" onPress={() => router.push('/check-email')} style={styles.switch}>
+          <Text style={[type.body, styles.forgotText]}>Didn't get a confirmation email?</Text>
+        </Pressable>
+
+        <Pressable testID="sign-in-create-account" accessibilityRole="link" accessibilityLabel="New to KRAL? Create Account" onPress={() => router.replace('/sign-up')} style={styles.switch}>
+          <Text style={type.body}>New to KRAL? <Text style={styles.forgotText}>Create Account</Text></Text>
+        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   )
@@ -168,5 +179,8 @@ const styles = StyleSheet.create({
   content: { padding: space.lg, gap: space.lg },
   divider: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   rule: { flex: 1, height: 1, backgroundColor: color.porcelain },
+  forgot: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' },
+  switch: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  forgotText: { textDecorationLine: 'underline' },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
 })

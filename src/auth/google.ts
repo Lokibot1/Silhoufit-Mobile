@@ -17,10 +17,10 @@ const copy = {
 const fail = (message: string): GoogleResult => ({ ok: false, message })
 const cancelled: GoogleResult = { ok: false, cancelled: true }
 
-/** Reads the redirect back from the browser. Supabase puts the result in the query (PKCE) or the # fragment (errors). Null for any other address. */
-export function readCallback(url: string) {
-  if (!url.startsWith(GOOGLE_REDIRECT)) return null
-  const [path, hash = ''] = url.slice(GOOGLE_REDIRECT.length).split('#')
+/** Reads the redirect back from the browser (the email links reuse it with their own `base`). Supabase puts the result in the query (PKCE) or the # fragment (errors). Null for any other address. */
+export function readCallback(url: string, base = GOOGLE_REDIRECT) {
+  if (!url.startsWith(base)) return null
+  const [path, hash = ''] = url.slice(base.length).split('#')
   if (path && !path.startsWith('?')) return null
   const params = new URLSearchParams(`${path.slice(1)}&${hash}`)
   return {

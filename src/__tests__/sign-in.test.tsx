@@ -1,11 +1,13 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
+import { StyleSheet } from 'react-native'
+
 import SignIn from '../app/sign-in'
 
 jest.mock('@/auth/google', () => ({ signInWithGoogle: jest.fn() }))
 jest.mock('@/auth/session', () => ({ useSession: () => ({ signIn: mockSignIn }) }))
 jest.mock('expo-router', () => ({
-  router: { canGoBack: jest.fn(() => true), back: jest.fn(), replace: jest.fn() },
+  router: { canGoBack: jest.fn(() => true), back: jest.fn(), replace: jest.fn(), push: jest.fn() },
   useNavigation: () => ({ isFocused: mockIsFocused }),
 }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
@@ -15,6 +17,7 @@ const mockIsFocused = jest.fn(() => true)
 const google = jest.requireMock('@/auth/google').signInWithGoogle as jest.Mock
 const back = jest.requireMock('expo-router').router.back as jest.Mock
 const replace = jest.requireMock('expo-router').router.replace as jest.Mock
+const push = jest.requireMock('expo-router').router.push as jest.Mock
 const isFocused = mockIsFocused
 
 beforeEach(() => {
@@ -123,4 +126,39 @@ it('makes one call for a same-tick double press and disables Sign In meanwhile',
   expect(google).toHaveBeenCalledTimes(1)
   await act(async () => d.resolve({ ok: false, cancelled: true }))
   await waitFor(() => expect(disabled('sign-in-submit')).toBe(false))
+})
+
+it('opens Forgot Password from a 44px link under the password field', async () => {
+  await render(<SignIn />)
+  const link = screen.getByTestId('sign-in-forgot')
+  expect(link.props.accessibilityLabel).toBe('Forgot password?')
+  expect(StyleSheet.flatten(link.props.style).minHeight).toBeGreaterThanOrEqual(44)
+  await fireEvent.press(link)
+  expect(push).toHaveBeenCalledWith('/forgot-password')
+})
+
+it('opens Create Account from a 44px link', async () => {
+  await render(<SignIn />)
+  const link = screen.getByTestId('sign-in-create-account')
+  expect(link.props.accessibilityLabel).toBe('New to KRAL? Create Account')
+  expect(StyleSheet.flatten(link.props.style).minHeight).toBeGreaterThanOrEqual(44)
+  await fireEvent.press(link)
+  expect(replace).toHaveBeenCalledWith('/sign-up')
+})
+
+it('opens Check Your Email from a link under the form', async () => {
+  await render(<SignIn />)
+  const link = screen.getByTestId('sign-in-no-email')
+  expect(link.props.accessibilityLabel).toBe("Didn't get a confirmation email?")
+  expect(StyleSheet.flatten(link.props.style).minHeight).toBeGreaterThanOrEqual(44)
+  await fireEvent.press(link)
+  expect(push).toHaveBeenCalledWith('/check-email')
+})
+
+it('leaves after Google sign-in and never routes to the age step itself (the root gate does)', async () => {
+  google.mockResolvedValue({ ok: true })
+  await render(<SignIn />)
+  await fireEvent.press(screen.getByTestId('sign-in-google'))
+  await waitFor(() => expect(back).toHaveBeenCalledTimes(1))
+  expect(replace).not.toHaveBeenCalled()
 })

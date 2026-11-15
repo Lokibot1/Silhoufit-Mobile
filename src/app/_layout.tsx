@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar'
 import { useEffect, useState } from 'react'
 import { Text } from 'react-native'
 
+import { AgeGate } from '@/auth/AgeGate'
 import { SessionProvider, useSession } from '@/auth/session'
 import { fontAssets } from '@/ui/fonts'
 import { IntroLoader } from '@/ui/IntroLoader'
@@ -87,7 +88,72 @@ function Gate() {
             headerTintColor: color.obsidian,
           }}
         />
+        <Stack.Screen
+          name="forgot-password"
+          options={{
+            presentation: 'modal',
+            animation: reduce ? 'none' : 'slide_from_bottom',
+            headerTitle: () => <Text style={type.h2}>Forgot Password</Text>,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
+        <Stack.Screen
+          name="sign-up"
+          options={{
+            presentation: 'modal',
+            animation: reduce ? 'none' : 'slide_from_bottom',
+            headerTitle: () => <Text style={type.h2}>Create Account</Text>,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
+        <Stack.Screen
+          name="check-email"
+          options={{
+            presentation: 'modal',
+            animation: reduce ? 'none' : 'slide_from_bottom',
+            headerTitle: () => <Text style={type.h2}>Check Your Email</Text>,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
+        <Stack.Screen
+          name="auth/reset"
+          options={{
+            headerTitle: () => <KralLogo width={72} />,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+            gestureEnabled: false,
+          }}
+        />
+        <Stack.Screen
+          name="auth/confirm"
+          options={{
+            headerTitle: () => <KralLogo width={72} />,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+            gestureEnabled: false,
+          }}
+        />
+        <Stack.Screen
+          name="auth/age"
+          options={{
+            headerTitle: () => <KralLogo width={72} />,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+            gestureEnabled: false,
+            headerBackVisible: false,
+          }}
+        />
       </Stack>
+      <AgeGate />
       {!done && <IntroLoader ready={!loading} onFinished={() => setDone(true)} />}
     </>
   )

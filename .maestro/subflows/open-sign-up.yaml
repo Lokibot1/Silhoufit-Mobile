@@ -1,0 +1,18 @@
+# Reusable: from a cold start (clearState) to the Create Account screen, signed out.
+appId: ${APP_ID}
+---
+- runFlow: launch.yaml
+- tapOn:
+    id: tab-profile
+- tapOn:
+    id: profile-sign-in
+- extendedWaitUntil:
+    visible:
+      id: sign-in-create-account
+    timeout: 10000
+- tapOn:
+    id: sign-in-create-account
+- extendedWaitUntil:
+    visible:
+      id: sign-up-submit
+    timeout: 10000

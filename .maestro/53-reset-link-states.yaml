@@ -1,0 +1,31 @@
+appId: ${APP_ID}
+---
+# The reset-password deep link with no usable code: a bare link shows the expired state and an expired-link error shows it too;
+# "Send a New Reset Email" lands on Forgot Password. Needs no backend and no account (no code is ever exchanged).
+# In a dev build the dev launcher may intercept openLink (same caveat as flows 15 and 24); on iOS an "Open in <app>?" prompt is tapped if present.
+- runFlow: subflows/launch.yaml
+- openLink: silhoufitmobile://auth/reset
+- tapOn:
+    text: '(?i)Open'
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: reset-expired
+    timeout: 10000
+- assertVisible: This link has expired or was already used. Request a new link on this phone.
+- assertNotVisible: '(?i)Unmatched Route'
+- openLink: silhoufitmobile://auth/reset?error=access_denied&error_code=otp_expired
+- tapOn:
+    text: '(?i)Open'
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: reset-expired
+    timeout: 10000
+- assertVisible: This link has expired or was already used. Request a new link on this phone.
+- tapOn:
+    id: reset-expired
+- extendedWaitUntil:
+    visible:
+      id: forgot-submit
+    timeout: 10000

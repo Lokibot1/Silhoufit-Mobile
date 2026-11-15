@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type TextStyle } from 'react-native'
 
 import { color, space, type } from './theme'
 
@@ -13,10 +13,11 @@ type Props = {
   pending?: boolean
   disabled?: boolean
   icon?: ReactNode
+  labelStyle?: TextStyle
 }
 
 // KRAL button: square, 48px, uppercase. Primary is Red; secondary is an Obsidian outline that fills when pressed.
-export function Button({ label, onPress, variant = 'primary', testID, accessibilityLabel, accessibilityHint, pending = false, disabled = false, icon }: Props) {
+export function Button({ label, onPress, variant = 'primary', testID, accessibilityLabel, accessibilityHint, pending = false, disabled = false, icon, labelStyle }: Props) {
   const primary = variant === 'primary'
   const off = pending || disabled
   return (
@@ -40,7 +41,7 @@ export function Button({ label, onPress, variant = 'primary', testID, accessibil
         ) : (
           <View style={styles.row}>
             {icon}
-            <Text style={[type.button, { color: primary || pressed ? color.paper : color.obsidian }]}>{label}</Text>
+            <Text style={[type.button, { color: primary || pressed ? color.paper : color.obsidian }, labelStyle]}>{label}</Text>
           </View>
         )
       }

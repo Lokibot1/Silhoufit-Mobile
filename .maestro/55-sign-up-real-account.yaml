@@ -1,0 +1,58 @@
+appId: ${APP_ID}
+env:
+  SIGNUP_EMAIL_DOMAIN: example.invalid
+tags:
+  - creates-account
+---
+# CREATES A REAL ACCOUNT and sends a real confirmation email every run. Use a dedicated Supabase project or clean up afterwards.
+# Excluded by default: --exclude-tags=creates-account; run it alone, on purpose: maestro test .maestro/55-sign-up-real-account.yaml
+# The address is <maestro-timestamp>@${SIGNUP_EMAIL_DOMAIN}; set SIGNUP_EMAIL_DOMAIN to a domain you control if Supabase rejects example.invalid.
+# Ends on Check Email with the resend countdown running; the confirmation link itself is a device check (MANUAL.md).
+- runFlow: subflows/open-sign-up.yaml
+- evalScript: ${output.email = 'maestro-' + Date.now() + '@' + SIGNUP_EMAIL_DOMAIN}
+- tapOn:
+    id: sign-up-first-name
+- inputText: Maestro
+- tapOn:
+    id: sign-up-last-name
+- inputText: Tester
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: sign-up-email
+- tapOn:
+    id: sign-up-email
+- inputText: ${output.email}
+- tapOn:
+    id: sign-up-birthday
+- inputText: 1990-01-15
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: sign-up-password
+- tapOn:
+    id: sign-up-password
+- inputText: Abcdef1!x
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: sign-up-confirm
+- tapOn:
+    id: sign-up-confirm
+- inputText: Abcdef1!x
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: sign-up-consent
+- tapOn:
+    id: sign-up-consent
+- tapOn:
+    id: sign-up-submit
+- extendedWaitUntil:
+    visible:
+      id: check-email-resend
+    timeout: 20000
+- assertVisible: ${output.email}
+- assertVisible: 'Resend in .*'
+- assertNotVisible:
+    id: sign-up-error

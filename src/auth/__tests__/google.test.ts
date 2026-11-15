@@ -203,4 +203,10 @@ describe('readCallback', () => {
     expect(readCallback(`${CB}evil`)).toBeNull()
     expect(readCallback(`${CB}/extra?code=a`)).toBeNull()
   })
+
+  it('reads another path when given its base and rejects the Google one', () => {
+    const reset = 'silhoufitmobile://auth/reset'
+    expect(readCallback(`${reset}?code=r`, reset)).toMatchObject({ code: 'r' })
+    expect(readCallback(`${CB}?code=a`, reset)).toBeNull()
+  })
 })

@@ -1,0 +1,32 @@
+appId: ${APP_ID}
+---
+# The confirm-email deep link with no usable code: a bare link and an expired-link error both show "Link expired";
+# "Send a New Link" lands on Check Email, which asks for the address. Needs no backend and no account.
+# In a dev build the dev launcher may intercept openLink (same caveat as flows 15 and 24); on iOS an "Open in <app>?" prompt is tapped if present.
+- runFlow: subflows/launch.yaml
+- openLink: silhoufitmobile://auth/confirm
+- tapOn:
+    text: '(?i)Open'
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: confirm-expired
+    timeout: 10000
+- assertVisible: This link has expired or was already used. Request a new link on this phone.
+- assertNotVisible: '(?i)Unmatched Route'
+- openLink: silhoufitmobile://auth/confirm?error=access_denied&error_code=otp_expired
+- tapOn:
+    text: '(?i)Open'
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: confirm-expired
+    timeout: 10000
+- tapOn:
+    id: confirm-expired
+- extendedWaitUntil:
+    visible:
+      id: check-email-input
+    timeout: 10000
+- assertVisible:
+    id: check-email-resend

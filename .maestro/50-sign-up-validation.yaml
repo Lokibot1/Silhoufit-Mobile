@@ -1,0 +1,24 @@
+appId: ${APP_ID}
+---
+# Sign up, signed out: submitting the empty form shows the required messages and the consent error, and sends nothing.
+# Needs no backend and no account. The form is long, so lower fields are scrolled into view before they are asserted.
+- runFlow: subflows/open-sign-up.yaml
+- scrollUntilVisible:
+    element:
+      id: sign-up-submit
+- tapOn:
+    id: sign-up-submit
+- assertVisible: First name is required.
+- scrollUntilVisible:
+    element: Password is required.
+- assertVisible: Confirm your password.
+- scrollUntilVisible:
+    element: Please read and accept the Terms of Service and Privacy Policy to create an account.
+- assertNotVisible:
+    id: sign-up-error
+# Google is gated on the same consent: tapping it unticked changes nothing and leaves the app in place.
+- tapOn:
+    id: sign-up-google
+- assertVisible: Please read and accept the Terms of Service and Privacy Policy to create an account.
+- assertVisible:
+    id: sign-up-google

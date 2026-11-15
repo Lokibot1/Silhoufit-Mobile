@@ -123,6 +123,13 @@ Pay and cancel change real orders, so they are manual. Use a dedicated test acco
 Maestro cannot change an order status, so these are manual. Needs a second actor: change an order's status from the staff dashboard (or pay through the Xendit test mode) while the phone stays on the screen.
 - [ ] Orders list open: change a status; within about 20 s the card's status chip and the tab counts update on their own, with no skeleton, no flicker, and the scroll position and the selected tab unchanged.
 - [ ] Order page open on an unpaid order: pay it in test mode from another device; within about 20 s status and payment turn Paid and Pay Now / Cancel Order disappear. Mark it delivered from the dashboard: the status updates, then no more requests go out for that order.
+- [ ] Order page timeline: Placed, Paid, Preparing, Shipped, Out for delivery, Delivered show as a stepper (done = filled square, current = larger red square, upcoming = outline). With the order page open, move the order from Preparing to Shipped from the staff dashboard: within about 20 s the current step advances in place, with no skeleton and no jump. A stage without a real time shows no time.
+- [ ] Order page, shipped order with a courier link: a "Delivery Tracking" section sits above the timeline; Track Delivery (`order-track-delivery`) opens the Lalamove share page in the in-app browser, and with airplane mode on a toast explains. A shipped order with no link yet shows "Tracking link isn't available yet. It appears once the courier assigns a driver." and no button. A delivered order shows no tracking section.
+- [ ] Order page, failed payment (decline a test card): the timeline's Paid step reads "Payment failed" as the current step, later steps stay outlined, and Pay Now and Cancel Order are still offered.
+- [ ] Order page, refunded order (refund one from the staff dashboard): the stages it reached stay filled, then a current "Refunded" step with no time; no Pay Now, Cancel Order or tracking section.
+- [ ] Order page, cancelled order: the Cancelled marker is a red cross (not a square), distinguishable with colour filters off, and its time and reason show only when the order has them.
+- [ ] Order page at font scale 200%: every timeline marker stays level with its step's first line of text, and the loading skeleton's timeline is close to the real timeline's height (no big jump when it loads).
+- [ ] Order page timeline and tracking at 320px wide and at font scale 200%: labels, times and the Track Delivery button wrap with no clipping or horizontal scroll; TalkBack/VoiceOver reads each step as "Preparing, current" / "Paid, done, <time>" / "Shipped, upcoming".
 - [ ] Alerts tab open: change a status; the new update appears within about 20 s with "New", and the Alerts list does not jump. Leave the tab and return: the marker is gone only after that leave.
 - [ ] Background the app for a minute, change a status, bring the app back: the visible screen refreshes at once (not after 20 s), and nothing was fetched while it was in the background.
 - [ ] Switch to another tab or open another screen, change a status, wait 40 s: nothing updates behind it (no requests); coming back shows the change once, without a second reload or skeleton.
@@ -241,8 +248,41 @@ Needs the owner setup below first. Use a dedicated Google test account (a test u
 - [ ] Small screen and notice: at 320px wide and 200% font, trigger a long notice (the lookup-failed one with two buttons): it scrolls inside a capped area, Place Order stays on screen and tappable, and every notice button is reachable by scrolling it.
 - [ ] Expire the session, then Place Order: the screen shows the sign-in prompt. At 320px wide and the largest font scale the bar with a notice and Place Order still leaves the page visible above it, and TalkBack and VoiceOver read the hint and the alert.
 
+## Forgot password
+Sends a real email when the address has an account: use a test inbox you can open.
+- [ ] Sign In shows a "Forgot password?" link under the password field (44px tall); tapping it opens the Forgot Password modal, and Back to Sign In returns.
+- [ ] A registered address and an unregistered one show the identical confirmation: "If an account exists for that address, we sent a link to reset your password. The link expires in 30 minutes." (no email shown in it).
+- [ ] The registered address actually receives the reset email.
+- [ ] Invalid email ("ana@", blank): the inline error shows under the field and nothing is sent; pasting an emoji into the field drops it.
+- [ ] Airplane mode, Send Reset Link: the red-edged banner reads "We couldn't send the link. The connection dropped..." and the button reads Try Again; turn the network on, Try Again shows the confirmation.
+- [ ] Tap Send Reset Link repeatedly: one request, the button shows the spinner and stays disabled meanwhile.
+- [ ] More than a few requests in a row for one address: the banner reads "Too many reset requests..." (Supabase's email rate limit), and works again after a minute.
+- [ ] Keyboard: the Email field stays visible above the keyboard on a small phone; Send on the keyboard submits.
+- [ ] TalkBack/VoiceOver: the banner and the confirmation are announced when they appear.
+- [ ] Owner setup: `silhoufitmobile://auth/reset` and `silhoufitmobile://auth/confirm` (and the Expo Go `exp://.../--/auth/reset|confirm` addresses) are in Supabase Auth, Redirect URLs, or the emailed link falls back to the site URL.
+
 ## Owner setup checklist (Google sign-in, not code)
 - [ ] Supabase > Authentication > URL Configuration > Redirect URLs: add `silhoufitmobile://auth/callback` (dev builds and release) and the Expo Go address that `Linking.createURL('auth/callback')` prints, for example `exp://192.168.1.225:8081/--/auth/callback`. The LAN IP changes, so on the dev project only you may use `exp://**/--/auth/callback`; remove it before release.
 - [ ] Supabase > Authentication > Providers: Google is enabled with the client id and secret.
 - [ ] Google Cloud needs no change: its authorised redirect stays `https://<project>.supabase.co/auth/v1/callback`.
 - [ ] Keep the OAuth consent screen's test users up to date, or publish the consent screen.
+
+## Sign up, email links and the Google age step
+Real emails and a real account: use a test inbox you can open. Owner setup first (below), or the emailed links open the wrong place.
+- [ ] Owner setup: Supabase Auth > URL Configuration > Redirect URLs has `silhoufitmobile://**` and `exp://**` (dev only; remove before release); Auth > Email has the link expiry at 30 minutes (1800 s) and the standard confirm-signup and reset-password templates (the default `{{ .ConfirmationURL }}` button, not a custom `token_hash` link: the app expects the PKCE `?code=` redirect). Email confirmation is on.
+- [ ] Sign In shows "New to KRAL? Create Account" (44px); it opens Create Account and "Already registered? Sign In" returns.
+- [ ] Sign up with a real inbox: the toast reads "Account created. Check your email to finish setting up." and Check Email opens with the address and a "Resend in 1:00" button counting down (digits do not jiggle).
+- [ ] Confirm link, dev build: open the email on the phone and tap the button. The app opens on the spinner, then Profile signed in, with the toast "Email confirmed. Welcome to KRAL."
+- [ ] Confirm link, Expo Go: same, through the `exp://` address (needs the `exp://**` redirect). If the mail app opens the link in a browser that does not hand off to Expo Go, copy the link into the phone's browser.
+- [ ] Mail-app hand-off: Gmail, Outlook and Samsung Mail each hand the `silhoufitmobile://` address to the app (some wrap it in an in-app browser: note which).
+- [ ] The same confirm link opened a second time shows "Link Expired" with "Send a New Link"; waiting past 30 minutes does too. "Send a New Link" opens Check Email asking for the address.
+- [ ] Confirm link opened on a different phone or in a browser that has no sign-up started on it: "If your email was just confirmed, sign in to continue." (title "Sign In to Continue") with a Sign In button (PKCE needs the install that asked for the link, so request the link on the phone you will use).
+- [ ] Resend: the button is disabled for 60 seconds, then reads Resend Link; tapping it shows "If that address is waiting for confirmation, we sent a new link." (the same for any address, registered or not) and the new email arrives; the old link no longer works. Pressing it more than a few times shows "Too many emails. Try again in a few minutes." Airplane mode shows the network banner and the button stays usable.
+- [ ] Reset link, dev build and Expo Go: Forgot Password, open the email on the phone, tap the button: "Choose a New Password" opens. Rules tick off live, a mismatched confirm shows "Passwords don't match.", the current password shows "This is already your password. Choose a different one.", a breached password shows the provider's reason on the banner. Set Password toasts "Password updated." and opens Profile signed in; sign out and sign in with the new password.
+- [ ] The reset link opened twice, or after 30 minutes, shows "Link Expired" with "Send a New Reset Email" (opens Forgot Password) and "Back to Shop".
+- [ ] Airplane mode while the link opens: the "Can't check your link" state with Retry; with the network back, Retry continues.
+- [ ] Consent: Terms of Service and Privacy Policy open the web pages in the system browser (check `EXPO_PUBLIC_SITE_URL` on a build that sets it); Create Account without the box shows the consent error; Continue with Google without it shows the same.
+- [ ] A weak password the server rejects shows its message under the password field, not as a banner; airplane mode shows the banner and the button reads Try Again.
+- [ ] Keyboard: every field scrolls clear of the keyboard on a small phone (iOS especially: the long form is the risk) and Next moves down the form; the password manager offers to save the new password.
+- [ ] Google age step: sign in with Google using an account that has never signed in (or whose birthday is empty): the Confirm Your Age screen opens after the toast. An adult date saves and returns to where you were; the screen cannot be swiped away. A date under 18 signs out and shows the under-age message with Back to Sign In (the account stays in Supabase without a birthday and the screen opens again on its next Google sign-in). "Back to Sign In" on the form also signs out. An existing account with a birthday skips the screen.
+- [ ] TalkBack/VoiceOver: the consent box reads as a checkbox with its checked state, banners and the checklist are announced as they change, and the resend countdown reads "Resend link in N seconds".
