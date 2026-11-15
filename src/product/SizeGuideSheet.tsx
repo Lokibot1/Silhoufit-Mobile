@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { fetchCategoryMeasurements, MEASUREMENT_FIELDS, type MeasurementKey } from '@/api/sizeMeasurements'
 import { ApiError, errorMessage } from '@/lib/api'
 import { useRequest } from '@/lib/useRequest'
-import { Button } from '@/ui/Button'
+import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
@@ -76,7 +76,7 @@ function Content({ onClose, category, variants, selected }: Omit<Props, 'visible
       {failed && (
         <View testID="size-guide-failed" accessibilityRole="alert" style={styles.banner}>
           <Text style={type.body}>{`The standard measurements didn't load. ${errorMessage(error)}`}</Text>
-          <Button testID="size-guide-retry" variant="secondary" label="Retry" onPress={retry} />
+          <HeaderIcon testID="size-guide-retry" name="refresh" label="Retry" onPress={retry} />
         </View>
       )}
       {guide.rows.map((row) => <Card key={row.size} row={row} columns={guide.columns} category={category} selected={!!selected && norm(selected) === norm(row.size)} />)}

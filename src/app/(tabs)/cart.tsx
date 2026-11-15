@@ -419,7 +419,7 @@ export default function CartScreen() {
             )}
             ListFooterComponent={
               <PressableScale testID="cart-clear" accessibilityRole="button" accessibilityLabel="Clear cart" accessibilityState={{ disabled: busyId !== null, busy: busyId === '' }} disabled={busyId !== null} onPress={clear} style={[styles.clear, busyId !== null && styles.off]}>
-                {busyId === '' ? <ActivityIndicator color={color.graphite} /> : <Text style={styles.clearText}>Clear Cart</Text>}
+                {busyId === '' ? <ActivityIndicator color={color.graphite} /> : <Ionicons name="trash-outline" size={24} color={color.graphite} />}
               </PressableScale>
             }
           />
@@ -468,8 +468,7 @@ const styles = StyleSheet.create({
   lineTotal: { flex: 1, minWidth: 0, minHeight: TARGET, alignItems: 'flex-end', justifyContent: 'center' },
   total: { ...type.h2, ...type.numeric, textAlign: 'right', flexShrink: 1 },
   off: { opacity: 0.4 },
-  clear: { minHeight: TARGET, alignSelf: 'flex-start', marginHorizontal: space.lg, justifyContent: 'center' },
-  clearText: { ...type.small, color: color.graphite, textDecorationLine: 'underline' },
+  clear: { minHeight: TARGET, minWidth: TARGET, alignSelf: 'flex-start', marginHorizontal: space.lg, alignItems: 'center', justifyContent: 'center' },
   skeleton: { flex: 1 },
   skeletonList: { flex: 1 },
   bar: { paddingHorizontal: space.lg, paddingTop: space.md, gap: space.sm, backgroundColor: color.paper, borderTopWidth: 1, borderTopColor: color.porcelain },

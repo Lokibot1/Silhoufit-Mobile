@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { WebView } from 'react-native-webview'
 
-import { Button } from './Button'
+import { HeaderIcon } from './HeaderIcon'
 import { Skeleton } from './Skeleton'
 import { color, hairline, space, type } from './theme'
 
@@ -59,7 +59,7 @@ export function TrackingMap({ url }: { url: string }) {
       {failed && (
         <View accessibilityRole="alert" testID="tracking-map-error" style={[styles.overlay, styles.error]}>
           <Text style={type.body}>Couldn&apos;t load the live map.</Text>
-          <Button testID="tracking-map-retry" variant="secondary" label="Retry" onPress={retry} />
+          <HeaderIcon testID="tracking-map-retry" name="refresh" label="Retry" onPress={retry} />
         </View>
       )}
     </View>

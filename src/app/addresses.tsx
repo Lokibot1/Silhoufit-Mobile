@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FlatList, Modal, StyleSheet, Text, View } from 'react-native'
@@ -274,7 +275,7 @@ function AddressCard({ address, onDefault, onEdit, onDelete }: { address: Addres
             accessibilityLabel={`Set ${address.recipientName}, ${lines.street} as default address`}
             onPress={onDefault}
             style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
-            <Text style={styles.actionText}>Set as Default</Text>
+            <Ionicons name="star-outline" size={24} color={color.obsidian} />
           </PressableScale>
         )}
         <PressableScale
@@ -283,7 +284,7 @@ function AddressCard({ address, onDefault, onEdit, onDelete }: { address: Addres
           accessibilityLabel={`Edit ${address.recipientName}, ${lines.street}`}
           onPress={onEdit}
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
-          <Text style={styles.actionText}>Edit</Text>
+          <Ionicons name="create-outline" size={24} color={color.obsidian} />
         </PressableScale>
         <PressableScale
           testID={`address-delete-${address.id}`}
@@ -291,7 +292,7 @@ function AddressCard({ address, onDefault, onEdit, onDelete }: { address: Addres
           accessibilityLabel={`Delete ${address.recipientName}, ${lines.street}`}
           onPress={onDelete}
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
-          <Text style={styles.actionText}>Delete</Text>
+          <Ionicons name="trash-outline" size={24} color={color.obsidian} />
         </PressableScale>
       </View>
     </View>
@@ -319,10 +320,9 @@ const styles = StyleSheet.create({
   tagPin: { borderWidth: 1, borderColor: color.red, color: color.red },
   name: { ...type.body, fontFamily: font.semibold },
   line: { ...type.small, color: color.graphite },
-  actions: { flexDirection: 'row', gap: space.sm, marginTop: space.sm },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.sm, marginTop: space.sm },
   action: { width: TARGET, minHeight: TARGET, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: color.obsidian, borderRadius: radius.soft },
   pressed: { backgroundColor: color.porcelain },
-  actionText: { ...type.button, fontSize: 14, color: color.obsidian },
   scrim: { flex: 1, justifyContent: 'center', padding: space.lg, backgroundColor: color.scrim },
   dialog: { backgroundColor: color.paper, borderRadius: radius.soft, padding: space.lg, gap: space.md },
 })

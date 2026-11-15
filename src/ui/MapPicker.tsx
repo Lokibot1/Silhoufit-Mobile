@@ -7,6 +7,7 @@ import { inPhilippines, MANILA, PH_BOUNDS } from '@/lib/addressValidation'
 import { isRecord } from '@/lib/api'
 
 import { Button } from './Button'
+import { HeaderIcon } from './HeaderIcon'
 import { Skeleton } from './Skeleton'
 import { color, hairline, space, type } from './theme'
 
@@ -214,7 +215,7 @@ export function MapPicker({ value, onChange, disabled, error }: Props) {
         {phase === 'failed' && (
           <View accessibilityRole="alert" testID="map-picker-error" style={[styles.overlay, styles.errorBox]}>
             <Text style={type.body}>{"Couldn't load the map. Check your connection, then try again."}</Text>
-            <Button testID="map-picker-retry" variant="secondary" label="Retry" onPress={retry} />
+            <HeaderIcon testID="map-picker-retry" name="refresh" label="Retry" onPress={retry} />
           </View>
         )}
       </View>

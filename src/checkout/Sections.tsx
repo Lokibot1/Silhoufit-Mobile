@@ -8,6 +8,7 @@ import type { ShippingQuote } from '@/api/orders'
 import { ApiError, errorMessage } from '@/lib/api'
 import { peso } from '@/lib/format'
 import { Button } from '@/ui/Button'
+import { HeaderIcon } from '@/ui/HeaderIcon'
 import { Skeleton } from '@/ui/Skeleton'
 import { color, font, radius, space, type } from '@/ui/theme'
 
@@ -36,7 +37,7 @@ function Failure({ message, label, testID, onRetry }: { message: string; label: 
   return (
     <View accessibilityRole="alert" style={styles.gap}>
       <Text style={styles.body}>{message}</Text>
-      <Button testID={testID} variant="secondary" label="Retry" accessibilityLabel={label} onPress={onRetry} />
+      <HeaderIcon testID={testID} name="refresh" label={label} onPress={onRetry} />
     </View>
   )
 }
@@ -74,7 +75,7 @@ export function AddressSection({ req, selected, onChange, onAdd, disabled = fals
         ) : (
           <Text testID="checkout-address-none" style={styles.body}>None of your addresses has a map pin yet. Edit one in Delivery Addresses to add its pin, or add a new address.</Text>
         )}
-        <Button testID="checkout-address-change" variant="secondary" label="Change" accessibilityLabel="Change delivery address" disabled={disabled} onPress={onChange} />
+        <HeaderIcon testID="checkout-address-change" name="create-outline" label="Change delivery address" disabled={disabled} onPress={onChange} />
       </View>
     )
   }

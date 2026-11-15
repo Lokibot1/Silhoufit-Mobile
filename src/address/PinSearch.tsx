@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native'
 
 import { ReverseGeocodeError, searchPlaces, type PlaceHit } from '@/api/reverseGeocode'
 import { Button } from '@/ui/Button'
+import { HeaderIcon } from '@/ui/HeaderIcon'
 import { FloatingField } from '@/ui/FloatingField'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
@@ -68,7 +69,7 @@ export function PinSearch({ onPick, disabled }: { onPick: (lat: number, lon: num
       {state.status === 'error' && (
         <View testID="pin-search-error" accessibilityRole="alert" style={styles.banner}>
           <Text style={type.body}>{state.message}</Text>
-          <Button testID="pin-search-retry" variant="secondary" label="Retry" onPress={() => void search()} />
+          <HeaderIcon testID="pin-search-retry" name="refresh" label="Retry" onPress={() => void search()} />
         </View>
       )}
       {state.status === 'done' && state.hits.length === 0 && (

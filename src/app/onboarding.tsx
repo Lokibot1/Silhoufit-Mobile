@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useSession } from '@/auth/session'
 import { saveOnboarding, type OnboardingChoice } from '@/onboarding/status'
 import { Button } from '@/ui/Button'
+import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
 import { color, hairline, radius, space, type } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
@@ -91,16 +92,14 @@ export default function Onboarding() {
       </View>
 
       <View style={styles.actions}>
-        <View style={styles.grow}>
-          <Button testID="onboarding-back" variant="secondary" label="Back" disabled={index === 0} onPress={() => goTo(index - 1)} />
-        </View>
-        <View style={styles.grow}>
-          {last ? (
+        <HeaderIcon testID="onboarding-back" name="arrow-back" label="Back" disabled={index === 0} onPress={() => goTo(index - 1)} />
+        {last ? (
+          <View style={styles.grow}>
             <Button testID="onboarding-finish" label="Get Started" onPress={() => close('completed')} />
-          ) : (
-            <Button testID="onboarding-next" label="Next" onPress={() => goTo(index + 1)} />
-          )}
-        </View>
+          </View>
+        ) : (
+          <HeaderIcon testID="onboarding-next" name="arrow-forward" label="Next" tint={color.red} onPress={() => goTo(index + 1)} />
+        )}
       </View>
     </View>
   )
@@ -117,6 +116,6 @@ const styles = StyleSheet.create({
   dots: { flexDirection: 'row', justifyContent: 'center', gap: space.sm, paddingVertical: space.md },
   dot: { width: 8, height: 8, borderRadius: radius.pill, backgroundColor: color.porcelain },
   dotOn: { width: 24, backgroundColor: color.obsidian },
-  actions: { flexDirection: 'row', gap: space.md, padding: space.lg },
+  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md, padding: space.lg },
   grow: { flex: 1 },
 })

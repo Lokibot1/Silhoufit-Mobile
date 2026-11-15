@@ -8,6 +8,7 @@ import type { Order } from '@/api/orders'
 import { fetchOrderReviews, onReviewsChanged, type MyReview, type OrderReviews as Data, type PendingReview } from '@/api/reviews'
 import { errorMessage } from '@/lib/api'
 import { Button } from '@/ui/Button'
+import { HeaderIcon } from '@/ui/HeaderIcon'
 import { Skeleton } from '@/ui/Skeleton'
 import { color, space, type } from '@/ui/theme'
 
@@ -54,7 +55,7 @@ function ReviewRow({ row, onOpen }: { row: Row; onOpen: (row: Row) => void }) {
             {review.comment && <Text numberOfLines={3} style={[type.small, styles.text]}>{review.comment}</Text>}
             {review.photos.length > 0 && <Text style={[type.small, type.numeric]}>{`${review.photos.length} ${review.photos.length === 1 ? 'photo' : 'photos'}`}</Text>}
             {editable ? (
-              <Button testID={`order-review-edit-${row.productId}`} variant="secondary" label="Edit Your Review" accessibilityLabel={`Edit your review of ${row.name}`} onPress={() => onOpen(row)} />
+              <HeaderIcon testID={`order-review-edit-${row.productId}`} name="create-outline" label={`Edit your review of ${row.name}`} onPress={() => onOpen(row)} />
             ) : (
               <Text style={type.small}>Reviews can be edited for 30 days after posting. That time has passed.</Text>
             )}

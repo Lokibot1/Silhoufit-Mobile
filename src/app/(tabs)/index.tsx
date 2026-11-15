@@ -10,7 +10,6 @@ import { useSession } from '@/auth/session'
 import { useChatUnread } from '@/chat/useChatUnread'
 import { ApiError, errorMessage } from '@/lib/api'
 import { useCartCount } from '@/lib/useCartCount'
-import { Button } from '@/ui/Button'
 import { Chip } from '@/ui/Chip'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
@@ -187,7 +186,7 @@ export default function Shop() {
     ) : more === 'error' ? (
       <View accessibilityRole="alert" style={styles.footer}>
         <Text style={styles.footerText}>{"Couldn't load more pieces. Check your connection."}</Text>
-        <Button testID="shop-load-more-retry" variant="secondary" label="Retry" onPress={() => { setMore('idle'); loadMore() }} />
+        <HeaderIcon testID="shop-load-more-retry" name="refresh" label="Retry" onPress={() => { setMore('idle'); loadMore() }} />
       </View>
     ) : undefined
 

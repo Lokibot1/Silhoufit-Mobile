@@ -14,15 +14,17 @@ type Props = {
   count?: number
   dot?: boolean
   disabled?: boolean
+  /** Icon colour; Obsidian unless a primary action needs Red. */
+  tint?: string
   onPress: () => void
   testID: string
 }
 
 // A 44px icon button for the top bars. The badge testID is `<testID>-badge`.
-export function HeaderIcon({ name, label, status, count = 0, dot = false, disabled = false, onPress, testID }: Props) {
+export function HeaderIcon({ name, label, status, count = 0, dot = false, disabled = false, tint = color.obsidian, onPress, testID }: Props) {
   return (
     <PressableScale testID={testID} accessibilityRole="button" accessibilityLabel={status ? `${label}, ${status}` : label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={[styles.button, disabled && styles.off]}>
-      <Ionicons name={name} size={24} color={color.obsidian} />
+      <Ionicons name={name} size={24} color={tint} />
       {count > 0 ? (
         <View testID={`${testID}-badge`} style={[styles.badge, { backgroundColor: color.red }]}>
           <Text maxFontSizeMultiplier={1} style={[styles.badgeText, { color: color.paper }]}>{count > 99 ? '99+' : count}</Text>

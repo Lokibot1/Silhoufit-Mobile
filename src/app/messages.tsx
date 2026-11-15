@@ -8,7 +8,7 @@ import { fetchMessages, fetchMyConversation, markRead, MAX_MESSAGE_LENGTH, sendF
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { dateTime } from '@/lib/format'
-import { Button } from '@/ui/Button'
+import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
@@ -60,8 +60,10 @@ function UnsentBubble({ unsent, onRetry, onDiscard }: { unsent: Unsent; onRetry:
       {unsent.failure !== null && (
         <View accessibilityRole="alert" style={styles.failure}>
           <Text style={[type.small, { color: color.graphite }]}>{unsent.failure}</Text>
-          {unsent.retry && <Button testID="message-failed-retry" variant="secondary" label="Retry" accessibilityLabel="Retry sending message" onPress={onRetry} />}
-          <Button testID="message-failed-discard" variant="secondary" label="Discard" accessibilityLabel="Discard unsent message" onPress={onDiscard} />
+          <View style={styles.failureActions}>
+            {unsent.retry && <HeaderIcon testID="message-failed-retry" name="refresh" label="Retry sending message" onPress={onRetry} />}
+            <HeaderIcon testID="message-failed-discard" name="trash-outline" label="Discard unsent message" onPress={onDiscard} />
+          </View>
         </View>
       )}
     </View>
@@ -337,6 +339,7 @@ const styles = StyleSheet.create({
   theirs: { alignSelf: 'flex-start', backgroundColor: color.porcelain },
   sending: { opacity: 0.6 },
   unsent: { alignItems: 'flex-end', gap: space.sm },
+  failureActions: { flexDirection: 'row', gap: space.sm },
   failure: { maxWidth: '85%', gap: space.sm },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, paddingTop: space.sm, paddingHorizontal: space.lg, borderTopWidth: 1, borderTopColor: color.porcelain, backgroundColor: color.paper },
   field: { flex: 1, gap: space.xs },

@@ -8,6 +8,7 @@ import { errorMessage } from '@/lib/api'
 import { dateOnly } from '@/lib/format'
 import { Avatar } from '@/ui/Avatar'
 import { Button } from '@/ui/Button'
+import { HeaderIcon } from '@/ui/HeaderIcon'
 import { Chip } from '@/ui/Chip'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
@@ -212,7 +213,7 @@ export function ProductReviews({ productId }: { productId: string }) {
   const failure = (
     <View testID="reviews-error" accessibilityRole="alert" style={styles.stack}>
       <Text style={type.body}>{`Couldn't load the reviews. ${errorMessage(state.error)} The rest of the page is not affected.`}</Text>
-      <Button testID="reviews-retry" variant="secondary" label="Retry" onPress={() => reload()} />
+      <HeaderIcon testID="reviews-retry" name="refresh" label="Retry" onPress={() => reload()} />
     </View>
   )
 

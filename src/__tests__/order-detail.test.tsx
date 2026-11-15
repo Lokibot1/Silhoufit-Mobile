@@ -10,6 +10,7 @@ jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('expo-web-browser', () => ({ openBrowserAsync: jest.fn() }))
 jest.mock('expo-image', () => ({ Image: () => null }))
+jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }))
 jest.mock('react-native-webview', () => {
   const { useEffect } = jest.requireActual('react')
   const { View } = jest.requireActual('react-native')
