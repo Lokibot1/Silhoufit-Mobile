@@ -80,3 +80,72 @@ export async function fetchProductReviews(productId: string, { page, rating, has
   if (hasImages) query.push('hasImages=true')
   return toReviewsPage(await request('GET', `/products/${encodeURIComponent(productId)}/reviews?${query.join('&')}`, undefined, signal, { auth: false }), page)
 }
+
+// Tells the open product page and order screen that a review was saved, so each refetches quietly.
+const listeners = new Set<() => void>()
+export const onReviewsChanged = (listener: () => void) => {
+  listeners.add(listener)
+  return () => void listeners.delete(listener)
+}
+export const notifyReviewsChanged = () => listeners.forEach((listener) => listener())
+
+/** A delivered product of one order that still awaits the customer's review. `variations` are the order lines that hold it. */
+export type PendingReview = { orderId: string; productId: string; name: string; image: string | null; variations: { orderItemId: string; size: string | null; color: string | null }[] }
+/** A review the signed-in customer wrote; `skus` are the variants of it they bought, which ties it to an order line. */
+export type MyReview = { id: string; orderId: string; productId: string; rating: number; comment: string | null; photos: string[]; skus: string[]; createdAt: string }
+export type OrderReviews = { pending: PendingReview[]; mine: MyReview[] }
+
+function toPending(value: unknown): PendingReview | null {
+  if (!isRecord(value) || !isRecord(value.product) || !str(value.orderId) || !str(value.product.id) || !str(value.product.name)) return null
+  return {
+    orderId: value.orderId as string,
+    productId: value.product.id as string,
+    name: value.product.name as string,
+    image: httpsUrl(value.product.primaryImage),
+    variations: (Array.isArray(value.variations) ? value.variations : []).filter(isRecord).flatMap((v) => (str(v.orderItemId) ? [{ orderItemId: v.orderItemId as string, size: str(v.size), color: str(v.color) }] : [])),
+  }
+}
+
+function toMine(value: unknown): MyReview | null {
+  if (!isRecord(value) || !str(value.id) || !str(value.orderId) || !str(value.productId) || !isNum(value.rating) || !Number.isInteger(value.rating) || value.rating < 1 || value.rating > 5 || !str(value.createdAt)) return null
+  return {
+    id: value.id as string,
+    orderId: value.orderId as string,
+    productId: value.productId as string,
+    rating: value.rating,
+    comment: str(value.comment),
+    photos: (Array.isArray(value.images) ? value.images : []).filter(isRecord).flatMap((image) => httpsUrl(image.url) ?? []),
+    skus: (Array.isArray(value.purchasedVariants) ? value.purchasedVariants : []).filter(isRecord).flatMap((v) => str(v.sku) ?? []),
+    createdAt: value.createdAt as string,
+  }
+}
+
+const MAX_PAGES = 20
+
+/** One order's reviews: its products still to review (GET /reviews/pending) and the ones already reviewed (GET /reviews/me, every page). */
+export async function fetchOrderReviews(orderId: string, signal?: AbortSignal): Promise<OrderReviews> {
+  const get = async (path: string) => request('GET', path, undefined, signal)
+  const [pending, first] = await Promise.all([get('/reviews/pending'), get('/reviews/me?page=1&limit=50')])
+  if (!Array.isArray(pending) || !isRecord(first) || !Array.isArray(first.data)) throw new ApiError('server')
+  const rows = [...first.data]
+  const totalPages = isRecord(first.meta) ? Number(first.meta.totalPages) || 1 : 1
+  for (let page = 2; page <= Math.min(totalPages, MAX_PAGES); page += 1) {
+    const next = await get(`/reviews/me?page=${page}&limit=50`)
+    if (!isRecord(next) || !Array.isArray(next.data)) throw new ApiError('server')
+    rows.push(...next.data)
+  }
+  const ofOrder = <T extends { orderId: string }>(item: T | null): item is T => item !== null && item.orderId === orderId
+  return { pending: pending.map(toPending).filter(ofOrder), mine: rows.map(toMine).filter(ofOrder) }
+}
+
+export type ReviewBody = { rating: number; comment: string; imageUrls?: string[]; orderItemId?: string }
+
+/** POST /orders/:orderId/products/:productId/reviews. A 409 means this product is already reviewed on the order. */
+export async function createReview(orderId: string, productId: string, body: ReviewBody, signal?: AbortSignal): Promise<void> {
+  await request('POST', `/orders/${encodeURIComponent(orderId)}/products/${encodeURIComponent(productId)}/reviews`, body, signal)
+}
+
+/** PATCH /reviews/:id. `imageUrls` replaces every photo the review has. */
+export async function updateReview(id: string, body: Omit<ReviewBody, 'orderItemId'>, signal?: AbortSignal): Promise<void> {
+  await request('PATCH', `/reviews/${encodeURIComponent(id)}`, body, signal)
+}

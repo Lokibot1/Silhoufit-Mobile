@@ -591,7 +591,10 @@ describe('live polling', () => {
     jest.useFakeTimers()
     jest.spyOn(Math, 'random').mockReturnValue(0.5)
   })
-  afterEach(() => jest.useRealTimers())
+  afterEach(() => {
+    jest.useRealTimers()
+    ;(Math.random as unknown as jest.SpyInstance).mockRestore() // a reset spy would return undefined to every later test (NaN timeouts)
+  })
 
   it('shows a new status in place without the skeleton, and the actions follow it', async () => {
     api.fetchOrder.mockResolvedValueOnce(order()).mockResolvedValue(paid())
@@ -769,5 +772,22 @@ describe('live polling', () => {
     expect(api.fetchOrder).toHaveBeenCalledTimes(1)
     await act(async () => handlers.forEach((onChange) => onChange('active')))
     expect(api.fetchOrder).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('reviews section', () => {
+  it.each(['DELIVERED', 'COMPLETED'])('is shown on a %s order', async (status) => {
+    mockRequest.mockImplementation(async (_method: string, path: string) => (path === '/reviews/pending' ? [] : { data: [], meta: { total: 0, totalPages: 1 } }))
+    api.fetchOrder.mockResolvedValue(paid({ status }))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(await screen.findByTestId('order-reviews-empty')).toBeTruthy()
+  })
+
+  it.each(['PENDING_PAYMENT', 'PAID', 'PROCESSING', 'DISPATCHED', 'CANCELLED'])('is not shown on a %s order', async (status) => {
+    api.fetchOrder.mockResolvedValue(paid({ status }))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(screen.queryByTestId('order-reviews')).toBeNull()
   })
 })

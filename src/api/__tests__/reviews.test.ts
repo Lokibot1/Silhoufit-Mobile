@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { fetchProductReviews, toReviewsPage } from '../reviews'
+import { createReview, fetchOrderReviews, fetchProductReviews, notifyReviewsChanged, onReviewsChanged, toReviewsPage, updateReview } from '../reviews'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -74,5 +74,69 @@ describe('fetchProductReviews', () => {
   it('passes a failure through', async () => {
     mockRequest.mockRejectedValue(new ApiError('network'))
     await expect(fetchProductReviews('p1', { page: 1, sortBy: 'newest' })).rejects.toMatchObject({ kind: 'network' })
+  })
+})
+
+const pending = (over: Record<string, unknown> = {}) => ({ orderId: 'o1', orderNumber: 'SHF-1', product: { id: 'p1', name: 'Linen Tee', slug: 'linen-tee', primaryImage: 'https://x.test/p1.jpg' }, variations: [{ orderItemId: 'i1', variantId: 'v1', size: 'M', color: null, quantity: 1 }], ...over })
+const mine = (over: Record<string, unknown> = {}) => ({ id: 'r1', orderId: 'o1', productId: 'p2', rating: 4, comment: 'Soft.', images: [{ id: 'a', url: 'https://x.test/a.jpg' }, { id: 'b', url: 'http://x.test/insecure.jpg' }], purchasedVariants: [{ sku: 'S1' }], createdAt: '2026-11-01T00:00:00.000Z', ...over })
+const page = (data: unknown[], totalPages = 1) => ({ data, meta: { total: data.length, page: 1, limit: 50, totalPages } })
+
+describe('fetchOrderReviews', () => {
+  it('keeps only this order: its pending products and the reviews already written', async () => {
+    mockRequest.mockImplementation(async (_m: string, path: string) => (path === '/reviews/pending' ? [pending(), pending({ orderId: 'o2' })] : page([mine(), mine({ id: 'r2', orderId: 'o2' })])))
+    const signal = new AbortController().signal
+    const result = await fetchOrderReviews('o1', signal)
+    expect(result.pending).toEqual([{ orderId: 'o1', productId: 'p1', name: 'Linen Tee', image: 'https://x.test/p1.jpg', variations: [{ orderItemId: 'i1', size: 'M', color: null }] }])
+    expect(result.mine).toEqual([{ id: 'r1', orderId: 'o1', productId: 'p2', rating: 4, comment: 'Soft.', photos: ['https://x.test/a.jpg'], skus: ['S1'], createdAt: '2026-11-01T00:00:00.000Z' }])
+    expect(mockRequest).toHaveBeenCalledWith('GET', '/reviews/pending', undefined, signal)
+    expect(mockRequest).toHaveBeenCalledWith('GET', '/reviews/me?page=1&limit=50', undefined, signal)
+  })
+  it('reads every page of my reviews', async () => {
+    mockRequest.mockImplementation(async (_m: string, path: string) => {
+      if (path === '/reviews/pending') return []
+      return path.includes('page=2') ? page([mine({ id: 'r2', productId: 'p3' })]) : page([mine()], 2)
+    })
+    expect((await fetchOrderReviews('o1')).mine.map((r) => r.id)).toEqual(['r1', 'r2'])
+  })
+  it('skips a malformed row but rejects a wrong shape', async () => {
+    mockRequest.mockImplementation(async (_m: string, path: string) => (path === '/reviews/pending' ? [pending({ product: null })] : page([mine({ rating: 9 }), mine()])))
+    const result = await fetchOrderReviews('o1')
+    expect(result.pending).toEqual([])
+    expect(result.mine).toHaveLength(1)
+    mockRequest.mockResolvedValue({})
+    await expect(fetchOrderReviews('o1')).rejects.toMatchObject({ kind: 'server' })
+  })
+  it('passes a failure through', async () => {
+    mockRequest.mockRejectedValue(new ApiError('forbidden', undefined, 401))
+    await expect(fetchOrderReviews('o1')).rejects.toMatchObject({ status: 401 })
+  })
+})
+
+describe('createReview and updateReview', () => {
+  it('posts to the order and product, and patches by review id', async () => {
+    mockRequest.mockResolvedValue({})
+    const signal = new AbortController().signal
+    await createReview('o 1', 'p1', { rating: 5, comment: 'Lovely fit.', imageUrls: ['https://x/a.jpg'] }, signal)
+    expect(mockRequest).toHaveBeenCalledWith('POST', '/orders/o%201/products/p1/reviews', { rating: 5, comment: 'Lovely fit.', imageUrls: ['https://x/a.jpg'] }, signal)
+    await updateReview('r1', { rating: 3, comment: 'Changed my mind.', imageUrls: [] })
+    expect(mockRequest).toHaveBeenLastCalledWith('PATCH', '/reviews/r1', { rating: 3, comment: 'Changed my mind.', imageUrls: [] }, undefined)
+  })
+  it('passes a 409 through', async () => {
+    mockRequest.mockRejectedValue(new ApiError('conflict', 'already reviewed', 409))
+    await expect(createReview('o1', 'p1', { rating: 5, comment: 'Lovely fit.' })).rejects.toMatchObject({ kind: 'conflict' })
+  })
+})
+
+describe('onReviewsChanged', () => {
+  it('tells every listener, and a removed one no more', () => {
+    const a = jest.fn()
+    const b = jest.fn()
+    const offA = onReviewsChanged(a)
+    onReviewsChanged(b)
+    notifyReviewsChanged()
+    offA()
+    notifyReviewsChanged()
+    expect(a).toHaveBeenCalledTimes(1)
+    expect(b).toHaveBeenCalledTimes(2)
   })
 })

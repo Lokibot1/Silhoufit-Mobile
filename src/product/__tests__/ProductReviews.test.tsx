@@ -4,7 +4,7 @@ import { ApiError } from '@/lib/api'
 import { ProductReviews } from '../ProductReviews'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
-jest.mock('@/api/reviews', () => ({ fetchProductReviews: jest.fn() }))
+jest.mock('@/api/reviews', () => ({ ...jest.requireActual('@/api/reviews'), fetchProductReviews: jest.fn() }))
 jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
 jest.mock('expo-image', () => ({ Image: () => null }))
@@ -136,4 +136,15 @@ it('opens a review photo full screen and closes it with the close button and And
   while (modal && !modal.props.onRequestClose) modal = modal.parent
   await act(async () => modal?.props.onRequestClose())
   expect(screen.queryByTestId('photo-viewer')).toBeNull()
+})
+
+it('refetches the first page quietly when a review is saved elsewhere, with no loading state', async () => {
+  mockFetch.mockResolvedValue(page())
+  await render(<ProductReviews productId="p1" />)
+  await screen.findByTestId('reviews-average')
+  expect(mockFetch).toHaveBeenCalledTimes(1)
+  await act(async () => jest.requireActual('@/api/reviews').notifyReviewsChanged())
+  expect(mockFetch).toHaveBeenCalledTimes(2)
+  expect(screen.queryByTestId('reviews-loading')).toBeNull()
+  expect(screen.getByTestId('reviews-average')).toBeTruthy()
 })

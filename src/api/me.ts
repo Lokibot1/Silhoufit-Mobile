@@ -17,7 +17,7 @@ export type Me = {
   createdAt: string | null
 }
 /** The fields PATCH /users/me accepts; a null clears an optional one. Send only what changed. */
-export type MePatch = { firstName?: string; middleName?: string | null; lastName?: string; suffix?: string | null; birthday?: string | null; gender?: Gender | null }
+export type MePatch = { firstName?: string; middleName?: string | null; lastName?: string; suffix?: string | null; birthday?: string | null; gender?: Gender | null; avatarUrl?: string | null }
 
 const ROLES: unknown[] = ['superadmin', 'admin', 'staff', 'customer']
 const GENDERS: unknown[] = ['male', 'female', 'other', 'unisex']

@@ -8,6 +8,7 @@ import { hasPasswordLogin } from '@/auth/email'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { NAME_MAX, GENDER_OPTIONS, SUFFIX_MAX, normalizeBirthday, normalizeName, validateBirthday, validateName, validateSuffix } from '@/lib/profileValidation'
+import { AvatarEditor } from '@/profile/AvatarEditor'
 import { Button } from '@/ui/Button'
 import { Chip } from '@/ui/Chip'
 import { FloatingField } from '@/ui/FloatingField'
@@ -63,6 +64,8 @@ function Form({ me }: { me: Me }) {
   const [values, setValues] = useState<Values>(saved)
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
   const [pending, setPending] = useState(false)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const locked = pending || photoBusy // a photo upload also holds the form still
   const [failure, setFailure] = useState<string | null>(null)
   const inFlight = useRef(false)
   const opening = useRef(false)
@@ -129,8 +132,8 @@ function Form({ me }: { me: Me }) {
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: space.lg + insets.bottom }]} keyboardShouldPersistTaps="handled">
-        <Text style={type.label}>(Account)</Text>
         <Text accessibilityRole="header" style={type.h1}>Edit Profile</Text>
+        <AvatarEditor me={me} disabled={pending} onBusy={setPhotoBusy} />
 
         <FloatingField
           ref={firstNameRef}
@@ -140,7 +143,7 @@ function Form({ me }: { me: Me }) {
           onChangeText={(text) => set({ firstName: text })}
           onBlur={() => blur('firstName')}
           error={shown('firstName')}
-          editable={!pending}
+          editable={!locked}
           autoCapitalize="words"
           autoComplete="name-given"
           textContentType="givenName"
@@ -156,7 +159,7 @@ function Form({ me }: { me: Me }) {
           onChangeText={(text) => set({ middleName: text })}
           onBlur={() => blur('middleName')}
           error={shown('middleName')}
-          editable={!pending}
+          editable={!locked}
           autoCapitalize="words"
           autoComplete="name-middle"
           textContentType="middleName"
@@ -172,7 +175,7 @@ function Form({ me }: { me: Me }) {
           onChangeText={(text) => set({ lastName: text })}
           onBlur={() => blur('lastName')}
           error={shown('lastName')}
-          editable={!pending}
+          editable={!locked}
           autoCapitalize="words"
           autoComplete="name-family"
           textContentType="familyName"
@@ -189,7 +192,7 @@ function Form({ me }: { me: Me }) {
           onBlur={() => blur('suffix')}
           error={shown('suffix')}
           helper={`${values.suffix.length}/${SUFFIX_MAX}`}
-          editable={!pending}
+          editable={!locked}
           autoCorrect={false}
           textContentType="nameSuffix"
           maxLength={SUFFIX_MAX}
@@ -205,7 +208,7 @@ function Form({ me }: { me: Me }) {
           onBlur={() => blur('birthday')}
           error={shown('birthday')}
           helper="YYYY-MM-DD, like 1995-05-15"
-          editable={!pending}
+          editable={!locked}
           keyboardType={Platform.select({ ios: 'numbers-and-punctuation', default: 'default' })}
           autoCorrect={false}
           maxLength={14}
@@ -222,7 +225,7 @@ function Form({ me }: { me: Me }) {
                 testID={`edit-gender-${option.value ?? 'none'}`}
                 label={option.label}
                 selected={values.gender === option.value}
-                onPress={() => !pending && set({ gender: option.value })}
+                onPress={() => !locked && set({ gender: option.value })}
               />
             ))}
           </View>
@@ -234,13 +237,13 @@ function Form({ me }: { me: Me }) {
           </View>
         )}
 
-        <Button testID="edit-save" label="Save Changes" pending={pending} disabled={!changed} onPress={save} />
+        <Button testID="edit-save" label="Save Changes" pending={pending} disabled={!changed || photoBusy} onPress={save} />
         {hasPasswordLogin(session?.user) && (
           <Button
             testID="edit-change-password"
             variant="secondary"
             label="Change Password"
-            disabled={pending}
+            disabled={locked}
             onPress={() => {
               if (opening.current) return
               opening.current = true

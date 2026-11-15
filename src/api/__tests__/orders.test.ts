@@ -19,7 +19,7 @@ const raw = (over: Record<string, unknown> = {}) => ({
   cancelledAt: null,
   cancellationReason: null,
   shippingAddressSnapshot: { recipientName: 'Ana Cruz', phone: '09171234567', streetAddress: '1 Main St', addressLine2: null, barangay: 'Brgy 1', cityMunicipality: 'Makati', province: 'Metro Manila', postalCode: '1200' },
-  items: [{ id: 'i1', productName: 'Tee', variantSize: 'M', variantColor: 'Red', unitPrice: 1250, quantity: 2, totalPrice: 2500, imageUrl: 'https://x.test/t.jpg' }],
+  items: [{ id: 'i1', productName: 'Tee', variantSize: 'M', variantColor: 'Red', unitPrice: 1250, quantity: 2, totalPrice: 2500, imageUrl: 'https://x.test/t.jpg', variantSku: 'TEE-M-RED' }],
   shipment: null,
   ...over,
 })
@@ -41,7 +41,7 @@ describe('toOrder', () => {
       cancelledAt: null,
       cancellationReason: null,
       address: { recipient: 'Ana Cruz', phone: '09171234567', line: '1 Main St, Brgy 1', city: 'Makati, Metro Manila, 1200' },
-      items: [{ id: 'i1', name: 'Tee', size: 'M', color: 'Red', quantity: 2, unitPrice: 1250, lineTotal: 2500, imageUrl: 'https://x.test/t.jpg' }],
+      items: [{ id: 'i1', name: 'Tee', size: 'M', color: 'Red', quantity: 2, unitPrice: 1250, lineTotal: 2500, imageUrl: 'https://x.test/t.jpg', sku: 'TEE-M-RED' }],
       shipment: null,
     })
   })

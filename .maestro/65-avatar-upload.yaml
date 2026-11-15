@@ -1,0 +1,55 @@
+appId: ${APP_ID}
+---
+# Read-only: opens the profile photo sheet and closes it again. It never picks, takes, uploads or removes a photo: the system
+# camera and photo picker are outside the app, so the upload, the size and type checks and the Retry toast are device checks (MANUAL.md, Profile photo).
+# "Remove Photo" only shows when the account already has a photo; the flow never taps it. Needs a seeded customer.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: profile-menu-edit
+- extendedWaitUntil:
+    visible:
+      id: avatar-edit
+    timeout: 10000
+- assertVisible:
+    id: avatar-edit
+- tapOn:
+    id: avatar-edit
+- extendedWaitUntil:
+    visible:
+      id: photo-library
+    timeout: 5000
+- assertVisible:
+    id: photo-camera
+- assertVisible:
+    id: photo-library
+- assertVisible:
+    id: sheet-cancel
+# Cancel closes the sheet and starts nothing.
+- tapOn:
+    id: sheet-cancel
+- extendedWaitUntil:
+    notVisible:
+      id: photo-library
+    timeout: 5000
+- assertNotVisible:
+    id: avatar-progress
+- assertVisible:
+    id: edit-save
+    enabled: false
+# A tap outside the sheet closes it too.
+- tapOn:
+    id: avatar-edit
+- extendedWaitUntil:
+    visible:
+      id: sheet-cancel
+    timeout: 5000
+- tapOn:
+    id: sheet-backdrop
+    point: 50%,10%
+- extendedWaitUntil:
+    notVisible:
+      id: sheet-cancel
+    timeout: 5000
+- assertVisible:
+    id: avatar-edit

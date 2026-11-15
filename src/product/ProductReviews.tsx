@@ -3,7 +3,7 @@ import { Image } from 'expo-image'
 import { useEffect, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
-import { fetchProductReviews, type Review, type ReviewSort, type ReviewSummary } from '@/api/reviews'
+import { fetchProductReviews, onReviewsChanged, type Review, type ReviewSort, type ReviewSummary } from '@/api/reviews'
 import { errorMessage } from '@/lib/api'
 import { dateOnly } from '@/lib/format'
 import { Avatar } from '@/ui/Avatar'
@@ -162,6 +162,9 @@ export function ProductReviews({ productId }: { productId: string }) {
     if (next.sort !== undefined) setSort(next.sort)
     if (Object.keys(next).length === 0) setAttempt((n) => n + 1)
   }
+
+  // A review saved elsewhere refetches the first page without the loading state.
+  useEffect(() => onReviewsChanged(() => setAttempt((n) => n + 1)), [])
 
   // First page: a new product, filter, sort or Retry. Aborts the previous request (and a Load more in flight), and on unmount.
   useEffect(() => {

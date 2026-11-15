@@ -11,6 +11,7 @@ import { ApiError, errorMessage } from '@/lib/api'
 import { dateTime, peso } from '@/lib/format'
 import { useLivePoll } from '@/lib/useLivePoll'
 import { useRequest } from '@/lib/useRequest'
+import { OrderReviews } from '@/review/OrderReviews'
 import { Button } from '@/ui/Button'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
@@ -91,9 +92,9 @@ function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props
   const tracking = trackingLink(order)
   const onTheWay = order.status === 'DISPATCHED' || order.status === 'OUT_FOR_DELIVERY'
   const timeline = buildTimeline(order)
+  const delivered = order.status === 'DELIVERED' || order.status === 'COMPLETED'
   return (
     <View testID="order-detail" style={styles.content}>
-      <Text style={type.label}>(Order)</Text>
       <Text accessibilityRole="header" style={[type.h1, type.numeric, styles.wrap]}>{order.orderNumber}</Text>
       <Text style={styles.body}>{`Placed ${dateTime(order.createdAt)}`}</Text>
       <View style={styles.chips}>
@@ -119,6 +120,8 @@ function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props
         {order.discount > 0 && <AmountRow label="(Discount)" value={`-${peso(order.discount)}`} />}
         <AmountRow label="(Total)" value={peso(order.total)} testID="order-total" strong />
       </View>
+
+      {delivered && <OrderReviews order={order} />}
 
       {failure && (
         <View testID="order-inline-error" accessibilityRole="alert" style={styles.banner}>

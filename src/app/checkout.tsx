@@ -333,7 +333,6 @@ export default function CheckoutScreen() {
       {header}
       <ScrollView testID="checkout-scroll" contentContainerStyle={styles.content}>
         <View style={styles.title}>
-          <Text style={type.label}>(Review)</Text>
           <Text accessibilityRole="header" style={type.h1}>Checkout</Text>
         </View>
         <AddressSection req={addresses} selected={selected} disabled={placing} onChange={() => setPicking(true)} onAdd={addAddress} />

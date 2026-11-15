@@ -1,7 +1,7 @@
 import { ApiError, isHttps, isRecord, num, request, str } from '@/lib/api'
 
 // Status values stay plain strings: one the API adds later reads as a neutral label and offers no actions.
-export type OrderItem = { id: string; name: string; size: string | null; color: string | null; quantity: number; unitPrice: number; lineTotal: number; imageUrl: string | null }
+export type OrderItem = { id: string; name: string; size: string | null; color: string | null; quantity: number; unitPrice: number; lineTotal: number; imageUrl: string | null; sku: string | null }
 export type Order = {
   id: string
   orderNumber: string
@@ -42,6 +42,7 @@ function toItem(raw: unknown): OrderItem {
     unitPrice,
     lineTotal: num(raw.totalPrice) ?? money(unitPrice * quantity),
     imageUrl: str(raw.imageUrl),
+    sku: str(raw.variantSku),
   }
 }
 

@@ -1,0 +1,123 @@
+appId: ${APP_ID}
+---
+# Review form, validation only, UNRUN. Needs a seeded customer with a DELIVERED order that still has a product to review.
+# Without one the flow ends after checking that the Completed tab has no review prompt. It NEVER posts a review and never picks or uploads a photo
+# (the system picker is outside the app: see MANUAL.md, Review photos). Orders -> Completed -> first order -> "Write a Review" -> the empty form:
+# Post Review on the empty form shows the rating and text errors and sends nothing; the counter follows typing; the add tile opens the photo
+# sheet; back with typed text asks "Discard changes?" and Discard returns to the order.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- tapOn:
+    id: tab-orders
+- extendedWaitUntil:
+    visible:
+      id: 'orders-list|orders-empty-action'
+    timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: orders-tab-completed
+    commands:
+      - tapOn:
+          id: orders-tab-completed
+      - extendedWaitUntil:
+          visible:
+            id: orders-tab-completed
+            selected: true
+          timeout: 5000
+      - extendedWaitUntil:
+          visible:
+            id: 'order-row-(?!error-).+|orders-tab-empty-action'
+          timeout: 5000
+      - runFlow:
+          when:
+            visible:
+              id: 'order-row-(?!error-).+'
+          commands:
+            - tapOn:
+                id: 'order-row-(?!error-).+'
+            - extendedWaitUntil:
+                visible:
+                  id: order-detail
+                timeout: 15000
+            - scrollUntilVisible:
+                element:
+                  id: order-reviews
+                direction: DOWN
+                timeout: 20000
+            # The section settles on rows, "nothing to review" or its own error; the order above it is unaffected.
+            - extendedWaitUntil:
+                visible:
+                  id: 'order-review-write-.+|order-review-edit-.+|order-reviews-empty|order-reviews-retry'
+                timeout: 15000
+            - assertVisible:
+                id: order-total
+            - runFlow:
+                when:
+                  visible:
+                    id: 'order-review-write-.+'
+                commands:
+                  - tapOn:
+                      id: 'order-review-write-.+'
+                  - extendedWaitUntil:
+                      visible:
+                        id: review-submit
+                      timeout: 15000
+                  - assertVisible: Write A Review
+                  - assertVisible:
+                      id: review-count
+                      text: '0/1000'
+                  # Nothing is sent from the empty form: both errors show.
+                  - tapOn:
+                      id: review-submit
+                  - assertVisible:
+                      id: review-rating-error
+                  - assertVisible: Choose 1 to 5 stars.
+                  - tapOn:
+                      id: review-star-4
+                  - assertVisible:
+                      id: review-star-4
+                      selected: true
+                  - tapOn:
+                      id: review-text
+                  - inputText: Too short
+                  - assertVisible:
+                      id: review-count
+                      text: '9/1000'
+                  - hideKeyboard
+                  - assertVisible:
+                      id: review-add-photo
+                  - tapOn:
+                      id: review-add-photo
+                  - extendedWaitUntil:
+                      visible:
+                        id: photo-library
+                      timeout: 5000
+                  - assertVisible:
+                      id: photo-camera
+                  - tapOn:
+                      id: sheet-cancel
+                  - extendedWaitUntil:
+                      notVisible:
+                        id: photo-library
+                      timeout: 5000
+                  # Unsaved text: back asks first, Discard returns to the order.
+                  - runFlow:
+                      when:
+                        platform: Android
+                      commands:
+                        - back
+                  - runFlow:
+                      when:
+                        platform: iOS
+                      commands:
+                        - tapOn:
+                            text: '(?i)(back|order|orders|\(tabs\))'
+                  - assertVisible: 'Discard changes\?'
+                  - tapOn: Discard
+                  - extendedWaitUntil:
+                      visible:
+                        id: order-reviews
+                      timeout: 10000
+                  - assertNotVisible:
+                      id: review-submit
