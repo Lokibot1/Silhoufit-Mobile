@@ -1,10 +1,13 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native'
 
 import type { ProductListItem } from '@/api/products'
 import { ProductCard } from '../ProductCard'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('../PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
+jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
+jest.mock('expo-router', () => ({ router: { push: jest.fn() }, useFocusEffect: jest.fn() }))
+jest.mock('@/api/wishlist', () => ({ fetchWishlistIds: jest.fn(), addWishlistItem: jest.fn(), removeWishlistItem: jest.fn() }))
 jest.mock('../Skeleton', () => ({ Skeleton: () => null }))
 
 const base: ProductListItem = { id: 'p1', name: 'Linen Shirt', minPrice: 1250, maxPrice: 1250, totalStock: 20, imageUrl: 'https://x.test/a.jpg', rating: null, reviewCount: 0 }
@@ -58,4 +61,55 @@ it('shows the rating to one decimal in the text and the label', async () => {
   await render(<ProductCard item={{ ...base, rating: 4, reviewCount: 3 }} />)
   expect(screen.getByText('★ 4.0 (3)')).toBeTruthy()
   expect(screen.getByLabelText('Linen Shirt, ₱1,250.00, rated 4.0 from 3 reviews')).toBeTruthy()
+})
+
+describe('wishlist heart', () => {
+  const mockUseSession: jest.Mock = jest.requireMock('@/auth/session').useSession
+  const api = jest.requireMock('@/api/wishlist')
+  const { router } = jest.requireMock('expo-router')
+  const wishlist = { saved: false, onChange: jest.fn(), notify: jest.fn() }
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockUseSession.mockReturnValue({ session: { user: { id: 'u1' } } })
+  })
+
+  it('renders no heart without the wishlist prop', async () => {
+    await render(<ProductCard item={base} />)
+    expect(screen.queryByTestId('shop-card-p1-wishlist')).toBeNull()
+  })
+
+  it('is a sibling of the card button, not inside it, and never fetches the ids itself', async () => {
+    await render(<ProductCard item={base} onPress={jest.fn()} wishlist={wishlist} />)
+    const heart = screen.getByRole('button', { name: 'Add Linen Shirt to wishlist' })
+    expect(heart.props.testID).toBe('shop-card-p1-wishlist')
+    expect(within(screen.getByTestId('shop-card-p1')).queryByTestId('shop-card-p1-wishlist')).toBeNull()
+    expect(api.fetchWishlistIds).not.toHaveBeenCalled()
+  })
+
+  it('reads the saved prop and toggles optimistically, then reports the change', async () => {
+    api.addWishlistItem.mockResolvedValue(undefined)
+    await render(<ProductCard item={base} wishlist={wishlist} />)
+    await fireEvent.press(screen.getByTestId('shop-card-p1-wishlist'))
+    expect(screen.getByRole('button', { name: 'Remove Linen Shirt from wishlist', selected: true })).toBeTruthy()
+    expect(api.addWishlistItem).toHaveBeenCalledWith('p1')
+    await waitFor(() => expect(wishlist.onChange).toHaveBeenCalledWith(true))
+    expect(wishlist.notify).toHaveBeenCalledWith('Saved to wishlist')
+  })
+
+  it('rolls back when saving fails', async () => {
+    api.addWishlistItem.mockRejectedValue(new Error('x'))
+    await render(<ProductCard item={base} wishlist={wishlist} />)
+    await fireEvent.press(screen.getByTestId('shop-card-p1-wishlist'))
+    await waitFor(() => expect(wishlist.notify).toHaveBeenCalledWith(expect.stringContaining("Couldn't save to your wishlist")))
+    expect(screen.getByRole('button', { name: 'Add Linen Shirt to wishlist', selected: false })).toBeTruthy()
+    expect(wishlist.onChange).not.toHaveBeenCalled()
+  })
+
+  it('opens Sign In when signed out', async () => {
+    mockUseSession.mockReturnValue({ session: null })
+    await render(<ProductCard item={base} wishlist={wishlist} />)
+    await fireEvent.press(screen.getByTestId('shop-card-p1-wishlist'))
+    expect(router.push).toHaveBeenCalledWith('/sign-in')
+    expect(api.addWishlistItem).not.toHaveBeenCalled()
+  })
 })

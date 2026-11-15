@@ -4,6 +4,7 @@ import { StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 
 import type { ProductListItem } from '@/api/products'
 import { peso } from '@/lib/format'
+import { WishlistHeart } from '@/product/WishlistHeart'
 import { PressableScale } from './PressableScale'
 import { Skeleton } from './Skeleton'
 import { color, font, radius, space, type } from './theme'
@@ -30,7 +31,10 @@ function stockLabel({ totalStock }: ProductListItem): string | null {
   return totalStock <= LOW_STOCK ? `Only ${totalStock} left` : null
 }
 
-export function ProductCard({ item, onPress }: { item: ProductListItem; onPress?: () => void }) {
+type Wishlist = { saved: boolean; onChange: (saved: boolean) => void; notify: (message: string) => void }
+
+// With `wishlist` a heart sits over the image tile. It is a sibling of the card button, not inside it, so screen readers reach both.
+export function ProductCard({ item, onPress, wishlist }: { item: ProductListItem; onPress?: () => void; wishlist?: Wishlist }) {
   const width = useCardWidth()
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
   const price = priceLabel(item)
@@ -39,31 +43,38 @@ export function ProductCard({ item, onPress }: { item: ProductListItem; onPress?
   const summary = [item.name, price, stock, rated && `rated ${item.rating?.toFixed(1)} from ${item.reviewCount} reviews`].filter(Boolean).join(', ')
 
   return (
-    <PressableScale
-      testID={`shop-card-${item.id}`}
-      accessible
-      accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={summary}
-      onPress={onPress}
-      style={[styles.card, { width }]}>
-      <View style={[styles.tile, { height: (width * 4) / 3 }]}>
-        {item.imageUrl && failedUrl !== item.imageUrl ? (
-          <Image testID={`shop-card-${item.id}-image`} source={{ uri: item.imageUrl }} accessible={false} contentFit="cover" transition={200} onError={() => setFailedUrl(item.imageUrl)} style={styles.fill} />
-        ) : (
-          <View style={[styles.fill, styles.fallback]}>
-            <Text numberOfLines={3} style={styles.fallbackText}>{item.name}</Text>
-          </View>
-        )}
-        {stock && (
-          <View style={styles.badge}>
-            <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} style={[styles.badgeText, stock === 'Sold out' && styles.soldOut]}>{stock}</Text>
-          </View>
-        )}
-      </View>
-      <Text numberOfLines={2} maxFontSizeMultiplier={FONT_CAP} style={styles.name}>{item.name}</Text>
-      <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} style={[styles.price, stock === 'Sold out' && styles.soldOut]}>{price}</Text>
-      <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} style={styles.rating}>{rated ? `★ ${item.rating?.toFixed(1)} (${item.reviewCount})` : ''}</Text>
-    </PressableScale>
+    <View style={{ width }}>
+      <PressableScale
+        testID={`shop-card-${item.id}`}
+        accessible
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={summary}
+        onPress={onPress}
+        style={styles.card}>
+        <View style={[styles.tile, { height: (width * 4) / 3 }]}>
+          {item.imageUrl && failedUrl !== item.imageUrl ? (
+            <Image testID={`shop-card-${item.id}-image`} source={{ uri: item.imageUrl }} accessible={false} contentFit="cover" transition={200} onError={() => setFailedUrl(item.imageUrl)} style={styles.fill} />
+          ) : (
+            <View style={[styles.fill, styles.fallback]}>
+              <Text numberOfLines={3} style={styles.fallbackText}>{item.name}</Text>
+            </View>
+          )}
+          {stock && (
+            <View style={styles.badge}>
+              <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} style={[styles.badgeText, stock === 'Sold out' && styles.soldOut]}>{stock}</Text>
+            </View>
+          )}
+        </View>
+        <Text numberOfLines={2} maxFontSizeMultiplier={FONT_CAP} style={styles.name}>{item.name}</Text>
+        <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} style={[styles.price, stock === 'Sold out' && styles.soldOut]}>{price}</Text>
+        <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} style={styles.rating}>{rated ? `★ ${item.rating?.toFixed(1)} (${item.reviewCount})` : ''}</Text>
+      </PressableScale>
+      {wishlist && (
+        <View style={styles.heart}>
+          <WishlistHeart testID={`shop-card-${item.id}-wishlist`} productId={item.id} name={item.name} saved={wishlist.saved} onChange={wishlist.onChange} notify={wishlist.notify} />
+        </View>
+      )}
+    </View>
   )
 }
 
@@ -84,6 +95,8 @@ export function ProductCardSkeleton() {
 
 const styles = StyleSheet.create({
   card: { gap: space.sm },
+  // A 44px paper disc so the heart reads on any photo; inset by xs from the tile corner.
+  heart: { position: 'absolute', top: space.xs, right: space.xs, borderRadius: radius.pill, backgroundColor: color.paper },
   tile: { backgroundColor: color.porcelain, borderRadius: radius.soft, overflow: 'hidden' },
   fill: { width: '100%', height: '100%' },
   fallback: { alignItems: 'center', justifyContent: 'center', padding: space.md },

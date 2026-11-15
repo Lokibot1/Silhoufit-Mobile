@@ -226,6 +226,9 @@ export default function Profile() {
             <MenuRow testID="profile-menu-about" icon="information-circle-outline" label="About" external hint="Opens in your browser" onPress={() => openPage('about')} divider={false} />
             <MenuRow testID="profile-menu-privacy" icon="shield-checkmark-outline" label="Privacy Policy" external hint="Opens in your browser" onPress={() => openPage('privacy')} />
             <MenuRow testID="profile-menu-terms" icon="document-text-outline" label="Terms and Conditions" external hint="Opens in your browser" onPress={() => openPage('terms')} />
+            <MenuRow testID="profile-menu-refund" icon="return-down-back-outline" label="Refund Policy" external hint="Opens in your browser" onPress={() => openPage('refund')} />
+            <MenuRow testID="profile-menu-cookies" icon="options-outline" label="Cookie Policy" external hint="Opens in your browser" onPress={() => openPage('cookies')} />
+            <MenuRow testID="profile-menu-faq" icon="help-circle-outline" label="FAQ" onPress={() => openRoute('/faq')} />
             <MenuRow testID="profile-menu-tour" icon="compass-outline" label="Replay Tour" onPress={() => openRoute({ pathname: '/onboarding', params: { replay: '1' } })} />
             <MenuRow testID="profile-menu-contact" icon="mail-outline" label="Contact Us" external hint="Opens your email app" onPress={writeToUs} />
           </View>

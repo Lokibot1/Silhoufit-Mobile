@@ -143,6 +143,15 @@ function Gate() {
             headerTintColor: color.obsidian,
           }}
         />
+        <Stack.Screen
+          name="faq"
+          options={{
+            headerTitle: () => <Text style={type.h2}>FAQ</Text>,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
         <Stack.Screen name="onboarding" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false, animation: reduce ? 'none' : 'fade' }} />
         <Stack.Screen name="+not-found" options={{ headerShown: false }} />
         <Stack.Screen name="auth/callback" options={{ headerShown: false }} />

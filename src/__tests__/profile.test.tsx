@@ -210,13 +210,22 @@ describe('signed-in layout', () => {
   })
 })
 
-it('opens About, Privacy and Terms in the browser from the About KRAL group', async () => {
+it('opens About, Privacy, Terms, Refund and Cookie policies in the browser from the About KRAL group', async () => {
   mockUseSession.mockReturnValue({ ...base, session: {}, profile: me })
   await render(<Profile />)
   expect(screen.getByText('About KRAL')).toBeTruthy()
-  for (const id of ['about', 'privacy', 'terms']) await fireEvent.press(screen.getByTestId(`profile-menu-${id}`))
-  expect(mockOpenLegal.mock.calls).toEqual([['about'], ['privacy'], ['terms']])
+  const docs = ['about', 'privacy', 'terms', 'refund', 'cookies']
+  for (const id of docs) await fireEvent.press(screen.getByTestId(`profile-menu-${id}`))
+  expect(mockOpenLegal.mock.calls).toEqual(docs.map((doc) => [doc]))
+  expect(screen.getByTestId('profile-menu-refund').props.accessibilityHint).toBe('Opens in your browser')
   expect(screen.getByTestId('profile-menu-privacy').props.accessibilityHint).toBe('Opens in your browser')
+})
+
+it('opens the FAQ screen from the About KRAL group', async () => {
+  mockUseSession.mockReturnValue(base)
+  await render(<Profile />)
+  await fireEvent.press(screen.getByTestId('profile-menu-faq'))
+  expect(mockPush).toHaveBeenCalledWith('/faq')
 })
 
 it('toasts when the browser cannot open', async () => {

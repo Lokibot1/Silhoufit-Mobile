@@ -5,6 +5,7 @@ import Shop from '../app/(tabs)/index'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/api/products', () => ({ fetchProducts: jest.fn(), fetchCategories: jest.fn() }))
+jest.mock('@/api/wishlist', () => ({ fetchWishlistIds: jest.fn(), addWishlistItem: jest.fn(), removeWishlistItem: jest.fn() }))
 jest.mock('@/api/cart', () => ({ fetchCart: jest.fn() }))
 jest.mock('@/api/chat', () => ({ fetchMyConversation: jest.fn() }))
 jest.mock('@/auth/session', () => ({ useSession: () => mockSession }))
@@ -17,6 +18,8 @@ const mockToast = jest.fn()
 let mockSession: { session: { user: { id: string } } | null } = { session: null }
 const mockFetch: jest.Mock = jest.requireMock('@/api/products').fetchProducts
 const mockCategories: jest.Mock = jest.requireMock('@/api/products').fetchCategories
+const mockIds: jest.Mock = jest.requireMock('@/api/wishlist').fetchWishlistIds
+const mockAdd: jest.Mock = jest.requireMock('@/api/wishlist').addWishlistItem
 const mockCart: jest.Mock = jest.requireMock('@/api/cart').fetchCart
 const mockChat: jest.Mock = jest.requireMock('@/api/chat').fetchMyConversation
 const mockNavigate: jest.Mock = jest.requireMock('expo-router').router.navigate
@@ -32,6 +35,7 @@ beforeEach(() => {
   mockSession = { session: null }
   mockCategories.mockResolvedValue(['Hoodie', 'Shirt'])
   mockChat.mockResolvedValue({ id: 'c1', hasUnreadMessages: false })
+  mockIds.mockResolvedValue([])
 })
 
 it('shows the skeleton while loading', async () => {
@@ -319,4 +323,46 @@ it('marks the chosen chips selected and labels the sort chip', async () => {
   await fireEvent.press(screen.getByTestId('shop-sort'))
   expect(screen.getByLabelText('Sort by Price: low to high. Tap to change.')).toBeTruthy()
   expect(screen.getByTestId('shop-sort').props.accessibilityState).toEqual({ selected: true })
+})
+
+describe('wishlist hearts', () => {
+  it('loads the saved ids once for all cards and marks the saved ones', async () => {
+    mockSession = { session: { user: { id: 'u1' } } }
+    mockIds.mockResolvedValue(['b'])
+    mockFetch.mockResolvedValue(page(['a', 'b']))
+    await render(<Shop />)
+    expect(await screen.findByLabelText('Remove Piece b from wishlist')).toBeTruthy()
+    expect(screen.getByLabelText('Add Piece a to wishlist')).toBeTruthy()
+    expect(mockIds).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not load the ids signed out, and a tap opens Sign In', async () => {
+    mockFetch.mockResolvedValue(page(['a']))
+    await render(<Shop />)
+    await fireEvent.press(await screen.findByTestId('shop-card-a-wishlist'))
+    expect(mockIds).not.toHaveBeenCalled()
+    expect(mockPush).toHaveBeenCalledWith('/sign-in')
+  })
+
+  it('saves from the card and keeps it saved', async () => {
+    mockSession = { session: { user: { id: 'u1' } } }
+    mockIds.mockResolvedValue([])
+    mockAdd.mockResolvedValue(undefined)
+    mockFetch.mockResolvedValue(page(['a']))
+    await render(<Shop />)
+    await fireEvent.press(await screen.findByTestId('shop-card-a-wishlist'))
+    expect(await screen.findByLabelText('Remove Piece a from wishlist')).toBeTruthy()
+    expect(mockAdd).toHaveBeenCalledWith('a')
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith('Saved to wishlist'))
+    expect(screen.getByLabelText('Remove Piece a from wishlist')).toBeTruthy()
+  })
+
+  it('still lists the shop when the saved ids fail to load', async () => {
+    mockSession = { session: { user: { id: 'u1' } } }
+    mockIds.mockRejectedValue(new ApiError('network'))
+    mockFetch.mockResolvedValue(page(['a']))
+    await render(<Shop />)
+    expect(await screen.findByTestId('shop-card-a')).toBeTruthy()
+    expect(screen.getByLabelText('Add Piece a to wishlist')).toBeTruthy()
+  })
 })

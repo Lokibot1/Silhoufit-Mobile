@@ -17,6 +17,8 @@ it.each([
   ['terms', '/terms-of-service'],
   ['privacy', '/privacy-policy'],
   ['about', '/about'],
+  ['refund', '/refund-policy'],
+  ['cookies', '/cookie-policy'],
 ] as const)('opens %s at the web router path', (doc, path) => {
   load().openLegal(doc)
   expect(mockOpenBrowser).toHaveBeenCalledWith(`https://silhoufit-frontend.vercel.app${path}`)

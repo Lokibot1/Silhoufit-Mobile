@@ -12,18 +12,29 @@ import { color } from '@/ui/theme'
 
 const LOAD_FAILED = "Couldn't load your wishlist. Tap to retry."
 
-/** A 44px heart that saves or removes one product. Signed out, a tap opens Sign In (which returns here). `notify` shows the toast above the page's sticky bar. */
-export function WishlistHeart({ productId, notify }: { productId: string; notify: (message: string) => void }) {
+/**
+ * A 44px heart that saves or removes one product. Signed out, a tap opens Sign In (which returns here). `notify` shows the toast above the page's sticky bar.
+ * Alone it loads the saved ids itself; a list passes `saved` (loaded once for the whole list) and hears the result through `onChange`.
+ */
+export function WishlistHeart({ productId, notify, saved: known, onChange, name, testID = 'product-wishlist' }: {
+  productId: string
+  notify: (message: string) => void
+  saved?: boolean
+  onChange?: (saved: boolean) => void
+  name?: string
+  testID?: string
+}) {
   const { session } = useSession()
   const userId = session?.user.id
   // The saved ids load once per account; `picked` is what the shopper chose since, so a tap shows at once and a failure puts it back.
-  const key = `${productId}|${userId ?? ''}`
-  const { status, data, retry } = useRequest(key, (signal) => (userId ? fetchWishlistIds(signal) : Promise.resolve([])))
+  // A change in the list's `saved` also drops the pick: the list has caught up with it.
+  const key = `${productId}|${userId ?? ''}|${known ?? ''}`
+  const { status, data, retry } = useRequest(key, (signal) => (userId && known === undefined ? fetchWishlistIds(signal) : Promise.resolve([])))
   // A pick belongs to one product and account; after a switch it no longer applies.
   const [pick, setPick] = useState<{ key: string; value: boolean } | null>(null)
   const picked = pick?.key === key ? pick.value : null
   const setPicked = (value: boolean) => setPick({ key, value })
-  const saved = picked ?? !!data?.includes(productId)
+  const saved = picked ?? known ?? !!data?.includes(productId)
   const unknown = !!userId && status === 'error'
   const notifyRef = useRef(notify)
   useEffect(() => {
@@ -53,6 +64,7 @@ export function WishlistHeart({ productId, notify }: { productId: string; notify
     setPicked(next)
     try {
       await (next ? addWishlistItem(productId) : removeWishlistItem(productId))
+      onChange?.(next)
       notify(next ? 'Saved to wishlist' : 'Removed from wishlist')
     } catch (error) {
       setPicked(!next)
@@ -63,10 +75,11 @@ export function WishlistHeart({ productId, notify }: { productId: string; notify
     }
   }
 
-  const label = unknown ? LOAD_FAILED : saved ? 'Remove from wishlist' : 'Add to wishlist'
+  const of = name ? ` ${name}` : ''
+  const label = unknown ? LOAD_FAILED : saved ? `Remove${of} from wishlist` : `Add${of} to wishlist`
   return (
     <PressableScale
-      testID="product-wishlist"
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: !unknown && saved, disabled: !!userId && status === 'loading' }}
