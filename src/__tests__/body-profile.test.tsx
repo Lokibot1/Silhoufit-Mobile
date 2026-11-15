@@ -55,7 +55,7 @@ it('prefills from the saved profile with Save disabled', async () => {
 it('shows the first-time form with the explanation when nothing is saved (404)', async () => {
   api.fetchBodyProfile.mockResolvedValue(null)
   await render(<BodyProfileScreen />)
-  expect(await screen.findByText('Your measurements help us suggest the right size and power AR try-on.')).toBeTruthy()
+  expect(await screen.findByText('Your measurements help us suggest the right size. AR try-on is coming soon.')).toBeTruthy()
   expect(screen.getByTestId('body-height').props.value).toBe('')
 })
 

@@ -125,7 +125,7 @@ function Form({ saved: initial }: { saved: BodyProfile | null }) {
     <KeyboardScreen style={styles.flex}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: space.lg + insets.bottom }]} keyboardShouldPersistTaps="handled">
         <Text testID="body-intro" style={styles.copy}>
-          {saved ? 'Keep your measurements up to date for the best size advice.' : 'Your measurements help us suggest the right size and power AR try-on.'}
+          {saved ? 'Keep your measurements up to date for the best size advice.' : 'Your measurements help us suggest the right size. AR try-on is coming soon.'}
         </Text>
         <View style={styles.privacy}>
           <Ionicons name="lock-closed-outline" size={16} color={color.graphite} />
