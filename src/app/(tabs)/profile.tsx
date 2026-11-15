@@ -114,6 +114,11 @@ export default function Profile() {
     opening.current = true
     router.push('/wishlist')
   }
+  const openRoute = (href: Parameters<typeof router.push>[0]) => {
+    if (opening.current) return
+    opening.current = true
+    router.push(href)
+  }
   const openPage = (doc: Parameters<typeof openLegal>[0]) =>
     openLegal(doc).catch(() => toast("Couldn't open the page. Check your connection and try again."))
   const writeToUs = () => Linking.openURL(`mailto:${CONTACT_EMAIL}`).catch(() => toast(`No email app found. Write to ${CONTACT_EMAIL}.`))
@@ -208,8 +213,8 @@ export default function Profile() {
           <View style={styles.card}>
             <MenuRow testID="profile-menu-edit" icon="person-outline" label="Edit Profile" onPress={openEdit} divider={false} />
             <MenuRow testID="profile-menu-wishlist" icon="heart-outline" label="Wishlist" onPress={openWishlist} />
-            <MenuRow testID="profile-menu-addresses" icon="location-outline" label="Delivery Addresses" disabled />
-            <MenuRow testID="profile-menu-body" icon="body-outline" label="Body Profile" disabled />
+            <MenuRow testID="profile-menu-addresses" icon="location-outline" label="Delivery Addresses" onPress={() => openRoute('/addresses')} />
+            <MenuRow testID="profile-menu-body" icon="body-outline" label="Body Profile" onPress={() => openRoute('/profile/body')} />
             <MenuRow testID="profile-sign-out" icon="log-out-outline" label="Sign Out" pending={signingOut} onPress={confirmSignOut} />
           </View>
         </View>
@@ -222,6 +227,7 @@ export default function Profile() {
             <MenuRow testID="profile-menu-about" icon="information-circle-outline" label="About" external hint="Opens in your browser" onPress={() => openPage('about')} divider={false} />
             <MenuRow testID="profile-menu-privacy" icon="shield-checkmark-outline" label="Privacy Policy" external hint="Opens in your browser" onPress={() => openPage('privacy')} />
             <MenuRow testID="profile-menu-terms" icon="document-text-outline" label="Terms and Conditions" external hint="Opens in your browser" onPress={() => openPage('terms')} />
+            <MenuRow testID="profile-menu-tour" icon="compass-outline" label="Replay Tour" onPress={() => openRoute({ pathname: '/onboarding', params: { replay: '1' } })} />
             <MenuRow testID="profile-menu-contact" icon="mail-outline" label="Contact Us" external hint="Opens your email app" onPress={writeToUs} />
           </View>
         </View>

@@ -5,11 +5,17 @@ import EditProfile from '../app/profile/edit'
 
 jest.mock('@/api/me', () => ({ updateMe: jest.fn() }))
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
+jest.mock('expo-linking', () => ({ createURL: (path: string) => `silhoufitmobile://${path}` }))
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) },
   useNavigation: () => ({ isFocused: () => mockFocused.value }),
+  useFocusEffect: (callback: () => void) => {
+    mockRefocus = callback
+    jest.requireActual('react').useEffect(callback, [])
+  },
 }))
+let mockRefocus: () => void = () => {}
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
 jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
@@ -254,5 +260,28 @@ describe('saving', () => {
     await fireEvent.press(screen.getByTestId('edit-save'))
     expect(await screen.findByTestId('edit-banner')).toBeTruthy()
     expect(mockSignOut).not.toHaveBeenCalled()
+  })
+})
+
+describe('Change Password button', () => {
+  it('opens the password screen once on a double tap, and again after the screen regains focus', async () => {
+    await render(<EditProfile />)
+    await fireEvent.press(screen.getByTestId('edit-change-password'))
+    await fireEvent.press(screen.getByTestId('edit-change-password'))
+    expect(router.push).toHaveBeenCalledTimes(1)
+    expect(router.push).toHaveBeenCalledWith('/profile/password')
+    await act(async () => mockRefocus())
+    await fireEvent.press(screen.getByTestId('edit-change-password'))
+    expect(router.push).toHaveBeenCalledTimes(2)
+  })
+
+  it('is hidden for a Google-only account and shown when email is one of the providers', async () => {
+    mockUseSession.mockReturnValue({ ...base, session: { user: { id: 'u1', identities: [{ provider: 'google' }] } } })
+    const { unmount } = await render(<EditProfile />)
+    expect(screen.queryByTestId('edit-change-password')).toBeNull()
+    await unmount()
+    mockUseSession.mockReturnValue({ ...base, session: { user: { id: 'u1', identities: [{ provider: 'google' }, { provider: 'email' }] } } })
+    await render(<EditProfile />)
+    expect(screen.getByTestId('edit-change-password')).toBeTruthy()
   })
 })

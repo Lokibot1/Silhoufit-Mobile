@@ -146,3 +146,31 @@ export async function setPassword(password: string): Promise<{ ok: true } | { ok
   if (status === 401 || status === 403 || name === 'AuthSessionMissingError' || SESSION_GONE.test(code ?? '')) return { ok: false, kind: 'expired' }
   return { ok: false, kind: 'server' }
 }
+
+export type ChangePasswordResult = { ok: true } | { ok: false; kind: SetPasswordErrorKind | 'wrong-password'; detail?: string }
+
+/** False for an account that signs in only with Google (or another provider): it has no password to change. Unknown reads as true. */
+export function hasPasswordLogin(user: { identities?: { provider: string }[] | null; app_metadata?: { providers?: unknown } } | null | undefined): boolean {
+  const providers = [...(user?.identities ?? []).map((identity) => identity.provider), ...(Array.isArray(user?.app_metadata?.providers) ? (user.app_metadata.providers as string[]) : [])]
+  return providers.length === 0 || providers.includes('email')
+}
+
+/** Checks the current password by signing in with it again (as the web does), then sets the new one. Then signs out every other session. */
+export async function changePassword(email: string, current: string, next: string): Promise<ChangePasswordResult> {
+  let failure: AuthFailure | null = null
+  try {
+    const { error } = await supabase.auth.signInWithPassword({ email, password: current })
+    failure = error
+  } catch (thrown) {
+    failure = failureOf(thrown)
+  }
+  if (failure) {
+    if (failure.code === 'invalid_credentials') return { ok: false, kind: 'wrong-password' }
+    if (failure.code === 'user_banned') return { ok: false, kind: 'expired' } // same as the web: the account can no longer sign in
+    return { ok: false, kind: mailKind(failure) }
+  }
+  const result = await setPassword(next)
+  // Best effort: ends the account's other sessions so a stolen one does not survive the change.
+  if (result.ok) await supabase.auth.signOut({ scope: 'others' }).catch(() => {})
+  return result
+}

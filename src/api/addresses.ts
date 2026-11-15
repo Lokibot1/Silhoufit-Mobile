@@ -66,3 +66,19 @@ export async function createAddress(input: NewAddress, signal?: AbortSignal): Pr
   const body = Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined))
   return toAddress(await request('POST', '/users/me/addresses', body, signal))
 }
+
+const addressPath = (id: string) => `/users/me/addresses/${encodeURIComponent(id)}`
+
+/** PATCH /users/me/addresses/:id { isDefault: true }. The API unsets the previous default; a 404 (deleted elsewhere) is an error the screen can read. */
+export async function setDefaultAddress(id: string, signal?: AbortSignal): Promise<Address> {
+  return toAddress(await request('PATCH', addressPath(id), { isDefault: true }, signal))
+}
+
+/** DELETE /users/me/addresses/:id. A 404 means it is already gone, which is what the caller wanted. Deleting the default makes the newest remaining address the default. */
+export async function deleteAddress(id: string, signal?: AbortSignal): Promise<void> {
+  try {
+    await request('DELETE', addressPath(id), undefined, signal)
+  } catch (error) {
+    if (!(error instanceof ApiError && error.kind === 'not-found')) throw error
+  }
+}

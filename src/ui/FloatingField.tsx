@@ -13,6 +13,8 @@ type Props = Omit<TextInputProps, 'style' | 'placeholder' | 'accessibilityLabel'
   helper?: string
   /** Must equal the screen background: the floated label's patch hides the border behind it. */
   background?: string
+  /** Right-aligned tabular digits, for measurements and amounts. */
+  numeric?: boolean
   /** Only used with secureTextEntry: testID of the show/hide button. */
   toggleTestID?: string
   ref?: Ref<ComponentRef<typeof TextInput>>
@@ -29,6 +31,7 @@ export function FloatingField({
   helper,
   background = color.paper,
   toggleTestID,
+  numeric,
   secureTextEntry,
   editable = true,
   onFocus,
@@ -70,7 +73,7 @@ export function FloatingField({
             setFocused(false)
             onBlur?.(event)
           }}
-          style={[styles.input, secureTextEntry && styles.inputSecure]}
+          style={[styles.input, secureTextEntry && styles.inputSecure, numeric && styles.inputNumeric]}
         />
         <View pointerEvents="none" style={[styles.outline, { borderColor: error ? color.red : focused ? color.obsidian : color.stonewash, borderWidth: focused ? 2 : 1 }]} />
         <View pointerEvents="none" style={styles.labelBox}>
@@ -117,6 +120,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.5 },
   input: { ...type.body, minHeight: 56, paddingHorizontal: space.md, paddingVertical: space.lg },
   inputSecure: { paddingRight: 56 },
+  inputNumeric: { ...type.numeric, textAlign: 'right' },
   outline: { ...StyleSheet.absoluteFill, borderRadius: radius.soft },
   labelBox: { position: 'absolute', top: 0, bottom: 0, left: space.md - space.xs, justifyContent: 'center', alignItems: 'flex-start' },
   label: { ...type.body, paddingHorizontal: space.xs, transformOrigin: 'left center' },

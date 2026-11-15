@@ -23,3 +23,15 @@ appId: ${APP_ID}
     visible:
       id: profile-name
     timeout: 15000
+# A seeded customer who has never seen the first-run tour gets it right after sign-in: skip it so the calling flow lands on Profile.
+- runFlow:
+    when:
+      visible:
+        id: onboarding-skip
+    commands:
+      - tapOn:
+          id: onboarding-skip
+      - extendedWaitUntil:
+          visible:
+            id: profile-name
+          timeout: 10000

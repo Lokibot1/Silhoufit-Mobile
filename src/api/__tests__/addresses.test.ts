@@ -1,6 +1,6 @@
-import { request } from '@/lib/api'
+import { ApiError, request } from '@/lib/api'
 
-import { createAddress, fetchAddresses } from '../addresses'
+import { createAddress, deleteAddress, fetchAddresses, setDefaultAddress } from '../addresses'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -60,5 +60,38 @@ describe('createAddress', () => {
   it('rejects a malformed answer', async () => {
     mockRequest.mockResolvedValue({ id: 'a1' })
     await expect(createAddress(input)).rejects.toMatchObject({ kind: 'server' })
+  })
+})
+
+describe('setDefaultAddress', () => {
+  it('PATCHes isDefault and parses the answer', async () => {
+    mockRequest.mockResolvedValue(raw({ isDefault: true }))
+    const a = await setDefaultAddress('a 1')
+    expect(mockRequest).toHaveBeenCalledWith('PATCH', '/users/me/addresses/a%201', { isDefault: true }, undefined)
+    expect(a.isDefault).toBe(true)
+  })
+  it('rejects a malformed answer and passes failures through', async () => {
+    mockRequest.mockResolvedValueOnce({})
+    await expect(setDefaultAddress('a1')).rejects.toMatchObject({ kind: 'server' })
+    mockRequest.mockRejectedValueOnce(new ApiError('not-found', undefined, 404))
+    await expect(setDefaultAddress('a1')).rejects.toMatchObject({ kind: 'not-found' })
+  })
+})
+
+describe('deleteAddress', () => {
+  it('DELETEs the address', async () => {
+    mockRequest.mockResolvedValue({ success: true })
+    await deleteAddress('a1')
+    expect(mockRequest).toHaveBeenCalledWith('DELETE', '/users/me/addresses/a1', undefined, undefined)
+  })
+  it('treats a 404 as already deleted', async () => {
+    mockRequest.mockRejectedValue(new ApiError('not-found', undefined, 404))
+    await expect(deleteAddress('a1')).resolves.toBeUndefined()
+  })
+  it('rethrows every other failure', async () => {
+    for (const kind of ['network', 'forbidden', 'server', 'rate-limit'] as const) {
+      mockRequest.mockRejectedValueOnce(new ApiError(kind))
+      await expect(deleteAddress('a1')).rejects.toMatchObject({ kind })
+    }
   })
 })

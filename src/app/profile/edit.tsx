@@ -1,9 +1,10 @@
-import { router, useNavigation } from 'expo-router'
-import { useRef, useState, type ComponentRef } from 'react'
+import { router, useFocusEffect, useNavigation } from 'expo-router'
+import { useCallback, useRef, useState, type ComponentRef } from 'react'
 import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { updateMe, type Gender, type Me, type MePatch } from '@/api/me'
+import { hasPasswordLogin } from '@/auth/email'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { NAME_MAX, GENDER_OPTIONS, SUFFIX_MAX, normalizeBirthday, normalizeName, validateBirthday, validateName, validateSuffix } from '@/lib/profileValidation'
@@ -54,7 +55,7 @@ function failureCopy(failure: unknown): string {
 }
 
 function Form({ me }: { me: Me }) {
-  const { signOut, update } = useSession()
+  const { session, signOut, update } = useSession()
   const toast = useToast()
   const navigation = useNavigation()
   const insets = useSafeAreaInsets()
@@ -64,6 +65,9 @@ function Form({ me }: { me: Me }) {
   const [pending, setPending] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const inFlight = useRef(false)
+  const opening = useRef(false)
+  // A fast double tap must not stack two password screens; allow it again when this screen regains focus.
+  useFocusEffect(useCallback(() => { opening.current = false }, []))
   const firstNameRef = useRef<ComponentRef<typeof TextInput>>(null)
   const middleNameRef = useRef<ComponentRef<typeof TextInput>>(null)
   const lastNameRef = useRef<ComponentRef<typeof TextInput>>(null)
@@ -231,6 +235,19 @@ function Form({ me }: { me: Me }) {
         )}
 
         <Button testID="edit-save" label="Save Changes" pending={pending} disabled={!changed} onPress={save} />
+        {hasPasswordLogin(session?.user) && (
+          <Button
+            testID="edit-change-password"
+            variant="secondary"
+            label="Change Password"
+            disabled={pending}
+            onPress={() => {
+              if (opening.current) return
+              opening.current = true
+              router.push('/profile/password')
+            }}
+          />
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   )

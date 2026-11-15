@@ -1,0 +1,54 @@
+appId: ${APP_ID}
+---
+# Read-only by choice: types an out-of-range height, checks the inline error, then leaves and discards. Nothing is saved,
+# so any seeded customer works (a saved profile or none: the form shows either way). The save path is a device check (MANUAL.md, Body Profile).
+# Needs a seeded customer.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- scrollUntilVisible:
+    element:
+      id: profile-menu-body
+- tapOn:
+    id: profile-menu-body
+- extendedWaitUntil:
+    visible:
+      id: body-height
+    timeout: 15000
+- assertVisible: Body Profile
+- assertVisible:
+    id: body-privacy
+- assertVisible:
+    id: body-save
+    enabled: false
+- tapOn:
+    id: body-height
+- eraseText: 10
+- inputText: '20'
+- hideKeyboard
+- assertVisible: 'Height must be between 100 and 230 cm.*'
+# Letters never reach a measurement field: "abc" leaves the 20 untouched.
+- tapOn:
+    id: body-height
+- inputText: abc
+- hideKeyboard
+- assertVisible: 'Height must be between 100 and 230 cm.*'
+# Leaving with an unsaved change asks first; Discard leaves without saving.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '(?i)(back|profile|\(tabs\))'
+- assertVisible: 'Discard changes\?'
+- tapOn: Discard
+- extendedWaitUntil:
+    visible:
+      id: profile-name
+    timeout: 10000
+- assertNotVisible:
+    id: body-save

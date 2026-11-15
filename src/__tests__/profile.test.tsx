@@ -171,14 +171,18 @@ describe('signed-in layout', () => {
     expect(mockPush).toHaveBeenCalledWith('/wishlist')
   })
 
-  it('shows the unbuilt rows as disabled and captioned, and Edit Profile as enabled', async () => {
+  it('opens Delivery Addresses from its row, once on a double tap', async () => {
+    await render(<Profile />)
+    expect(screen.getByTestId('profile-menu-addresses').props.accessibilityState).toMatchObject({ disabled: false })
+    await fireEvent.press(screen.getByTestId('profile-menu-addresses'))
+    await fireEvent.press(screen.getByTestId('profile-menu-addresses'))
+    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith('/addresses')
+  })
+
+  it('shows Edit Profile as enabled', async () => {
     await render(<Profile />)
     expect(screen.getByTestId('profile-menu-edit').props.accessibilityState).toMatchObject({ disabled: false })
-    for (const id of ['profile-menu-addresses', 'profile-menu-body']) {
-      expect(screen.getByTestId(id).props.accessibilityState).toMatchObject({ disabled: true })
-      await fireEvent.press(screen.getByTestId(id))
-    }
-    expect(screen.getAllByText('Coming soon')).toHaveLength(2)
     expect(mockNavigate).not.toHaveBeenCalled()
     expect(mockPush).not.toHaveBeenCalled()
   })

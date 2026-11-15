@@ -8,6 +8,7 @@ import { Text } from 'react-native'
 import { AgeGate } from '@/auth/AgeGate'
 import { SessionProvider, useSession } from '@/auth/session'
 import { fontAssets } from '@/ui/fonts'
+import { OnboardingGate } from '@/onboarding/OnboardingGate'
 import { IntroLoader } from '@/ui/IntroLoader'
 import { KralLogo } from '@/ui/KralLogo'
 import { color, type } from '@/ui/theme'
@@ -88,6 +89,34 @@ function Gate() {
             headerTintColor: color.obsidian,
           }}
         />
+        <Stack.Screen
+          name="addresses"
+          options={{
+            headerTitle: () => <Text style={type.h2}>Delivery Addresses</Text>,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
+        <Stack.Screen
+          name="profile/password"
+          options={{
+            headerTitle: () => <Text style={type.h2}>Change Password</Text>,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
+        <Stack.Screen
+          name="profile/body"
+          options={{
+            headerTitle: () => <Text style={type.h2}>Body Profile</Text>,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
+        <Stack.Screen name="onboarding" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false, animation: reduce ? 'none' : 'fade' }} />
         <Stack.Screen name="+not-found" options={{ headerShown: false }} />
         <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
         <Stack.Screen
@@ -167,6 +196,7 @@ function Gate() {
         />
       </Stack>
       <AgeGate />
+      <OnboardingGate enabled={done} />
       {!done && <IntroLoader ready={!loading} onFinished={() => setDone(true)} />}
     </>
   )

@@ -1,0 +1,46 @@
+appId: ${APP_ID}
+---
+# Replays the tour from Profile (a replay never writes anything, so any seeded customer works), steps through it and skips.
+# The first-run offer needs an account that has never seen the tour: that is a device check (MANUAL.md, First-time tour).
+# Needs a seeded customer.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- scrollUntilVisible:
+    element:
+      id: profile-menu-tour
+- tapOn:
+    id: profile-menu-tour
+- extendedWaitUntil:
+    visible:
+      id: onboarding
+    timeout: 10000
+- assertVisible: '(Step 1 of 3)'
+- assertVisible:
+    id: onboarding-skip
+- assertVisible:
+    id: onboarding-back
+    enabled: false
+- tapOn:
+    id: onboarding-next
+- assertVisible: '(Step 2 of 3)'
+- assertVisible:
+    id: onboarding-skip
+- tapOn:
+    id: onboarding-back
+- assertVisible: '(Step 1 of 3)'
+- tapOn:
+    id: onboarding-next
+- tapOn:
+    id: onboarding-next
+- assertVisible:
+    id: onboarding-finish
+- assertVisible: Get Started
+# Skip on any step closes the tour and lands back on Profile.
+- tapOn:
+    id: onboarding-skip
+- extendedWaitUntil:
+    visible:
+      id: profile-name
+    timeout: 10000
+- assertNotVisible:
+    id: onboarding

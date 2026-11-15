@@ -1,13 +1,13 @@
 import { supabase } from '@/lib/supabase'
 
-import { CONFIRM_REDIRECT, openEmailLink, requestPasswordReset, RESET_REDIRECT, resendConfirmation, setPassword, signedUpEmail, signUp } from '../email'
+import { changePassword, CONFIRM_REDIRECT, hasPasswordLogin, openEmailLink, requestPasswordReset, RESET_REDIRECT, resendConfirmation, setPassword, signedUpEmail, signUp } from '../email'
 
 jest.mock('@/lib/supabase', () => ({
-  supabase: { auth: { signUp: jest.fn(), resetPasswordForEmail: jest.fn(), resend: jest.fn(), exchangeCodeForSession: jest.fn(), updateUser: jest.fn(), getSession: jest.fn() } },
+  supabase: { auth: { signInWithPassword: jest.fn(), signOut: jest.fn(), signUp: jest.fn(), resetPasswordForEmail: jest.fn(), resend: jest.fn(), exchangeCodeForSession: jest.fn(), updateUser: jest.fn(), getSession: jest.fn() } },
 }))
 jest.mock('expo-linking', () => ({ createURL: (path: string) => `silhoufitmobile://${path}` }))
 
-const auth = supabase.auth as unknown as Record<'signUp' | 'resetPasswordForEmail' | 'resend' | 'exchangeCodeForSession' | 'updateUser' | 'getSession', jest.Mock>
+const auth = supabase.auth as unknown as Record<'signInWithPassword' | 'signOut' | 'signUp' | 'resetPasswordForEmail' | 'resend' | 'exchangeCodeForSession' | 'updateUser' | 'getSession', jest.Mock>
 const payload = { firstName: 'Ana', middleName: null, lastName: 'Cruz', suffix: 'Jr.', email: 'ana@example.com', birthday: '1995-05-15', password: 'Abcdefg1!' }
 
 beforeEach(() => jest.resetAllMocks())
@@ -166,5 +166,42 @@ describe('setPassword', () => {
   it('passes the weak-password reason on', async () => {
     auth.updateUser.mockResolvedValue({ data: {}, error: { status: 422, code: 'weak_password', message: 'Password is known to be weak.' } })
     expect(await setPassword('Abcdefg1!')).toEqual({ ok: false, kind: 'weak', detail: 'Password is known to be weak.' })
+  })
+})
+
+describe('hasPasswordLogin', () => {
+  it('is true with an email identity, false for Google only, true when unknown', () => {
+    expect(hasPasswordLogin({ identities: [{ provider: 'google' }, { provider: 'email' }] })).toBe(true)
+    expect(hasPasswordLogin({ identities: [{ provider: 'google' }], app_metadata: { providers: ['google'] } })).toBe(false)
+    expect(hasPasswordLogin({ app_metadata: { providers: ['google', 'email'] } })).toBe(true)
+    expect(hasPasswordLogin({})).toBe(true)
+    expect(hasPasswordLogin(null)).toBe(true)
+  })
+})
+
+describe('changePassword', () => {
+  beforeEach(() => {
+    auth.signInWithPassword.mockResolvedValue({ data: {}, error: null })
+    auth.updateUser.mockResolvedValue({ data: {}, error: null })
+    auth.signOut.mockResolvedValue({ error: null })
+  })
+  it('re-checks the current password, sets the new one and signs out the other sessions', async () => {
+    expect(await changePassword('ana@example.com', 'Old1!aaa', 'New2@bbb')).toEqual({ ok: true })
+    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'ana@example.com', password: 'Old1!aaa' })
+    expect(auth.updateUser).toHaveBeenCalledWith({ password: 'New2@bbb' })
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'others' })
+  })
+  it.each([['rejects', () => auth.signOut.mockRejectedValue(new TypeError('offline'))], ['errors', () => auth.signOut.mockResolvedValue({ error: { status: 500 } })]])('still succeeds when signing out the others %s', async (_name, arrange) => {
+    arrange()
+    expect(await changePassword('ana@example.com', 'Old1!aaa', 'New2@bbb')).toEqual({ ok: true })
+  })
+  it('maps a wrong password, a banned account and a failed update without touching other sessions', async () => {
+    auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: { status: 400, code: 'invalid_credentials' } })
+    expect(await changePassword('a@b.co', 'x', 'y')).toEqual({ ok: false, kind: 'wrong-password' })
+    auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: { status: 400, code: 'user_banned' } })
+    expect(await changePassword('a@b.co', 'x', 'y')).toEqual({ ok: false, kind: 'expired' })
+    auth.updateUser.mockResolvedValueOnce({ data: {}, error: { status: 422, code: 'same_password' } })
+    expect(await changePassword('a@b.co', 'x', 'y')).toMatchObject({ ok: false, kind: 'same' })
+    expect(auth.signOut).not.toHaveBeenCalled()
   })
 })

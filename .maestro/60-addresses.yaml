@@ -1,0 +1,60 @@
+appId: ${APP_ID}
+---
+# Delivery Addresses, UNRUN. Signs in, opens Profile -> Delivery Addresses and waits for the list or the empty state. With addresses:
+# "Set as Default" moves a non-default card to the top (the toast says "Default address updated"; it writes data, so use a DEDICATED
+# account with 2+ addresses), and Delete opens the "Are you sure?" confirmation, which is CANCELLED: nothing is deleted.
+# The destructive confirm (addresses-confirm-delete) is deliberately never tapped. Needs TEST_EMAIL and TEST_PASSWORD.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- scrollUntilVisible:
+    element:
+      id: profile-menu-addresses
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: profile-menu-addresses
+- extendedWaitUntil:
+    visible:
+      id: '(addresses-list|addresses-empty|addresses-retry)'
+    timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: addresses-empty
+    commands:
+      - assertVisible:
+          id: addresses-add
+          enabled: false
+      - assertVisible: Adding addresses from the app is coming soon. You can add one on the website.
+- runFlow:
+    when:
+      visible:
+        id: addresses-list
+    commands:
+      - assertVisible:
+          id: 'address-delete-.+'
+      - runFlow:
+          when:
+            visible:
+              id: 'address-default-.+'
+          commands:
+            - tapOn:
+                id: 'address-default-.+'
+            - extendedWaitUntil:
+                visible: Default address updated
+                timeout: 10000
+      - tapOn:
+          id: 'address-delete-.+'
+      - extendedWaitUntil:
+          visible:
+            id: addresses-confirm
+          timeout: 5000
+      - assertVisible: Are you sure?
+      - assertVisible:
+          id: addresses-confirm-delete
+      - tapOn:
+          id: addresses-confirm-cancel
+      - assertNotVisible:
+          id: addresses-confirm
+      - assertVisible:
+          id: addresses-list
