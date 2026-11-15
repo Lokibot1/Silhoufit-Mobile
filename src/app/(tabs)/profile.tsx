@@ -126,7 +126,6 @@ export default function Profile() {
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.screen}>
-      <Text style={type.label}>(Account)</Text>
       <Text accessibilityRole="header" style={type.h1}>Profile</Text>
       {loading && (
         <View accessible accessibilityLabel="Loading" accessibilityRole="progressbar" style={styles.stack}>

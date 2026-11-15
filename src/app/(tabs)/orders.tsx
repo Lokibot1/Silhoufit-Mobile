@@ -279,7 +279,6 @@ export default function OrdersScreen() {
 
   const header = (
     <View style={styles.header}>
-      <Text style={type.label}>(Your Orders)</Text>
       <Text accessibilityRole="header" style={type.h1}>Orders</Text>
     </View>
   )

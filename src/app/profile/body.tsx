@@ -123,7 +123,6 @@ function Form({ saved: initial }: { saved: BodyProfile | null }) {
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: space.lg + insets.bottom }]} keyboardShouldPersistTaps="handled">
-        <Text style={type.label}>(Account)</Text>
         <Text accessibilityRole="header" style={type.h1}>Body Profile</Text>
         <Text testID="body-intro" style={styles.copy}>
           {saved ? 'Keep your measurements up to date for the best size advice.' : 'Your measurements help us suggest the right size and power AR try-on.'}

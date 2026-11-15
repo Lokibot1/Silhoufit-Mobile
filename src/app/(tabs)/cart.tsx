@@ -355,7 +355,6 @@ export default function CartScreen() {
 
   const header = (
     <View style={styles.header}>
-      <Text style={type.label}>(Your Bag)</Text>
       <Text accessibilityRole="header" style={type.h1}>Cart</Text>
     </View>
   )

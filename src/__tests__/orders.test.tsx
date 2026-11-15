@@ -92,7 +92,7 @@ it('shows the skeleton on the first load, then cards with number, date, status, 
   expect(screen.getAllByText('Delivered').length).toBeGreaterThan(0)
   expect(screen.getByText('₱3,000.00')).toBeTruthy()
   expect(screen.getAllByText('Total (2 items):')).toHaveLength(2)
-  expect(screen.getByText('(Your Orders)')).toBeTruthy()
+  expect(screen.queryByText('(Your Orders)')).toBeNull()
   expect(api.fetchAllOrders).toHaveBeenCalledWith(expect.any(AbortSignal))
 })
 

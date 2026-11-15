@@ -194,7 +194,6 @@ export default function NotificationsScreen() {
 
   const header = (
     <View style={styles.header}>
-      <Text style={type.label}>(Order Updates)</Text>
       <Text accessibilityRole="header" style={type.h1}>Notifications</Text>
     </View>
   )
