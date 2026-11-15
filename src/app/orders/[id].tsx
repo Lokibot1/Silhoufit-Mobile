@@ -58,7 +58,7 @@ function TimelineRow({ step, next }: { step: TimelineStep; next?: TimelineStep }
   const stateWord = state === 'cancelled' ? null : state
   const label = [step.label, stateWord, step.at && dateTime(step.at), step.note].filter(Boolean).join(', ')
   return (
-    <View accessible accessibilityRole="listitem" accessibilityLabel={label} testID={`timeline-${step.key}`} style={styles.step}>
+    <View accessible accessibilityLabel={label} testID={`timeline-${step.key}`} style={styles.step}>
       <View style={styles.rail}>
         <View style={styles.markCell}>
           <Text style={type.body}>{'​'}</Text>

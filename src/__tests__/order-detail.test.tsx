@@ -185,11 +185,11 @@ describe('timeline', () => {
     expect(label('delivered')).toBe('Delivered, upcoming')
   })
 
-  it('each stage is a list item', async () => {
+  it('stage rows set no accessibilityRole: Android throws on roles it does not know, such as listitem', async () => {
     api.fetchOrder.mockResolvedValue(order())
     await render(<OrderScreen />)
     await screen.findByTestId('order-detail')
-    expect(screen.getByTestId('timeline-placed').props.accessibilityRole).toBe('listitem')
+    expect(screen.getByTestId('timeline-placed').props.accessibilityRole).toBeUndefined()
   })
 })
 
