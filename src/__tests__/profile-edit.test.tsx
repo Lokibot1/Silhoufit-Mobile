@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { Alert } from 'react-native'
 
 import { ApiError } from '@/lib/api'
 import EditProfile from '../app/profile/edit'
@@ -10,12 +11,15 @@ jest.mock('expo-linking', () => ({ createURL: (path: string) => `silhoufitmobile
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) },
+  useNavigation: () => ({ isFocused: () => mockFocused.value, dispatch: jest.fn() }),
+  usePreventRemove: (prevent: boolean, callback: (e: unknown) => void) => { mockGuard.prevent = prevent; mockGuard.callback = callback },
   useFocusEffect: (callback: () => void) => {
     mockRefocus = callback
     jest.requireActual('react').useEffect(callback, [])
   },
 }))
 let mockRefocus: () => void = () => {}
+const mockGuard: { prevent: boolean; callback: ((e: unknown) => void) | null } = { prevent: false, callback: null }
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
 jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
@@ -34,6 +38,7 @@ const base = { session: { user: { id: 'u1' } }, profile: me, loading: false, err
 beforeEach(() => {
   jest.clearAllMocks()
   mockFocused.value = true
+  mockGuard.prevent = false
   mockUseSession.mockReturnValue(base)
 })
 
@@ -141,6 +146,30 @@ describe('validation', () => {
     await fireEvent.press(screen.getByTestId('edit-save'))
     expect(screen.getByText('First name is required.')).toBeTruthy()
     expect(mockUpdateMe).not.toHaveBeenCalled()
+  })
+})
+
+describe('unsaved changes', () => {
+  it('guards leaving only while something is changed, and asks before discarding', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
+    await render(<EditProfile />)
+    expect(mockGuard.prevent).toBe(false)
+    await type('edit-first-name', 'Anna')
+    expect(mockGuard.prevent).toBe(true)
+    mockGuard.callback?.({ data: { action: {} } })
+    expect(alert).toHaveBeenCalledWith('Discard changes?', expect.any(String), expect.any(Array))
+    await type('edit-first-name', 'Ana')
+    expect(mockGuard.prevent).toBe(false)
+    alert.mockRestore()
+  })
+
+  it('lets a successful save leave past the guard', async () => {
+    mockUpdateMe.mockResolvedValue({ ...me, firstName: 'Anna' })
+    await render(<EditProfile />)
+    await type('edit-first-name', 'Anna')
+    await fireEvent.press(screen.getByTestId('edit-save'))
+    await waitFor(() => expect(router.back).toHaveBeenCalled())
+    expect(mockGuard.prevent).toBe(false)
   })
 })
 

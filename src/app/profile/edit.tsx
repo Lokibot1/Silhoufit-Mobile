@@ -1,5 +1,5 @@
-import { router, useFocusEffect, useNavigation } from 'expo-router'
-import { useCallback, useRef, useState, type ComponentRef } from 'react'
+import { router, useFocusEffect, useNavigation, usePreventRemove } from 'expo-router'
+import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react'
 import { Alert, Keyboard, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -68,6 +68,7 @@ function Form({ me }: { me: Me }) {
   const [photoBusy, setPhotoBusy] = useState(false)
   const locked = pending || photoBusy // a photo upload also holds the form still
   const [failure, setFailure] = useState<string | null>(null)
+  const [finished, setFinished] = useState(false)
   const inFlight = useRef(false)
   const opening = useRef(false)
   // A fast double tap must not stack two password screens; allow it again when this screen regains focus.
@@ -82,6 +83,14 @@ function Form({ me }: { me: Me }) {
   const patch = changes(values, saved)
   const changed = Object.keys(patch).length > 0
 
+  // Unsaved-changes guard: covers the header back, the swipe and hardware back.
+  usePreventRemove(changed && !finished, ({ data }) =>
+    Alert.alert('Discard changes?', 'Your profile changes have not been saved.', [
+      { text: 'Keep Editing', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: () => navigation.dispatch(data.action) },
+    ]),
+  )
+
   function set(next: Partial<Values>) {
     setFailure(null)
     setValues((current) => ({ ...current, ...next }))
@@ -90,17 +99,12 @@ function Form({ me }: { me: Me }) {
     setTouched((current) => ({ ...current, [field]: true }))
   }
 
-  // Read focus at call time: if this screen is gone or covered by now, going back would pop an unrelated screen.
-  function leave() {
-    if (!navigation.isFocused()) {
-      // Not leaving: free the form so there is no stuck spinner when the user returns.
-      inFlight.current = false
-      setPending(false)
-      return
-    }
+  // Leaves once a save has gone through, after the guard has let go.
+  useEffect(() => {
+    if (!finished) return
     if (router.canGoBack()) router.back()
     else router.replace('/(tabs)/profile')
-  }
+  }, [finished])
 
   async function save() {
     if (inFlight.current || !changed) return
@@ -116,7 +120,13 @@ function Form({ me }: { me: Me }) {
       const updated = await updateMe(patch)
       update(updated)
       toast('Profile updated')
-      leave() // stays "pending" until this screen unmounts, so the button cannot be tapped twice
+      // Read focus now: if this screen is gone or covered by now, going back would pop an unrelated screen.
+      if (navigation.isFocused()) setFinished(true) // leaves from the effect above; stays "pending" until this screen unmounts, so the button cannot be tapped twice
+      else {
+        // Not leaving: free the form so there is no stuck spinner when the user returns.
+        inFlight.current = false
+        setPending(false)
+      }
     } catch (reason) {
       inFlight.current = false
       setPending(false)
@@ -139,6 +149,7 @@ function Form({ me }: { me: Me }) {
           testID="edit-first-name"
           label="First name"
           value={values.firstName}
+          helper={`${values.firstName.length}/${NAME_MAX}`}
           onChangeText={(text) => set({ firstName: text })}
           onBlur={() => blur('firstName')}
           error={shown('firstName')}
@@ -155,6 +166,7 @@ function Form({ me }: { me: Me }) {
           testID="edit-middle-name"
           label="Middle name (optional)"
           value={values.middleName}
+          helper={`${values.middleName.length}/${NAME_MAX}`}
           onChangeText={(text) => set({ middleName: text })}
           onBlur={() => blur('middleName')}
           error={shown('middleName')}
@@ -171,6 +183,7 @@ function Form({ me }: { me: Me }) {
           testID="edit-last-name"
           label="Last name"
           value={values.lastName}
+          helper={`${values.lastName.length}/${NAME_MAX}`}
           onChangeText={(text) => set({ lastName: text })}
           onBlur={() => blur('lastName')}
           error={shown('lastName')}
@@ -198,18 +211,14 @@ function Form({ me }: { me: Me }) {
           returnKeyType="done"
           onSubmitEditing={() => Keyboard.dismiss()}
         />
-        <FloatingField
         <BirthdayField
           testID="edit-birthday"
           value={values.birthday}
           onChange={(iso) => set({ birthday: iso })}
           onClose={() => setTouched((current) => ({ ...current, birthday: true }))}
           error={shown('birthday')}
-          helper="YYYY-MM-DD, like 1995-05-15"
+          helper="Choose it from the calendar."
           editable={!locked}
-          keyboardType={Platform.select({ ios: 'numbers-and-punctuation', default: 'default' })}
-          autoCorrect={false}
-          maxLength={14}
         />
 
         <View style={styles.group}>

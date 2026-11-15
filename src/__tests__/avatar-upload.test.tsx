@@ -13,7 +13,8 @@ jest.mock('expo-linking', () => ({ createURL: (path: string) => `silhoufitmobile
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) },
-  useNavigation: () => ({ isFocused: () => true }),
+  useNavigation: () => ({ isFocused: () => true, dispatch: jest.fn() }),
+  usePreventRemove: () => {},
   useFocusEffect: (callback: () => void) => jest.requireActual('react').useEffect(callback, []),
 }))
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }))
