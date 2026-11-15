@@ -1,4 +1,14 @@
-import { dateOnly, dateTime, percentLabel } from '../format'
+import { dateOnly, dateTime, deliveryLabel, percentLabel, soldLabel } from '../format'
+
+it('formats units sold', () => {
+  expect([1, 371, 999, 1000, 1250, 1999, 9999, 10_000, 12_400].map(soldLabel)).toEqual(['1 sold', '371 sold', '999 sold', '1k sold', '1.2k sold', '1.9k sold', '9.9k sold', '10k sold', '12k sold'])
+})
+
+it('formats the average delivery time', () => {
+  expect([20, 45, 60, 89, 120, 1439, 1440, 2880, 4000].map((m) => deliveryLabel(m))).toEqual(['Avg 20 min', 'Avg 45 min', 'Avg 1 hr', 'Avg 1 hr', 'Avg 2 hrs', 'Avg 24 hrs', 'Avg 1 day', 'Avg 2 days', 'Avg 3 days'])
+  expect(deliveryLabel(120, true)).toBe('average delivery 2 hours')
+  expect(deliveryLabel(1, true)).toBe('average delivery 1 minute')
+})
 
 it('zero-pads the loader percent to three digits', () => {
   expect(percentLabel(0)).toBe('000%')

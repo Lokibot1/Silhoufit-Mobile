@@ -19,7 +19,7 @@ const body = (data: unknown[] = [item]) => ({ data, meta: { total: 24, page: 2, 
 describe('toProductPage', () => {
   it('maps a valid body', () => {
     expect(toProductPage(body())).toEqual({
-      items: [{ id: 'p1', name: 'Linen Shirt', minPrice: 1250, maxPrice: 1250, totalStock: 12, imageUrl: 'https://x.test/a.jpg', rating: 4.5, reviewCount: 8 }],
+      items: [{ id: 'p1', name: 'Linen Shirt', minPrice: 1250, maxPrice: 1250, totalStock: 12, imageUrl: 'https://x.test/a.jpg', rating: 4.5, reviewCount: 8, soldCount: null, avgDeliveryMinutes: null }],
       total: 24,
       page: 2,
       hasNextPage: false,
@@ -29,6 +29,8 @@ describe('toProductPage', () => {
   it('nulls a missing price', () => expect(toProductPage(body([{ ...item, minPrice: undefined, maxPrice: null }])).items[0]).toMatchObject({ minPrice: null, maxPrice: null }))
   it('has no rating without a summary', () => expect(toProductPage(body([{ ...item, ratingSummary: undefined }])).items[0]).toMatchObject({ rating: null, reviewCount: 0 }))
   it('has no image or stock when missing', () => expect(toProductPage(body([{ ...item, primaryImage: null, totalStock: undefined }])).items[0]).toMatchObject({ imageUrl: null, totalStock: null }))
+  it('reads soldCount and avgDeliveryMinutes', () => expect(toProductPage(body([{ ...item, soldCount: 371, avgDeliveryMinutes: 120 }])).items[0]).toMatchObject({ soldCount: 371, avgDeliveryMinutes: 120 }))
+  it.each([undefined, null, '371', 0, -4, NaN, {}])('nulls the invalid sold and delivery value %p', (bad) => expect(toProductPage(body([{ ...item, soldCount: bad, avgDeliveryMinutes: bad }])).items[0]).toMatchObject({ soldCount: null, avgDeliveryMinutes: null }))
   it('reads hasNextPage', () => expect(toProductPage({ ...body(), meta: { total: 30, page: 1, hasNextPage: true } }).hasNextPage).toBe(true))
   it('accepts an empty list', () => expect(toProductPage(body([])).items).toEqual([]))
   it.each(['id', 'name'])('rejects an item without %s', (key) => expect(() => toProductPage(body([{ ...item, [key]: undefined }]))).toThrow(ApiError))

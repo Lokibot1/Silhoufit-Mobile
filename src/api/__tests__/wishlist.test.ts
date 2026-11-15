@@ -13,7 +13,7 @@ beforeEach(() => jest.clearAllMocks())
 describe('toWishlist', () => {
   it('maps the saved pieces', () => {
     expect(toWishlist({ items: [entry()], totalCount: 1 })).toEqual([
-      { productId: 'p1', savedAt: '2026-11-01T00:00:00.000Z', product: { id: 'p1', name: 'Linen Shirt', minPrice: 1250, maxPrice: 1250, totalStock: 12, imageUrl: 'https://x.test/a.jpg', rating: 4.5, reviewCount: 8 } },
+      { productId: 'p1', savedAt: '2026-11-01T00:00:00.000Z', product: { id: 'p1', name: 'Linen Shirt', minPrice: 1250, maxPrice: 1250, totalStock: 12, imageUrl: 'https://x.test/a.jpg', rating: 4.5, reviewCount: 8, soldCount: null, avgDeliveryMinutes: null } },
     ])
   })
   it('accepts an empty list', () => expect(toWishlist({ items: [] })).toEqual([]))

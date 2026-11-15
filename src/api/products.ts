@@ -11,13 +11,15 @@ export type ProductListItem = {
   imageUrl: string | null
   rating: number | null
   reviewCount: number
+  soldCount?: number | null // units sold, from the API's `soldCount`; null when absent
+  avgDeliveryMinutes?: number | null // from the API's `avgDeliveryMinutes`; null when there is not enough data
 }
 export type ProductPage = { items: ProductListItem[]; total: number; page: number; hasNextPage: boolean }
 
 /** One product card from a list payload (GET /products, GET /wishlist); throws ApiError('server') on a wrong shape. */
 export function toListItem(value: unknown): ProductListItem {
   if (!isRecord(value)) throw new ApiError('server')
-  const { id, name, minPrice, maxPrice, totalStock, primaryImage, ratingSummary } = value
+  const { id, name, minPrice, maxPrice, totalStock, primaryImage, ratingSummary, soldCount, avgDeliveryMinutes } = value
   if (!str(id) || !str(name)) throw new ApiError('server')
   const rated = isRecord(ratingSummary) && isNum(ratingSummary.averageRating) && isNum(ratingSummary.reviewCount)
   return {
@@ -29,6 +31,8 @@ export function toListItem(value: unknown): ProductListItem {
     imageUrl: isRecord(primaryImage) ? str(primaryImage.url) : null,
     rating: rated ? (ratingSummary.averageRating as number) : null,
     reviewCount: rated ? (ratingSummary.reviewCount as number) : 0,
+    soldCount: isNum(soldCount) && soldCount > 0 ? soldCount : null,
+    avgDeliveryMinutes: isNum(avgDeliveryMinutes) && avgDeliveryMinutes > 0 ? avgDeliveryMinutes : null,
   }
 }
 

@@ -14,7 +14,7 @@ import { Button } from '@/ui/Button'
 import { Chip } from '@/ui/Chip'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
-import { ProductCard, ProductCardSkeleton } from '@/ui/ProductCard'
+import { ProductCard, ProductCardSkeleton, useCardRows } from '@/ui/ProductCard'
 import { PullToRefresh } from '@/ui/PullToRefresh'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, radius, space, type } from '@/ui/theme'
@@ -46,6 +46,7 @@ export default function Shop() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState('')
   const [items, setItems] = useState<ProductListItem[]>([])
+  const rows = useCardRows(items)
   const [meta, setMeta] = useState({ total: 0, page: 1, hasNextPage: false })
   const [more, setMore] = useState<'idle' | 'loading' | 'error'>('idle')
   const [refreshing, setRefreshing] = useState(false)
@@ -272,7 +273,7 @@ export default function Shop() {
               numColumns={2}
               extraData={saved}
               renderItem={({ item }) => (
-                <ProductCard item={item} onPress={() => open(item.id)} wishlist={{ saved: saved.includes(item.id), onChange: (on) => setSavedId(item.id, on), notify: toast }} />
+                <ProductCard item={item} rows={rows} onPress={() => open(item.id)} wishlist={{ saved: saved.includes(item.id), onChange: (on) => setSavedId(item.id, on), notify: toast }} />
               )}
               columnWrapperStyle={styles.columns}
               ItemSeparatorComponent={Gap}

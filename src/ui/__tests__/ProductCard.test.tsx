@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native'
+import { fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react-native'
 
 import type { ProductListItem } from '@/api/products'
-import { ProductCard } from '../ProductCard'
+import { type CardRows, cardRows, ProductCard, useCardRows } from '../ProductCard'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('../PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
@@ -38,9 +38,29 @@ it('labels sold out and low stock only', async () => {
 
 it('shows the rating only when there are reviews', async () => {
   const { rerender } = await render(<ProductCard item={{ ...base, rating: 4.5, reviewCount: 8 }} />)
-  expect(screen.getByText('★ 4.5 (8)')).toBeTruthy()
+  expect(screen.getByText('4.5')).toBeTruthy()
+  expect(screen.getByText('(8)')).toBeTruthy()
   await rerender(<ProductCard item={{ ...base, rating: 0, reviewCount: 0 }} />)
-  expect(screen.queryByText(/★/)).toBeNull()
+  expect(screen.queryByText('(0)')).toBeNull()
+})
+
+it('shows sold and delivery only when present, and keeps the card testID', async () => {
+  const { rerender } = await render(<ProductCard item={base} />)
+  expect(screen.queryByText(/sold$/)).toBeNull()
+  expect(screen.queryByText(/^Avg/)).toBeNull()
+  expect(screen.getByTestId('shop-card-p1')).toBeTruthy()
+  await rerender(<ProductCard item={{ ...base, soldCount: 1250, avgDeliveryMinutes: 120 }} />)
+  expect(screen.getByText('1.2k sold')).toBeTruthy()
+  expect(screen.getByText('Avg 2 hrs')).toBeTruthy()
+  expect(screen.getByTestId('shop-card-p1')).toBeTruthy()
+  await rerender(<ProductCard item={{ ...base, soldCount: 0, avgDeliveryMinutes: null }} />)
+  expect(screen.queryByText(/sold$/)).toBeNull()
+  expect(screen.queryByText(/^Avg/)).toBeNull()
+})
+
+it('adds sold and delivery to the screen reader summary', async () => {
+  await render(<ProductCard item={{ ...base, rating: 4.8, reviewCount: 36, soldCount: 371, avgDeliveryMinutes: 120 }} />)
+  expect(screen.getByLabelText('Linen Shirt, ₱1,250.00, rated 4.8 from 36 reviews, 371 sold, average delivery 2 hours')).toBeTruthy()
 })
 
 it('falls back to the name when the image is missing or fails', async () => {
@@ -59,8 +79,45 @@ it('summarises the card for screen readers', async () => {
 
 it('shows the rating to one decimal in the text and the label', async () => {
   await render(<ProductCard item={{ ...base, rating: 4, reviewCount: 3 }} />)
-  expect(screen.getByText('★ 4.0 (3)')).toBeTruthy()
+  expect(screen.getByText('4.0')).toBeTruthy()
   expect(screen.getByLabelText('Linen Shirt, ₱1,250.00, rated 4.0 from 3 reviews')).toBeTruthy()
+})
+
+const ROWS_OFF = { rating: false, sold: false, delivery: false }
+
+describe('card rows', () => {
+  const rated = { ...base, id: 'p2', rating: 4.5, reviewCount: 8 }
+  const full = { ...base, id: 'p3', rating: 4.8, reviewCount: 36, soldCount: 371, avgDeliveryMinutes: 120 }
+
+  it('cardRows reports none, rating only, or all', () => {
+    expect(cardRows([base, { ...base, id: 'p2', soldCount: 0, avgDeliveryMinutes: null }])).toEqual(ROWS_OFF)
+    expect(cardRows([base, rated])).toEqual({ rating: true, sold: false, delivery: false })
+    expect(cardRows([base, rated, full])).toEqual({ rating: true, sold: true, delivery: true })
+  })
+
+  it('useCardRows only switches rows on while the list grows, and resets on a new first page', async () => {
+    const { result, rerender } = await renderHook<CardRows, { items: ProductListItem[] }>(({ items }) => useCardRows(items), { initialProps: { items: [base] } })
+    expect(result.current).toEqual(ROWS_OFF)
+    await rerender({ items: [base, rated] })
+    expect(result.current).toEqual({ rating: true, sold: false, delivery: false })
+    await rerender({ items: [base, rated, { ...base, id: 'p4' }] })
+    expect(result.current.rating).toBe(true)
+    await rerender({ items: [{ ...base, id: 'p9' }] })
+    expect(result.current).toEqual(ROWS_OFF)
+  })
+
+  it('renders only the rows it is given and keeps the label', async () => {
+    const { rerender } = await render(<ProductCard item={full} rows={ROWS_OFF} />)
+    expect(screen.getByTestId('shop-card-p3')).toBeTruthy()
+    expect(screen.getByLabelText('Linen Shirt, ₱1,250.00, rated 4.8 from 36 reviews, 371 sold, average delivery 2 hours')).toBeTruthy()
+    expect(screen.queryByText('4.8')).toBeNull()
+    expect(screen.queryByText('371 sold')).toBeNull()
+    expect(screen.queryByText('Avg 2 hrs')).toBeNull()
+    await rerender(<ProductCard item={full} rows={{ rating: true, sold: false, delivery: true }} />)
+    expect(screen.getByText('4.8')).toBeTruthy()
+    expect(screen.queryByText('371 sold')).toBeNull()
+    expect(screen.getByText('Avg 2 hrs')).toBeTruthy()
+  })
 })
 
 describe('wishlist heart', () => {

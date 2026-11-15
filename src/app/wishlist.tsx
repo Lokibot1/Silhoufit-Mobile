@@ -7,7 +7,7 @@ import { addWishlistItem, fetchWishlist, removeWishlistItem, type WishlistItem }
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { PressableScale } from '@/ui/PressableScale'
-import { ProductCard, ProductCardSkeleton } from '@/ui/ProductCard'
+import { ProductCard, ProductCardSkeleton, useCardRows } from '@/ui/ProductCard'
 import { PullToRefresh } from '@/ui/PullToRefresh'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, radius, space } from '@/ui/theme'
@@ -32,6 +32,7 @@ function WishlistScreen() {
   const userId = session?.user.id
   // What is on screen: the last answer with the shopper's removals applied, kept while a pull-to-refresh loads the next one.
   const [items, setItems] = useState<WishlistItem[] | null>(null)
+  const rows = useCardRows((items ?? []).map((x) => x.product))
   const [status, setStatus] = useState<'loading' | 'error' | 'ready'>('loading')
   const [error, setError] = useState<unknown>(null)
   const [reloadKey, setReloadKey] = useState(0)
@@ -192,7 +193,7 @@ function WishlistScreen() {
           contentContainerStyle={styles.content}
           renderItem={({ item }) => (
             <View>
-              <ProductCard item={item.product} onPress={() => open(item.productId)} />
+              <ProductCard item={item.product} rows={rows} onPress={() => open(item.productId)} />
               <PressableScale
                 testID={`wishlist-remove-${item.productId}`}
                 accessibilityRole="button"

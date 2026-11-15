@@ -4,6 +4,20 @@ export function peso(amount: number): string {
   return `${amount < 0 ? '-' : ''}₱${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${cents}`
 }
 
+/** Units sold for a card: 371 -> "371 sold", 1250 -> "1.2k sold", 12400 -> "12k sold". Rounds down so it never overstates. */
+export function soldLabel(count: number): string {
+  if (count < 1000) return `${Math.floor(count)} sold`
+  if (count < 10_000) return `${String(Math.floor(count / 100) / 10).replace(/\.0$/, '')}k sold`
+  return `${Math.floor(count / 1000)}k sold`
+}
+
+/** Average delivery time: 45 -> "Avg 45 min", 120 -> "Avg 2 hrs", 2880 -> "Avg 2 days". `long` spells it out for screen readers: "average delivery 2 hours". */
+export function deliveryLabel(minutes: number, long = false): string {
+  const [amount, short, spelled] = minutes < 60 ? [Math.max(1, Math.round(minutes)), 'min', 'minute'] : minutes < 1440 ? [Math.round(minutes / 60), 'hr', 'hour'] : [Math.round(minutes / 1440), 'day', 'day']
+  const plural = amount === 1 || (!long && short === 'min') ? '' : 's'
+  return long ? `average delivery ${amount} ${spelled}${plural}` : `Avg ${amount} ${short}${plural}`
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 // Store time like the web app: Philippine time (UTC+8, no daylight saving), read back through the UTC getters. Null for an unusable value.
