@@ -18,7 +18,7 @@ import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { CHIP_HEIGHT, StatusChip } from '@/ui/StatusChip'
 import { TrackingMap } from '@/ui/TrackingMap'
-import { color, font, space, type } from '@/ui/theme'
+import { color, font, radius, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const TARGET = 44
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   chipGroup: { gap: space.xs, flexShrink: 1, maxWidth: '100%' },
   section: { gap: space.sm },
   item: { flexDirection: 'row', gap: space.md },
-  tile: { width: IMG_W, height: IMG_H, backgroundColor: color.porcelain },
+  tile: { width: IMG_W, height: IMG_H, backgroundColor: color.porcelain, borderRadius: radius.soft, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: space.xs },
   fill: { width: '100%', height: '100%' },
   info: { flex: 1, gap: space.xs },
   name: { fontFamily: font.semibold, fontSize: 14, lineHeight: 20, color: color.obsidian, textTransform: 'uppercase' },

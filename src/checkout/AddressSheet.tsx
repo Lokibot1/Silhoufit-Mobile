@@ -78,14 +78,14 @@ export function AddressSheet({ visible, addresses, selectedId, onSelect, onAdd, 
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(22,17,19,0.5)' },
+  scrim: { flex: 1, justifyContent: 'flex-end', backgroundColor: color.scrim },
   fill: { flex: 1 },
   sheet: { backgroundColor: color.paper, paddingHorizontal: space.lg, paddingTop: space.lg, gap: space.md },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   grow: { flex: 1 },
   close: { width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
   list: { gap: space.sm },
-  option: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: TARGET, padding: space.md, borderWidth: 1, borderColor: color.porcelain },
+  option: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: TARGET, padding: space.md, borderWidth: 1, borderColor: color.porcelain, borderRadius: radius.soft },
   optionOn: { borderColor: color.obsidian },
   off: { opacity: 0.5 },
   radio: { width: 24, height: 24, borderRadius: radius.pill, borderWidth: 2, borderColor: color.stonewash, alignItems: 'center', justifyContent: 'center' },

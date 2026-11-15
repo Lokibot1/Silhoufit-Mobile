@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   placeholder: { color: color.graphite },
   message: { ...type.small, minHeight: 20 },
   messageError: { color: color.red },
-  scrim: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(22,17,19,0.5)' },
+  scrim: { flex: 1, justifyContent: 'flex-end', backgroundColor: color.scrim },
   sheet: { backgroundColor: color.paper, paddingHorizontal: space.lg, paddingTop: space.lg, gap: space.md },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   close: { width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },

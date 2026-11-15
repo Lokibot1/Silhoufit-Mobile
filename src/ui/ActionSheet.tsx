@@ -50,7 +50,7 @@ export function ActionSheet({ visible, title, options, onClose }: { visible: boo
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(22, 17, 19, 0.5)' },
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: color.scrim },
   sheet: { backgroundColor: color.paper, borderTopLeftRadius: radius.soft, borderTopRightRadius: radius.soft, paddingTop: space.lg, paddingHorizontal: space.lg },
   title: { paddingBottom: space.sm },
   row: { minHeight: 48, justifyContent: 'center', borderTopWidth: 1, borderTopColor: color.porcelain },

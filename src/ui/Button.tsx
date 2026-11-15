@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View, type TextStyle } from 'react-native'
 
 import { PressableScale } from './PressableScale'
-import { color, space, type } from './theme'
+import { color, radius, space, type } from './theme'
 
 type Props = {
   label: string
@@ -17,7 +17,7 @@ type Props = {
   labelStyle?: TextStyle
 }
 
-// KRAL button: square, 48px, uppercase. Primary is Red; secondary is an Obsidian outline that fills when pressed.
+// KRAL button: soft corners, 48px, uppercase. Primary is Red; secondary is an Obsidian outline that fills when pressed.
 export function Button({ label, onPress, variant = 'primary', testID, accessibilityLabel, accessibilityHint, pending = false, disabled = false, icon, labelStyle }: Props) {
   const primary = variant === 'primary'
   const off = pending || disabled
@@ -51,7 +51,7 @@ export function Button({ label, onPress, variant = 'primary', testID, accessibil
 }
 
 const styles = StyleSheet.create({
-  base: { minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  base: { minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, borderRadius: radius.soft },
   primary: { backgroundColor: color.red },
   primaryPressed: { backgroundColor: color.redPress },
   secondary: { borderWidth: 1, borderColor: color.obsidian, backgroundColor: 'transparent' },

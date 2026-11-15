@@ -1,4 +1,4 @@
-// KRAL design tokens (see SilhouFit/src/assets/DESIGN.md). Flat, square corners, hairlines, one loud red.
+// KRAL design tokens (see SilhouFit/src/assets/DESIGN.md). Flat, softly rounded corners, hairlines, one loud red.
 export const color = {
   red: '#CB1C2B',
   redPress: '#A81624',
@@ -7,6 +7,7 @@ export const color = {
   stonewash: '#85807C',
   porcelain: '#EEECED',
   paper: '#FFFBFD',
+  scrim: 'rgba(22,17,19,0.5)', // Obsidian behind sheets and dialogs
 }
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 }
 // Two radii only: soft tiles and cards, and pills for chips and the search field.

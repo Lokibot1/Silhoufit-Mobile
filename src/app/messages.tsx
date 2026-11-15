@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   failure: { maxWidth: '85%', gap: space.sm },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, paddingTop: space.sm, paddingHorizontal: space.lg, borderTopWidth: 1, borderTopColor: color.porcelain, backgroundColor: color.paper },
   field: { flex: 1, gap: space.xs },
-  input: { ...type.body, borderWidth: 1, borderColor: color.stonewash, minHeight: 48, maxHeight: 120, paddingHorizontal: space.md, paddingVertical: space.md, backgroundColor: color.paper },
+  input: { ...type.body, borderWidth: 1, borderColor: color.stonewash, borderRadius: radius.soft, minHeight: 48, maxHeight: 120, paddingHorizontal: space.md, paddingVertical: space.md, backgroundColor: color.paper },
   count: { alignSelf: 'flex-end', color: color.graphite },
   countWarn: { color: color.red, fontFamily: font.semibold },
   send: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },

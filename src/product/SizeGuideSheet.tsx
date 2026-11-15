@@ -107,7 +107,7 @@ export function SizeGuideSheet({ visible, onClose, ...rest }: Props) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(22,17,19,0.5)' },
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: color.scrim },
   sheet: { maxHeight: '85%', backgroundColor: color.paper },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingLeft: space.lg, paddingRight: space.xs, borderBottomWidth: 1, borderBottomColor: color.porcelain },
   close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
