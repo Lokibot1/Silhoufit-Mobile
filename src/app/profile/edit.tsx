@@ -1,6 +1,5 @@
 import { router, useFocusEffect, useNavigation } from 'expo-router'
 import { useCallback, useRef, useState, type ComponentRef } from 'react'
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { updateMe, type Gender, type Me, type MePatch } from '@/api/me'
@@ -18,6 +17,7 @@ import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 type Field = 'firstName' | 'middleName' | 'lastName' | 'suffix' | 'birthday'
+import { KeyboardScreen } from '@/ui/KeyboardScreen'
 type Values = Record<Field, string> & { gender: Gender | null }
 
 const ORDER: Field[] = ['firstName', 'middleName', 'lastName', 'suffix', 'birthday']
@@ -130,7 +130,7 @@ function Form({ me }: { me: Me }) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardScreen style={styles.flex}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: space.lg + insets.bottom }]} keyboardShouldPersistTaps="handled">
         <Text accessibilityRole="header" style={type.h1}>Edit Profile</Text>
         <AvatarEditor me={me} disabled={pending} onBusy={setPhotoBusy} />
@@ -252,7 +252,7 @@ function Form({ me }: { me: Me }) {
           />
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   )
 }
 

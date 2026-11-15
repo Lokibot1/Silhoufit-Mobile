@@ -1,6 +1,6 @@
 import { router } from 'expo-router'
 import { useEffect, useRef, useState, type ComponentRef } from 'react'
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { RESET_REDIRECT, setPassword, type SetPasswordErrorKind } from '@/auth/email'
 import { useSession } from '@/auth/session'
@@ -13,6 +13,7 @@ import { PasswordChecklist } from '@/ui/PasswordChecklist'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, font, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
+import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
 // What happened, why and the next step. `same` shows on the field and `expired` swaps the screen for the expired state.
 const FAILURE: Record<Exclude<SetPasswordErrorKind, 'same' | 'weak' | 'expired'>, { title: string; body: string }> = {
@@ -115,7 +116,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardScreen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text accessibilityRole="header" style={type.h1}>Choose a New Password</Text>
         <FloatingField
@@ -168,7 +169,7 @@ export default function ResetPassword() {
         )}
         <Button testID="reset-submit" label={failure ? 'Try Again' : 'Set Password'} pending={pending} onPress={submit} />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   )
 }
 

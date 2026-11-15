@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useNavigation, usePreventRemove } from 'expo-router'
 import { useEffect, useRef, useState, type ComponentRef } from 'react'
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { fetchBodyProfile, saveBodyProfile, updateBodyProfile, type BodyBuildId, type BodyModelId, type BodyProfile } from '@/api/bodyProfile'
@@ -16,6 +16,7 @@ import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
+import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
 const MODELS: { value: BodyModelId; label: string }[] = [
   { value: 'male', label: 'Male' },
@@ -121,7 +122,7 @@ function Form({ saved: initial }: { saved: BodyProfile | null }) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardScreen style={styles.flex}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: space.lg + insets.bottom }]} keyboardShouldPersistTaps="handled">
         <Text accessibilityRole="header" style={type.h1}>Body Profile</Text>
         <Text testID="body-intro" style={styles.copy}>
@@ -191,7 +192,7 @@ function Form({ saved: initial }: { saved: BodyProfile | null }) {
 
         <Button testID="body-save" label="Save Measurements" pending={pending} disabled={!dirty} onPress={save} />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   )
 }
 

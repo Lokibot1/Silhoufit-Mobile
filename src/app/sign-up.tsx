@@ -1,6 +1,6 @@
 import { router, useNavigation } from 'expo-router'
 import { useRef, useState, type ComponentRef } from 'react'
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 
 import { signUp, type SignUpErrorKind } from '@/auth/email'
@@ -28,6 +28,7 @@ import { PressableScale } from '@/ui/PressableScale'
 import { color, font, hairline, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
+import { KeyboardScreen } from '@/ui/KeyboardScreen'
 type Field = 'firstName' | 'lastName' | 'middleName' | 'suffix' | 'email' | 'birthday' | 'password' | 'confirm'
 const ORDER: Field[] = ['firstName', 'lastName', 'middleName', 'suffix', 'email', 'birthday', 'password', 'confirm']
 const IDS: Record<Field, string> = { firstName: 'first-name', lastName: 'last-name', middleName: 'middle-name', suffix: 'suffix', email: 'email', birthday: 'birthday', password: 'password', confirm: 'confirm' }
@@ -186,7 +187,7 @@ export default function SignUp() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardScreen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <KralLogo width={120} />
         <Text accessibilityRole="header" style={type.h1}>Create Account</Text>
@@ -282,7 +283,7 @@ export default function SignUp() {
           <Text style={type.body}>Already registered? <Text style={styles.linkText}>Sign In</Text></Text>
         </PressableScale>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   )
 }
 

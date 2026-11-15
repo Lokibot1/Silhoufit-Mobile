@@ -1,6 +1,5 @@
 import { router, useNavigation } from 'expo-router'
 import { useRef, useState, type ComponentRef } from 'react'
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { updateMe } from '@/api/me'
 import { useSession } from '@/auth/session'
@@ -13,6 +12,7 @@ import { StateMessage } from '@/ui/StateMessage'
 import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
+import { KeyboardScreen } from '@/ui/KeyboardScreen'
 // Shown once after a first Google sign-in, which gives no birthday: the web asks the same before letting a new account in.
 export default function Age() {
   const { session, loading, signOut, update } = useSession()
@@ -88,7 +88,7 @@ export default function Age() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardScreen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text accessibilityRole="header" style={type.h1}>Confirm Your Age</Text>
         <Text style={[type.body, { color: color.graphite }]}>Google did not share your birthday. KRAL accounts are for people 18 or older, so enter yours to continue.</Text>
@@ -116,7 +116,7 @@ export default function Age() {
         <Button testID="age-submit" label={failure ? 'Try Again' : 'Continue'} pending={pending} onPress={submit} />
         <Button testID="age-back" variant="secondary" label="Back to Sign In" disabled={pending} onPress={back} />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   )
 }
 

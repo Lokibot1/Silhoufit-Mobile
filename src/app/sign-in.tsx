@@ -1,6 +1,6 @@
 import { router, useNavigation } from 'expo-router'
 import { useRef, useState, type ComponentRef } from 'react'
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { signInWithGoogle } from '@/auth/google'
 import { useSession } from '@/auth/session'
@@ -12,6 +12,7 @@ import { KralLogo } from '@/ui/KralLogo'
 import { PressableScale } from '@/ui/PressableScale'
 import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
+import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
 type Field = 'email' | 'password'
 const validators = { email: validateEmail, password: validateLoginPassword }
@@ -92,7 +93,7 @@ export default function SignIn() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardScreen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <KralLogo width={120} />
         <Text accessibilityRole="header" style={type.h1}>Sign In</Text>
@@ -171,7 +172,7 @@ export default function SignIn() {
           <Text style={type.body}>New to KRAL? <Text style={styles.forgotText}>Create Account</Text></Text>
         </PressableScale>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   )
 }
 

@@ -1,6 +1,6 @@
 import { router } from 'expo-router'
 import { useRef, useState, type ComponentRef } from 'react'
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { requestPasswordReset, type MailErrorKind } from '@/auth/email'
 import { validateEmail } from '@/lib/loginValidation'
@@ -9,6 +9,7 @@ import { Button } from '@/ui/Button'
 import { FloatingField } from '@/ui/FloatingField'
 import { KralLogo } from '@/ui/KralLogo'
 import { color, space, type } from '@/ui/theme'
+import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
 // Identical for every address: the screen must never reveal whether an account exists.
 const SENT = 'If an account exists for that address, we sent a link to reset your password. The link expires in 30 minutes.'
@@ -58,7 +59,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardScreen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <KralLogo width={120} />
         <Text accessibilityRole="header" style={type.h1}>{sent ? 'Check Your Email' : 'Forgot Password'}</Text>
@@ -104,7 +105,7 @@ export default function ForgotPassword() {
           </>
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   )
 }
 

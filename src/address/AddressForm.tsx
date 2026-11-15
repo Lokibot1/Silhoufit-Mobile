@@ -1,6 +1,6 @@
 import { router, useNavigation, usePreventRemove } from 'expo-router'
 import { useEffect, useRef, useState, type ComponentRef } from 'react'
-import { Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { Alert, Keyboard, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { createAddress, updateAddress, type Address } from '@/api/addresses'
@@ -35,6 +35,7 @@ import { MAP_HEIGHT, MapPicker } from '@/ui/MapPicker'
 import { Skeleton } from '@/ui/Skeleton'
 import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
+import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
 import { PinSearch } from './PinSearch'
 import { PlacePicker } from './PlacePicker'
@@ -236,7 +237,7 @@ export function AddressForm({ saved, fromCheckout }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardScreen style={styles.flex}>
       <ScrollView testID="addr-scroll" contentContainerStyle={[styles.content, { paddingBottom: space.lg + insets.bottom }]} keyboardShouldPersistTaps="handled">
         <Text style={type.label}>(Delivery)</Text>
         <Text accessibilityRole="header" style={type.h1}>{saved ? 'Edit Address' : 'Add Address'}</Text>
@@ -378,7 +379,7 @@ export function AddressForm({ saved, fromCheckout }: Props) {
         {!!patch && !Object.keys(patch).length && <Text testID="addr-no-changes" style={type.small}>No changes to save.</Text>}
         <Button testID="addr-save" label="Save Address" pending={pending} disabled={!!patch && !Object.keys(patch).length} onPress={() => void save()} />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   )
 }
 

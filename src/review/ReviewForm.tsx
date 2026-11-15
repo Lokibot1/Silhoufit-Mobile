@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useNavigation, usePreventRemove } from 'expo-router'
 import { useEffect, useRef, useState, type ComponentRef } from 'react'
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
+import { Alert, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { createReview, notifyReviewsChanged, updateReview, type MyReview } from '@/api/reviews'
@@ -15,6 +15,7 @@ import { PhotoSourceSheet } from '@/ui/PhotoPicker'
 import { PressableScale } from '@/ui/PressableScale'
 import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
+import { KeyboardScreen } from '@/ui/KeyboardScreen'
 import { PhotoGrid, type Tile } from './PhotoGrid'
 
 const TARGET = 44
@@ -217,7 +218,7 @@ export function ReviewForm({ userId, orderId, productId, productName, review, on
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardScreen style={styles.flex}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: space.lg + insets.bottom }]} keyboardShouldPersistTaps="handled">
         <Text accessibilityRole="header" style={type.h1}>{review ? 'Edit Your Review' : 'Write A Review'}</Text>
         <Text testID="review-product" style={type.body}>{productName}</Text>
@@ -264,7 +265,7 @@ export function ReviewForm({ userId, orderId, productId, productName, review, on
         {phase === 'uploading' && <Button testID="review-cancel" variant="secondary" label="Cancel Upload" onPress={() => controller.current?.abort()} />}
       </ScrollView>
       <PhotoSourceSheet visible={sheet} onClose={() => setSheet(false)} title="Add a photo" limit={REVIEW_LIMITS.photosMax - tiles.length} onPhotos={pick} />
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   )
 }
 

@@ -1,6 +1,6 @@
 import { router } from 'expo-router'
 import { useEffect, useRef, useState, type ComponentRef } from 'react'
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { changePassword, hasPasswordLogin, type ChangePasswordResult } from '@/auth/email'
 import { useSession } from '@/auth/session'
@@ -13,6 +13,7 @@ import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, font, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
+import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
 type Failure = Exclude<Extract<ChangePasswordResult, { ok: false }>['kind'], 'wrong-password' | 'same'> | 'no-email'
 // What happened, why and the next step. A wrong current password and a repeated one show on their fields instead.
@@ -123,7 +124,7 @@ export default function ChangePassword() {
 
   const field = { editable: !pending, secureTextEntry: true, maxLength: LIMITS.passwordMaxLength, autoCapitalize: 'none', autoCorrect: false } as const
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardScreen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text accessibilityRole="header" style={type.h1}>Change Password</Text>
         <FloatingField
@@ -186,7 +187,7 @@ export default function ChangePassword() {
         )}
         <Button testID="password-submit" label="Update Password" pending={pending} onPress={() => void submit()} />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   )
 }
 

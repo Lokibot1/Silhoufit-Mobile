@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useRef, useState, type ComponentRef } from 'react'
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { resendConfirmation, signedUpEmail } from '@/auth/email'
 import { validateEmail } from '@/lib/loginValidation'
@@ -9,6 +9,7 @@ import { Button } from '@/ui/Button'
 import { FloatingField } from '@/ui/FloatingField'
 import { KralLogo } from '@/ui/KralLogo'
 import { color, font, space, type } from '@/ui/theme'
+import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
 const COOLDOWN_MS = 60_000
 // Identical for every address: the screen must never reveal whether an account exists.
@@ -67,7 +68,7 @@ export default function CheckEmail() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardScreen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <KralLogo width={120} />
         <Text accessibilityRole="header" style={type.h1}>Check Your Email</Text>
@@ -125,7 +126,7 @@ export default function CheckEmail() {
         />
         <Button testID="check-email-back" variant="secondary" label="Back to Sign In" disabled={pending} onPress={() => router.replace('/sign-in')} />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   )
 }
 
