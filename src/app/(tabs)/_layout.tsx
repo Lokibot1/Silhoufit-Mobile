@@ -7,9 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useChatUnread } from '@/chat/useChatUnread'
 import { HeaderIcon } from '@/ui/HeaderIcon'
-import { KralLogo } from '@/ui/KralLogo'
 import { PressableScale } from '@/ui/PressableScale'
-import { color, font } from '@/ui/theme'
+import { color, font, space, type } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
 // Outline when idle, solid when active, so the current tab reads at a glance.
@@ -41,13 +40,17 @@ function HeaderMessages() {
   return <HeaderIcon testID="header-messages" name="chatbubble-ellipses-outline" label="Messages" status={unread ? 'unread messages' : undefined} dot={unread} onPress={open} />
 }
 
-// Material top tabs have no header, so the KRAL header is drawn here; the Shop has its own band.
+// The screen title lives here, not in the content area; the tab label stays short (Alerts) but its screen is Notifications.
+const TITLES: Record<string, string> = { '/cart': 'Cart', '/orders': 'Orders', '/notifications': 'Notifications', '/profile': 'Profile' }
+
+// Material top tabs have no header, so it is drawn here; the Shop has its own band.
 function TabsHeader() {
   const { top } = useSafeAreaInsets()
-  if (usePathname() === '/') return null
+  const pathname = usePathname()
+  if (pathname === '/') return null
   return (
     <View style={[styles.header, { paddingTop: top }]}>
-      <KralLogo />
+      <Text accessibilityRole="header" style={type.h1}>{TITLES[pathname]}</Text>
       <HeaderMessages />
     </View>
   )

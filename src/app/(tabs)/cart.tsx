@@ -360,9 +360,7 @@ export default function CartScreen() {
   }
 
   const header = (
-    <View style={styles.header}>
-      <Text accessibilityRole="header" style={type.h1}>Cart</Text>
-    </View>
+    <View style={styles.header} />
   )
 
   if (loading || (signedIn && !cart && !error)) {

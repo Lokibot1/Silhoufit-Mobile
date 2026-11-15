@@ -195,9 +195,7 @@ export default function NotificationsScreen() {
   }
 
   const header = (
-    <View style={styles.header}>
-      <Text accessibilityRole="header" style={type.h1}>Notifications</Text>
-    </View>
+    <View style={styles.header} />
   )
 
   if (loading || (signedIn && !events && !error)) {

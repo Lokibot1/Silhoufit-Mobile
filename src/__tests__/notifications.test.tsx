@@ -72,7 +72,6 @@ it('shows the skeleton, then the update with label, order number and 12-hour tim
   await act(async () => resolve(pageOf([order('a')])))
   expect(screen.queryByRole('progressbar')).toBeNull()
   expect(screen.queryByText('(Order Updates)')).toBeNull()
-  expect(screen.getByText('Notifications')).toBeTruthy()
   expect(screen.getByText('Payment received')).toBeTruthy()
   expect(screen.getByText('Order SHF-a')).toBeTruthy()
   expect(screen.getByText('Nov 14, 2026, 1:49 PM')).toBeTruthy()

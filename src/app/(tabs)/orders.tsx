@@ -279,9 +279,7 @@ export default function OrdersScreen() {
   }
 
   const header = (
-    <View style={styles.header}>
-      <Text accessibilityRole="header" style={type.h1}>Orders</Text>
-    </View>
+    <View style={styles.header} />
   )
   const counts = items ? tabCounts(items) : null
   const tabs = (

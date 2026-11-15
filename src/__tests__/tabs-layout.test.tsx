@@ -27,7 +27,6 @@ jest.mock('expo-router/js-top-tabs', () => {
 jest.mock('@/chat/useChatUnread', () => ({ useChatUnread: () => false }))
 jest.mock('@/ui/useReduceMotion', () => ({ useReduceMotion: () => false }))
 jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
-jest.mock('@/ui/KralLogo', () => ({ KralLogo: () => null }))
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }))
 
 beforeEach(() => {
@@ -52,7 +51,12 @@ it('marks the focused tab selected and switches through tabPress', async () => {
   expect(mockNavigate).toHaveBeenCalledWith('cart')
 })
 
-it('shows the KRAL header with Messages on the other tabs but not on the Shop', async () => {
+it('shows the screen title in the header on the other tabs, and no title on the Shop', async () => {
+  await render(<TabsLayout />)
+  expect(screen.queryAllByRole('header')).toHaveLength(0)
+  for (const [path, title] of [['/cart', 'Cart'], ['/orders', 'Orders'], ['/notifications', 'Notifications'], ['/profile', 'Profile']]) {
+    mockPath = path
+    await render(<TabsLayout />)
   await render(<TabsLayout />)
   expect(screen.queryByTestId('header-messages')).toBeNull()
   mockPath = '/cart'
