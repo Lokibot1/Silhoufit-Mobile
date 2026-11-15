@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { fetchCategories, fetchProducts, type ProductListItem, type ProductSort } from '@/api/products'
@@ -13,7 +13,9 @@ import { useCartCount } from '@/lib/useCartCount'
 import { Button } from '@/ui/Button'
 import { Chip } from '@/ui/Chip'
 import { HeaderIcon } from '@/ui/HeaderIcon'
+import { PressableScale } from '@/ui/PressableScale'
 import { ProductCard, ProductCardSkeleton } from '@/ui/ProductCard'
+import { PullToRefresh } from '@/ui/PullToRefresh'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, radius, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
@@ -209,9 +211,9 @@ export default function Shop() {
               autoCorrect={false}
             />
             {query !== '' && (
-              <Pressable testID="shop-search-clear" accessibilityRole="button" accessibilityLabel="Clear search" onPress={clear} style={styles.clear}>
+              <PressableScale testID="shop-search-clear" accessibilityRole="button" accessibilityLabel="Clear search" onPress={clear} style={styles.clear}>
                 <Ionicons name="close" size={24} color={color.obsidian} />
-              </Pressable>
+              </PressableScale>
             )}
           </View>
           <HeaderIcon
@@ -260,25 +262,28 @@ export default function Shop() {
         </View>
       )}
       {status === 'ready' && items.length > 0 && (
-        <FlatList
-          testID="shop-list"
-          data={items}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          extraData={saved}
-          renderItem={({ item }) => (
-            <ProductCard item={item} onPress={() => open(item.id)} wishlist={{ saved: saved.includes(item.id), onChange: (on) => setSavedId(item.id, on), notify: toast }} />
+        <PullToRefresh refreshing={refreshing} onRefresh={refresh}>
+          {(scroll) => (
+            <FlatList
+              {...scroll}
+              testID="shop-list"
+              data={items}
+              keyExtractor={(item) => item.id}
+              numColumns={2}
+              extraData={saved}
+              renderItem={({ item }) => (
+                <ProductCard item={item} onPress={() => open(item.id)} wishlist={{ saved: saved.includes(item.id), onChange: (on) => setSavedId(item.id, on), notify: toast }} />
+              )}
+              columnWrapperStyle={styles.columns}
+              ItemSeparatorComponent={Gap}
+              contentContainerStyle={styles.content}
+              keyboardShouldPersistTaps="handled"
+              onEndReached={() => more !== 'error' && loadMore()}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={footer}
+            />
           )}
-          columnWrapperStyle={styles.columns}
-          ItemSeparatorComponent={Gap}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          onEndReached={() => more !== 'error' && loadMore()}
-          onEndReachedThreshold={0.5}
-          refreshing={refreshing}
-          onRefresh={refresh}
-          ListFooterComponent={footer}
-        />
+        </PullToRefresh>
       )}
     </View>
   )

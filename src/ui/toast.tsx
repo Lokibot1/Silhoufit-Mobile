@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { PressableScale } from './PressableScale'
 import { color, space, type } from './theme'
 
 const DISMISS_MS = 4500
@@ -38,7 +39,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <View style={styles.toast} testID="toast" pointerEvents={action ? 'auto' : 'none'}>
             <Text style={styles.text}>{message}</Text>
             {action && (
-              <Pressable
+              <PressableScale
                 testID="toast-action"
                 accessibilityRole="button"
                 accessibilityLabel={action.label}
@@ -49,7 +50,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 }}
                 style={styles.action}>
                 <Text style={styles.actionText}>{action.label}</Text>
-              </Pressable>
+              </PressableScale>
             )}
           </View>
         )}

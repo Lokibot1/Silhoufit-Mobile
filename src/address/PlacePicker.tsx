@@ -7,6 +7,7 @@ import { PsgcError } from '@/api/psgc'
 import { normalizePlace } from '@/lib/psgcMatch'
 import { useRequest } from '@/lib/useRequest'
 import { Button } from '@/ui/Button'
+import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, font, radius, space, type } from '@/ui/theme'
@@ -42,7 +43,7 @@ export function PlacePicker<T extends Item>({ testID, label, value, error, disab
   const tint = error ? color.red : color.stonewash
   return (
     <View style={styles.field}>
-      <Pressable
+      <PressableScale
         testID={testID}
         accessibilityRole="button"
         accessibilityLabel={`${label}, ${value || 'not chosen'}`}
@@ -56,7 +57,7 @@ export function PlacePicker<T extends Item>({ testID, label, value, error, disab
           <Text numberOfLines={1} style={[type.body, !value && styles.placeholder]}>{value || (disabled && disabledHint ? disabledHint : 'Choose')}</Text>
         </View>
         <Ionicons name="chevron-down" size={24} color={color.graphite} />
-      </Pressable>
+      </PressableScale>
       <Text accessibilityLiveRegion="polite" style={[styles.message, error ? styles.messageError : null]}>{error}</Text>
       {open && (
         <Sheet
@@ -92,9 +93,9 @@ function Sheet<T extends Item>({ title, selected, testID, loadKey, load, onClose
         <View testID={`${testID}-sheet`} accessibilityViewIsModal style={[styles.sheet, { height: height * 0.8, paddingBottom: insets.bottom + space.lg }]}>
           <View style={styles.head}>
             <Text accessibilityRole="header" style={[type.h2, styles.grow]}>{`Choose ${title.toLowerCase()}`}</Text>
-            <Pressable testID={`${testID}-close`} accessibilityRole="button" accessibilityLabel={`Close ${title.toLowerCase()} list`} onPress={onClose} style={styles.close}>
+            <PressableScale testID={`${testID}-close`} accessibilityRole="button" accessibilityLabel={`Close ${title.toLowerCase()} list`} onPress={onClose} style={styles.close}>
               <Ionicons name="close" size={24} color={color.obsidian} />
-            </Pressable>
+            </PressableScale>
           </View>
           {list.status === 'ready' && list.data!.length > 0 && (
             <TextInput
@@ -138,7 +139,7 @@ function Sheet<T extends Item>({ title, selected, testID, loadKey, load, onClose
               renderItem={({ item }) => {
                 const on = item.name === selected
                 return (
-                  <Pressable
+                  <PressableScale
                     testID={`${testID}-option-${item.code}`}
                     accessibilityRole="button"
                     accessibilityLabel={item.name}
@@ -146,7 +147,7 @@ function Sheet<T extends Item>({ title, selected, testID, loadKey, load, onClose
                     onPress={() => onPick(item)}
                     style={({ pressed }) => [styles.row, on && styles.rowOn, pressed && styles.pressed]}>
                     <Text style={[type.body, on && styles.rowTextOn]}>{item.name}</Text>
-                  </Pressable>
+                  </PressableScale>
                 )
               }}
             />

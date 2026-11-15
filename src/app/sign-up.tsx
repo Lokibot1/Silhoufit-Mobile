@@ -1,6 +1,6 @@
 import { router, useNavigation } from 'expo-router'
 import { useRef, useState, type ComponentRef } from 'react'
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 
 import { signUp, type SignUpErrorKind } from '@/auth/email'
@@ -24,6 +24,7 @@ import { FloatingField } from '@/ui/FloatingField'
 import { GoogleMark } from '@/ui/GoogleMark'
 import { KralLogo } from '@/ui/KralLogo'
 import { PasswordChecklist } from '@/ui/PasswordChecklist'
+import { PressableScale } from '@/ui/PressableScale'
 import { color, font, hairline, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
@@ -230,7 +231,7 @@ export default function SignUp() {
         />
 
         <View style={styles.consent}>
-          <Pressable
+          <PressableScale
             testID="sign-up-consent"
             accessibilityRole="checkbox"
             accessibilityLabel="I have read and agree to the Terms of Service and Privacy Policy."
@@ -240,14 +241,14 @@ export default function SignUp() {
             style={styles.consentRow}>
             <View style={[styles.box, consent && styles.boxOn]}>{consent && <Ionicons name="checkmark" size={16} color={color.paper} />}</View>
             <Text style={[type.body, styles.consentText]}>I have read and agree to the Terms of Service and Privacy Policy.</Text>
-          </Pressable>
+          </PressableScale>
           <View style={styles.links}>
-            <Pressable testID="sign-up-terms" accessibilityRole="link" accessibilityLabel="Read the Terms of Service" onPress={() => openDoc('terms')} style={styles.link}>
+            <PressableScale testID="sign-up-terms" accessibilityRole="link" accessibilityLabel="Read the Terms of Service" onPress={() => openDoc('terms')} style={styles.link}>
               <Text style={[type.body, styles.linkText]}>Terms of Service</Text>
-            </Pressable>
-            <Pressable testID="sign-up-privacy" accessibilityRole="link" accessibilityLabel="Read the Privacy Policy" onPress={() => openDoc('privacy')} style={styles.link}>
+            </PressableScale>
+            <PressableScale testID="sign-up-privacy" accessibilityRole="link" accessibilityLabel="Read the Privacy Policy" onPress={() => openDoc('privacy')} style={styles.link}>
               <Text style={[type.body, styles.linkText]}>Privacy Policy</Text>
-            </Pressable>
+            </PressableScale>
           </View>
           <Text testID="sign-up-consent-error" accessibilityLiveRegion="polite" style={[type.small, styles.consentError]}>{shown('consent')}</Text>
         </View>
@@ -277,9 +278,9 @@ export default function SignUp() {
           onPress={google}
         />
 
-        <Pressable testID="sign-up-signin" accessibilityRole="link" accessibilityLabel="Already registered? Sign In" onPress={() => router.replace('/sign-in')} style={styles.switch}>
+        <PressableScale testID="sign-up-signin" accessibilityRole="link" accessibilityLabel="Already registered? Sign In" onPress={() => router.replace('/sign-in')} style={styles.switch}>
           <Text style={type.body}>Already registered? <Text style={styles.linkText}>Sign In</Text></Text>
-        </Pressable>
+        </PressableScale>
       </ScrollView>
     </KeyboardAvoidingView>
   )

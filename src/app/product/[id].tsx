@@ -1,7 +1,7 @@
 import { Image } from 'expo-image'
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { useCallback, useRef, useState } from 'react'
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
+import { FlatList, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { addCartItem } from '@/api/cart'
@@ -236,9 +236,9 @@ function ProductView({ product }: { product: Product }) {
           <View style={styles.block}>
             <View style={styles.sizeHead}>
               <Text style={type.label}>(Size)</Text>
-              <Pressable testID="size-guide-link" accessibilityRole="button" accessibilityLabel="Size guide" onPress={() => setGuideOpen(true)} style={styles.guideLink}>
+              <PressableScale testID="size-guide-link" accessibilityRole="button" accessibilityLabel="Size guide" onPress={() => setGuideOpen(true)} style={styles.guideLink}>
                 <Text style={[type.small, styles.guideText]}>Size Guide</Text>
-              </Pressable>
+              </PressableScale>
             </View>
             <View style={styles.row}>
               {sizes.map((s) => {
@@ -326,9 +326,9 @@ export default function ProductScreen() {
           headerLeft: router.canGoBack()
             ? undefined
             : () => (
-                <Pressable testID="product-header-back" accessibilityRole="button" accessibilityLabel="Shop" onPress={() => router.navigate('/')} style={styles.headerBack}>
+                <PressableScale testID="product-header-back" accessibilityRole="button" accessibilityLabel="Shop" onPress={() => router.navigate('/')} style={styles.headerBack}>
                   <Text style={[type.label, { color: color.obsidian }]}>Shop</Text>
-                </Pressable>
+                </PressableScale>
               ),
         }}
       />

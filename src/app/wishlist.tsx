@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FlatList, Pressable, StyleSheet, View } from 'react-native'
+import { FlatList, StyleSheet, View } from 'react-native'
 
 import { addWishlistItem, fetchWishlist, removeWishlistItem, type WishlistItem } from '@/api/wishlist'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
+import { PressableScale } from '@/ui/PressableScale'
 import { ProductCard, ProductCardSkeleton } from '@/ui/ProductCard'
+import { PullToRefresh } from '@/ui/PullToRefresh'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, radius, space } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
@@ -176,33 +178,36 @@ function WishlistScreen() {
     )
   }
   return (
-    <FlatList
-      testID="wishlist-list"
-      style={styles.screen}
-      data={items}
-      keyExtractor={(item) => item.productId}
-      numColumns={2}
-      columnWrapperStyle={styles.columns}
-      ItemSeparatorComponent={Gap}
-      contentContainerStyle={styles.content}
-      refreshing={refreshing}
-      onRefresh={refresh}
-      renderItem={({ item }) => (
-        <View>
-          <ProductCard item={item.product} onPress={() => open(item.productId)} />
-          <Pressable
-            testID={`wishlist-remove-${item.productId}`}
-            accessibilityRole="button"
-            accessibilityLabel={`Remove ${item.product.name} from wishlist`}
-            onPress={() => remove(item)}
-            style={styles.remove}>
-            <View style={styles.disc}>
-              <Ionicons name="heart" size={20} color={color.red} />
+    <PullToRefresh refreshing={refreshing} onRefresh={refresh}>
+      {(scroll) => (
+        <FlatList
+          {...scroll}
+          testID="wishlist-list"
+          style={styles.screen}
+          data={items}
+          keyExtractor={(item) => item.productId}
+          numColumns={2}
+          columnWrapperStyle={styles.columns}
+          ItemSeparatorComponent={Gap}
+          contentContainerStyle={styles.content}
+          renderItem={({ item }) => (
+            <View>
+              <ProductCard item={item.product} onPress={() => open(item.productId)} />
+              <PressableScale
+                testID={`wishlist-remove-${item.productId}`}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${item.product.name} from wishlist`}
+                onPress={() => remove(item)}
+                style={styles.remove}>
+                <View style={styles.disc}>
+                  <Ionicons name="heart" size={20} color={color.red} />
+                </View>
+              </PressableScale>
             </View>
-          </Pressable>
-        </View>
+          )}
+        />
       )}
-    />
+    </PullToRefresh>
   )
 }
 

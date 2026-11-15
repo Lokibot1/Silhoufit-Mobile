@@ -1,6 +1,6 @@
 import { router, Stack, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { fetchAddresses } from '@/api/addresses'
@@ -15,6 +15,7 @@ import { cartWarning } from '@/checkout/cartWarning'
 import { takeCreated } from '@/checkout/newAddress'
 import { AddressSection, ItemsSection, PaymentSection, ShippingSection, SummarySection, totals } from '@/checkout/Sections'
 import { Button } from '@/ui/Button'
+import { PressableScale } from '@/ui/PressableScale'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
@@ -154,9 +155,9 @@ export default function CheckoutScreen() {
         headerLeft: router.canGoBack()
           ? undefined
           : () => (
-              <Pressable testID="checkout-header-back" accessibilityRole="button" accessibilityLabel="Cart" onPress={() => router.navigate('/cart')} style={styles.headerBack}>
+              <PressableScale testID="checkout-header-back" accessibilityRole="button" accessibilityLabel="Cart" onPress={() => router.navigate('/cart')} style={styles.headerBack}>
                 <Text style={[type.label, { color: color.obsidian }]}>Cart</Text>
-              </Pressable>
+              </PressableScale>
             ),
       }}
     />

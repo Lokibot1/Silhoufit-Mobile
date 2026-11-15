@@ -1,13 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
+import { FlatList, StyleSheet, Text, View } from 'react-native'
 
 import { fetchOrdersPage, orderUpdates, STAGE_KINDS, type NotificationEvent } from '@/api/orders'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { dateTime } from '@/lib/format'
 import { useLivePoll } from '@/lib/useLivePoll'
+import { PressableScale } from '@/ui/PressableScale'
+import { PullToRefresh } from '@/ui/PullToRefresh'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, space, type } from '@/ui/theme'
@@ -20,7 +22,7 @@ const isNew = (event: NotificationEvent, seen: string | null) => seen !== null &
 function UpdateRow({ event, fresh, onPress }: { event: NotificationEvent; fresh: boolean; onPress: () => void }) {
   const time = `${STAGE_KINDS.includes(event.kind) ? 'Updated ' : ''}${dateTime(event.at)}`
   return (
-    <Pressable
+    <PressableScale
       testID={`notification-row-${event.orderId}-${event.kind}`}
       accessibilityRole="button"
       accessibilityLabel={`${event.label}, order ${event.orderNumber}, ${time}${fresh ? ', new' : ''}`}
@@ -33,7 +35,7 @@ function UpdateRow({ event, fresh, onPress }: { event: NotificationEvent; fresh:
       <Text style={[type.small, type.numeric, { color: color.graphite }]}>{`Order ${event.orderNumber}`}</Text>
       <Text style={[type.small, type.numeric, { color: color.graphite }]}>{time}</Text>
       {event.note ? <Text style={[type.small, { color: color.graphite }]}>{event.note}</Text> : null}
-    </Pressable>
+    </PressableScale>
   )
 }
 
@@ -238,17 +240,20 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <FlatList
-      testID="notifications-list"
-      style={styles.screen}
-      contentContainerStyle={styles.listContent}
-      data={events}
-      keyExtractor={(event) => event.id}
-      ListHeaderComponent={header}
-      renderItem={({ item }) => <UpdateRow event={item} fresh={isNew(item, seen)} onPress={() => open(item.orderId)} />}
-      refreshing={refreshing}
-      onRefresh={refresh}
-    />
+    <PullToRefresh refreshing={refreshing} onRefresh={refresh}>
+      {(scroll) => (
+        <FlatList
+          {...scroll}
+          testID="notifications-list"
+          style={styles.screen}
+          contentContainerStyle={styles.listContent}
+          data={events}
+          keyExtractor={(event) => event.id}
+          ListHeaderComponent={header}
+          renderItem={({ item }) => <UpdateRow event={item} fresh={isNew(item, seen)} onPress={() => open(item.orderId)} />}
+        />
+      )}
+    </PullToRefresh>
   )
 }
 

@@ -2,12 +2,13 @@ import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect, usePathname } from 'expo-router'
 import { TopTabs, type MaterialTopTabBarProps } from 'expo-router/js-top-tabs'
 import { useCallback, useRef } from 'react'
-import { Pressable, StyleSheet, Text, View, type ColorValue } from 'react-native'
+import { StyleSheet, Text, View, type ColorValue } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useChatUnread } from '@/chat/useChatUnread'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { KralLogo } from '@/ui/KralLogo'
+import { PressableScale } from '@/ui/PressableScale'
 import { color, font } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
@@ -65,10 +66,10 @@ function TabBar({ state, descriptors, emitter, navigateToTab, insets }: Material
           if (!event.defaultPrevented) navigateToTab(route.key)
         }
         return (
-          <Pressable key={route.key} testID={options.tabBarButtonTestID} accessibilityRole="button" accessibilityLabel={options.title} accessibilityState={{ selected: focused }} onPress={onPress} style={styles.item}>
+          <PressableScale key={route.key} testID={options.tabBarButtonTestID} accessibilityRole="button" accessibilityLabel={options.title} accessibilityState={{ selected: focused }} onPress={onPress} style={styles.item}>
             {options.tabBarIcon?.({ focused, color: tint })}
             <TabLabel color={tint}>{options.title ?? route.name}</TabLabel>
-          </Pressable>
+          </PressableScale>
         )
       })}
     </View>

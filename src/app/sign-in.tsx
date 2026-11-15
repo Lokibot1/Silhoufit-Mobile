@@ -1,6 +1,6 @@
 import { router, useNavigation } from 'expo-router'
 import { useRef, useState, type ComponentRef } from 'react'
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { signInWithGoogle } from '@/auth/google'
 import { useSession } from '@/auth/session'
@@ -9,6 +9,7 @@ import { Button } from '@/ui/Button'
 import { FloatingField } from '@/ui/FloatingField'
 import { GoogleMark } from '@/ui/GoogleMark'
 import { KralLogo } from '@/ui/KralLogo'
+import { PressableScale } from '@/ui/PressableScale'
 import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
@@ -133,9 +134,9 @@ export default function SignIn() {
           onSubmitEditing={submit}
         />
 
-        <Pressable testID="sign-in-forgot" accessibilityRole="link" accessibilityLabel="Forgot password?" onPress={() => router.push('/forgot-password')} style={styles.forgot}>
+        <PressableScale testID="sign-in-forgot" accessibilityRole="link" accessibilityLabel="Forgot password?" onPress={() => router.push('/forgot-password')} style={styles.forgot}>
           <Text style={[type.body, styles.forgotText]}>Forgot password?</Text>
-        </Pressable>
+        </PressableScale>
 
         {failure && (
           <View testID="sign-in-banner" accessibilityRole="alert" style={styles.banner}>
@@ -162,13 +163,13 @@ export default function SignIn() {
           onPress={google}
         />
 
-        <Pressable testID="sign-in-no-email" accessibilityRole="link" accessibilityLabel="Didn't get a confirmation email?" onPress={() => router.push('/check-email')} style={styles.switch}>
+        <PressableScale testID="sign-in-no-email" accessibilityRole="link" accessibilityLabel="Didn't get a confirmation email?" onPress={() => router.push('/check-email')} style={styles.switch}>
           <Text style={[type.body, styles.forgotText]}>Didn't get a confirmation email?</Text>
-        </Pressable>
+        </PressableScale>
 
-        <Pressable testID="sign-in-create-account" accessibilityRole="link" accessibilityLabel="New to KRAL? Create Account" onPress={() => router.replace('/sign-up')} style={styles.switch}>
+        <PressableScale testID="sign-in-create-account" accessibilityRole="link" accessibilityLabel="New to KRAL? Create Account" onPress={() => router.replace('/sign-up')} style={styles.switch}>
           <Text style={type.body}>New to KRAL? <Text style={styles.forgotText}>Create Account</Text></Text>
-        </Pressable>
+        </PressableScale>
       </ScrollView>
     </KeyboardAvoidingView>
   )

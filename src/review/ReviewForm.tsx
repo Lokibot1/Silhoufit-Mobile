@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useNavigation, usePreventRemove } from 'expo-router'
 import { useEffect, useRef, useState, type ComponentRef } from 'react'
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { createReview, notifyReviewsChanged, updateReview, type MyReview } from '@/api/reviews'
@@ -12,6 +12,7 @@ import { deleteUploaded, isAbort, REVIEW_BUCKET, uploadErrorMessage, uploadPhoto
 import { Button } from '@/ui/Button'
 import { FloatingField } from '@/ui/FloatingField'
 import { PhotoSourceSheet } from '@/ui/PhotoPicker'
+import { PressableScale } from '@/ui/PressableScale'
 import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 import { PhotoGrid, type Tile } from './PhotoGrid'
@@ -42,7 +43,7 @@ function Stars({ value, onChange, disabled }: { value: number; onChange: (n: num
   return (
     <View testID="review-rating" accessibilityRole="radiogroup" accessibilityLabel="Rating" style={styles.stars}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <Pressable
+        <PressableScale
           key={n}
           testID={`review-star-${n}`}
           accessibilityRole="radio"
@@ -52,7 +53,7 @@ function Stars({ value, onChange, disabled }: { value: number; onChange: (n: num
           onPress={() => onChange(n)}
           style={styles.star}>
           <Ionicons name={n <= value ? 'star' : 'star-outline'} size={32} color={n <= value ? color.obsidian : color.stonewash} />
-        </Pressable>
+        </PressableScale>
       ))}
     </View>
   )

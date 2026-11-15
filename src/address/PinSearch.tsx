@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { ReverseGeocodeError, searchPlaces, type PlaceHit } from '@/api/reverseGeocode'
 import { Button } from '@/ui/Button'
 import { FloatingField } from '@/ui/FloatingField'
+import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { color, space, type } from '@/ui/theme'
 
@@ -74,7 +75,7 @@ export function PinSearch({ onPick, disabled }: { onPick: (lat: number, lon: num
         <Text testID="pin-search-empty" accessibilityLiveRegion="polite" style={styles.body}>{`No places in the Philippines match "${state.query}". Check the spelling, add the city, or tap the map.`}</Text>
       )}
       {state.status === 'done' && state.hits.map((hit, index) => (
-        <Pressable
+        <PressableScale
           key={`${hit.lat},${hit.lon},${index}`}
           testID={`pin-search-result-${index}`}
           accessibilityRole="button"
@@ -86,7 +87,7 @@ export function PinSearch({ onPick, disabled }: { onPick: (lat: number, lon: num
           }}
           style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
           <Text numberOfLines={2} style={type.body}>{hit.label}</Text>
-        </Pressable>
+        </PressableScale>
       ))}
       {state.status === 'chosen' && <Text testID="pin-search-chosen" accessibilityLiveRegion="polite" style={type.small}>{`Pin moved to ${state.label}.`}</Text>}
     </View>

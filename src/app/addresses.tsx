@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
+import { FlatList, Modal, StyleSheet, Text, View } from 'react-native'
 
 import { deleteAddress, fetchAddresses, setDefaultAddress, type Address } from '@/api/addresses'
 import { useSession } from '@/auth/session'
@@ -8,6 +8,8 @@ import { addressLines } from '@/checkout/AddressLines'
 import { hasPin } from '@/checkout/AddressSheet'
 import { ApiError, errorMessage } from '@/lib/api'
 import { Button } from '@/ui/Button'
+import { PressableScale } from '@/ui/PressableScale'
+import { PullToRefresh } from '@/ui/PullToRefresh'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, font, radius, space, type } from '@/ui/theme'
@@ -215,18 +217,21 @@ function AddressesScreen() {
   }
   return (
     <>
-      <FlatList
-        testID="addresses-list"
-        style={styles.screen}
-        data={items}
-        keyExtractor={(item) => item.id}
-        ItemSeparatorComponent={Gap}
-        contentContainerStyle={styles.content}
-        refreshing={refreshing}
-        onRefresh={refresh}
-        ListFooterComponent={<View style={styles.footer}><Button testID="addresses-add" label="Add Address" onPress={openAdd} /></View>}
-        renderItem={({ item }) => <AddressCard address={item} onDefault={() => void makeDefault(item)} onEdit={() => openEdit(item.id)} onDelete={() => setConfirming(item)} />}
-      />
+      <PullToRefresh refreshing={refreshing} onRefresh={refresh}>
+        {(scroll) => (
+          <FlatList
+            {...scroll}
+            testID="addresses-list"
+            style={styles.screen}
+            data={items}
+            keyExtractor={(item) => item.id}
+            ItemSeparatorComponent={Gap}
+            contentContainerStyle={styles.content}
+            ListFooterComponent={<View style={styles.footer}><Button testID="addresses-add" label="Add Address" onPress={openAdd} /></View>}
+            renderItem={({ item }) => <AddressCard address={item} onDefault={() => void makeDefault(item)} onEdit={() => openEdit(item.id)} onDelete={() => setConfirming(item)} />}
+          />
+        )}
+      </PullToRefresh>
       <Modal visible={confirming !== null} transparent animationType="fade" statusBarTranslucent onRequestClose={() => { if (!deleting) setConfirming(null) }}>
         <View style={styles.scrim}>
           <View testID="addresses-confirm" accessibilityViewIsModal style={styles.dialog}>
@@ -263,31 +268,31 @@ function AddressCard({ address, onDefault, onEdit, onDelete }: { address: Addres
       {!pinned && <Text style={type.small}>{NO_PIN_HINT}</Text>}
       <View style={styles.actions}>
         {!address.isDefault && (
-          <Pressable
+          <PressableScale
             testID={`address-default-${address.id}`}
             accessibilityRole="button"
             accessibilityLabel={`Set ${address.recipientName}, ${lines.street} as default address`}
             onPress={onDefault}
             style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
             <Text style={styles.actionText}>Set as Default</Text>
-          </Pressable>
+          </PressableScale>
         )}
-        <Pressable
+        <PressableScale
           testID={`address-edit-${address.id}`}
           accessibilityRole="button"
           accessibilityLabel={`Edit ${address.recipientName}, ${lines.street}`}
           onPress={onEdit}
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
           <Text style={styles.actionText}>Edit</Text>
-        </Pressable>
-        <Pressable
+        </PressableScale>
+        <PressableScale
           testID={`address-delete-${address.id}`}
           accessibilityRole="button"
           accessibilityLabel={`Delete ${address.recipientName}, ${lines.street}`}
           onPress={onDelete}
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
           <Text style={styles.actionText}>Delete</Text>
-        </Pressable>
+        </PressableScale>
       </View>
     </View>
   )

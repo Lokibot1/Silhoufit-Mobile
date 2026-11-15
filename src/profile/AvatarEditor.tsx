@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons'
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native'
 
 import { updateMe, type Me } from '@/api/me'
 import { useSession } from '@/auth/session'
@@ -9,6 +9,7 @@ import { AVATAR_BUCKET, checkImage, deleteUploaded, isAbort, uploadErrorMessage,
 import { Avatar } from '@/ui/Avatar'
 import { Button } from '@/ui/Button'
 import { PhotoSourceSheet, UploadProgress } from '@/ui/PhotoPicker'
+import { PressableScale } from '@/ui/PressableScale'
 import { color, radius, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
@@ -119,7 +120,7 @@ export function AvatarEditor({ me, disabled, onBusy }: { me: Me; disabled: boole
   return (
     <View style={styles.wrap}>
       <View style={styles.row}>
-        <Pressable
+        <PressableScale
           testID="avatar-edit"
           accessibilityRole="button"
           accessibilityLabel={me.avatarUrl ? 'Change profile photo' : 'Add profile photo'}
@@ -132,7 +133,7 @@ export function AvatarEditor({ me, disabled, onBusy }: { me: Me; disabled: boole
           <View style={styles.badge}>
             <Ionicons name="camera" size={14} color={color.paper} />
           </View>
-        </Pressable>
+        </PressableScale>
         <View style={styles.info}>
           {phase === 'uploading' && (
             <>

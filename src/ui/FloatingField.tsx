@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons'
 import { useEffect, useState, type ComponentRef, type Ref } from 'react'
-import { Animated, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native'
+import { Animated, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native'
 
+import { PressableScale } from './PressableScale'
 import { color, radius, space, type } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
@@ -97,7 +98,7 @@ export function FloatingField({
           </Animated.Text>
         </View>
         {secureTextEntry && (
-          <Pressable
+          <PressableScale
             testID={toggleTestID}
             accessibilityRole="button"
             accessibilityLabel={revealed ? 'Hide password' : 'Show password'}
@@ -105,7 +106,7 @@ export function FloatingField({
             style={styles.toggle}
             onPress={() => setRevealed((shown) => !shown)}>
             <Ionicons name={revealed ? 'eye-off' : 'eye'} size={24} color={color.graphite} />
-          </Pressable>
+          </PressableScale>
         )}
       </View>
       <Text accessibilityLiveRegion="polite" maxFontSizeMultiplier={1.2} style={[styles.message, error ? styles.messageError : null]}>

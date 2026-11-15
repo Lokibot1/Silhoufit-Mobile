@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import { type ComponentProps, useCallback, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native'
 
 import { useSession } from '@/auth/session'
 import { dateOnly } from '@/lib/format'
@@ -9,6 +9,7 @@ import { CONTACT_EMAIL, openLegal } from '@/lib/site'
 import { Avatar } from '@/ui/Avatar'
 import { Button } from '@/ui/Button'
 import { HeaderIcon } from '@/ui/HeaderIcon'
+import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { useToast } from '@/ui/toast'
@@ -43,7 +44,7 @@ function MenuRow({ icon, label, onPress, disabled = false, pending = false, divi
 }) {
   const off = disabled || pending
   return (
-    <Pressable
+    <PressableScale
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={disabled ? `${label}, ${SOON}` : label}
@@ -61,7 +62,7 @@ function MenuRow({ icon, label, onPress, disabled = false, pending = false, divi
       ) : (
         <Ionicons name={external ? 'open-outline' : 'chevron-forward'} size={24} color={color.graphite} />
       )}
-    </Pressable>
+    </PressableScale>
   )
 }
 
@@ -184,7 +185,7 @@ export default function Profile() {
 
           <View style={styles.sectionHead}>
             <Text accessibilityRole="header" style={type.h2}>My Orders</Text>
-            <Pressable
+            <PressableScale
               testID="profile-orders-all"
               accessibilityRole="button"
               accessibilityLabel="View all orders"
@@ -192,11 +193,11 @@ export default function Profile() {
               style={({ pressed }) => [styles.viewAll, pressed && styles.pressed]}>
               <Text style={type.body}>View all</Text>
               <Ionicons name="chevron-forward" size={16} color={color.obsidian} />
-            </Pressable>
+            </PressableScale>
           </View>
           <View style={styles.tiles}>
             {SHORTCUTS.map((s) => (
-              <Pressable
+              <PressableScale
                 key={s.id}
                 testID={`profile-orders-${s.id}`}
                 accessibilityRole="button"
@@ -205,7 +206,7 @@ export default function Profile() {
                 style={({ pressed }) => [styles.tile, pressed && styles.pressed]}>
                 <Ionicons name={s.icon} size={24} color={color.obsidian} />
                 <Text maxFontSizeMultiplier={1.3} style={[type.small, styles.tileLabel]}>{s.label}</Text>
-              </Pressable>
+              </PressableScale>
             ))}
           </View>
 

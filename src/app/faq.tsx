@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useRef, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { FAQ, filterFaq, type FaqLink } from '@/faq/faqData'
 import { openLegal } from '@/lib/site'
+import { PressableScale } from '@/ui/PressableScale'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, hairline, radius, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
@@ -46,9 +47,9 @@ export default function Faq() {
           autoCorrect={false}
         />
         {query !== '' && (
-          <Pressable testID="faq-search-clear" accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')} style={styles.clear}>
+          <PressableScale testID="faq-search-clear" accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')} style={styles.clear}>
             <Ionicons name="close" size={24} color={color.obsidian} />
-          </Pressable>
+          </PressableScale>
         )}
       </View>
       <Text testID="faq-count" accessibilityLiveRegion="polite" style={[type.small, type.numeric, styles.count]}>
@@ -65,7 +66,7 @@ export default function Faq() {
             const expanded = open === item.id
             return (
               <View key={item.id} style={index > 0 && styles.divider}>
-                <Pressable
+                <PressableScale
                   testID={`faq-item-${item.id}`}
                   accessibilityRole="button"
                   accessibilityLabel={item.question}
@@ -74,19 +75,19 @@ export default function Faq() {
                   style={({ pressed }) => [styles.question, pressed && styles.pressed]}>
                   <Text style={[type.body, styles.grow]}>{item.question}</Text>
                   <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={24} color={color.graphite} />
-                </Pressable>
+                </PressableScale>
                 {expanded && (
                   <View style={styles.answer}>
                     <Text style={[type.body, styles.muted]}>{item.answer}</Text>
                     {item.link && (
-                      <Pressable
+                      <PressableScale
                         testID={`faq-link-${item.id}`}
                         accessibilityRole="link"
                         accessibilityLabel={item.link.label}
                         onPress={() => follow(item.link!.to)}
                         style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
                         <Text style={[type.body, styles.linkText]}>{item.link.label}</Text>
-                      </Pressable>
+                      </PressableScale>
                     )}
                   </View>
                 )}

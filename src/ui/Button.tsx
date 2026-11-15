@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, type TextStyle } from 'react-native'
+import { ActivityIndicator, StyleSheet, Text, View, type TextStyle } from 'react-native'
 
+import { PressableScale } from './PressableScale'
 import { color, space, type } from './theme'
 
 type Props = {
@@ -21,7 +22,7 @@ export function Button({ label, onPress, variant = 'primary', testID, accessibil
   const primary = variant === 'primary'
   const off = pending || disabled
   return (
-    <Pressable
+    <PressableScale
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
@@ -45,7 +46,7 @@ export function Button({ label, onPress, variant = 'primary', testID, accessibil
           </View>
         )
       }
-    </Pressable>
+    </PressableScale>
   )
 }
 

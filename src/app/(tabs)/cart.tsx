@@ -12,6 +12,7 @@ import { ApiError, errorMessage } from '@/lib/api'
 import { peso } from '@/lib/format'
 import { Button } from '@/ui/Button'
 import { PressableScale } from '@/ui/PressableScale'
+import { PullToRefresh } from '@/ui/PullToRefresh'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, font, radius, space, type } from '@/ui/theme'
@@ -160,6 +161,7 @@ export default function CartScreen() {
   const mine = store.owner === userId ? store : EMPTY
   const { cart, error, rowError } = mine
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
   const insets = useSafeAreaInsets()
   const { height: windowHeight } = useWindowDimensions()
   const reduceMotion = useReduceMotion()
@@ -241,6 +243,10 @@ export default function CartScreen() {
   const retry = () => {
     if (userId) write(userId, { error: null })
     void load(new AbortController().signal)
+  }
+  const refresh = () => {
+    setRefreshing(true)
+    void load(new AbortController().signal).finally(() => setRefreshing(false))
   }
   const signIn = () => {
     if (opening.current) return
@@ -400,22 +406,27 @@ export default function CartScreen() {
 
   return (
     <View style={styles.screen}>
-      <FlatList
-        testID="cart-list"
-        style={styles.grow}
-        contentContainerStyle={styles.listContent}
-        data={cart.items}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={header}
-        renderItem={({ item }) => (
-          <CartRow item={item} locked={busyId !== null} pending={busyId === item.id} error={rowError?.id === item.id ? rowError.message : undefined} onOpen={open} onQuantity={changeQuantity} onRemove={remove} />
+      <PullToRefresh refreshing={refreshing} onRefresh={refresh}>
+        {(scroll) => (
+          <FlatList
+            {...scroll}
+            testID="cart-list"
+            style={styles.grow}
+            contentContainerStyle={styles.listContent}
+            data={cart.items}
+            keyExtractor={(item) => item.id}
+            ListHeaderComponent={header}
+            renderItem={({ item }) => (
+              <CartRow item={item} locked={busyId !== null} pending={busyId === item.id} error={rowError?.id === item.id ? rowError.message : undefined} onOpen={open} onQuantity={changeQuantity} onRemove={remove} />
+            )}
+            ListFooterComponent={
+              <PressableScale testID="cart-clear" accessibilityRole="button" accessibilityLabel="Clear cart" accessibilityState={{ disabled: busyId !== null, busy: busyId === '' }} disabled={busyId !== null} onPress={clear} style={[styles.clear, busyId !== null && styles.off]}>
+                {busyId === '' ? <ActivityIndicator color={color.graphite} /> : <Text style={styles.clearText}>Clear Cart</Text>}
+              </PressableScale>
+            }
+          />
         )}
-        ListFooterComponent={
-          <PressableScale testID="cart-clear" accessibilityRole="button" accessibilityLabel="Clear cart" accessibilityState={{ disabled: busyId !== null, busy: busyId === '' }} disabled={busyId !== null} onPress={clear} style={[styles.clear, busyId !== null && styles.off]}>
-            {busyId === '' ? <ActivityIndicator color={color.graphite} /> : <Text style={styles.clearText}>Clear Cart</Text>}
-          </PressableScale>
-        }
-      />
+      </PullToRefresh>
       <View testID="cart-bar" ref={barRef} onLayout={measureBar} style={[styles.bar, { paddingBottom: space.sm }]}>
         <View style={styles.subtotalRow}>
           <View style={styles.grow}>

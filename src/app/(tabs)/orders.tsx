@@ -12,6 +12,7 @@ import { useLivePoll } from '@/lib/useLivePoll'
 import { Button } from '@/ui/Button'
 import { Chip } from '@/ui/Chip'
 import { PressableScale } from '@/ui/PressableScale'
+import { PullToRefresh } from '@/ui/PullToRefresh'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { CHIP_HEIGHT, StatusChip } from '@/ui/StatusChip'
@@ -342,20 +343,23 @@ export default function OrdersScreen() {
     <View style={styles.screen}>
       {header}
       {tabs}
-      <FlatList
-        testID="orders-list"
-        contentContainerStyle={styles.listContent}
-        data={items.filter((order) => matchesTab(order, tab))}
-        keyExtractor={(order) => order.id}
-        renderItem={({ item }) => <OrderCard order={item} onOpen={() => open(item.id)} onTrack={(url) => void track(url)} />}
-        refreshing={refreshing}
-        onRefresh={refresh}
-        ListEmptyComponent={
-          <View style={styles.message}>
-            <StateMessage title={EMPTY_TAB[tab]} message="Orders with this status show up here." actionLabel="Show All Orders" onAction={() => setTab('all')} testID="orders-tab-empty-action" />
-          </View>
-        }
-      />
+      <PullToRefresh refreshing={refreshing} onRefresh={refresh}>
+        {(scroll) => (
+          <FlatList
+            {...scroll}
+            testID="orders-list"
+            contentContainerStyle={styles.listContent}
+            data={items.filter((order) => matchesTab(order, tab))}
+            keyExtractor={(order) => order.id}
+            renderItem={({ item }) => <OrderCard order={item} onOpen={() => open(item.id)} onTrack={(url) => void track(url)} />}
+            ListEmptyComponent={
+              <View style={styles.message}>
+                <StateMessage title={EMPTY_TAB[tab]} message="Orders with this status show up here." actionLabel="Show All Orders" onAction={() => setTab('all')} testID="orders-tab-empty-action" />
+              </View>
+            }
+          />
+        )}
+      </PullToRefresh>
     </View>
   )
 }

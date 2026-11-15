@@ -6,6 +6,7 @@ import { fetchCategoryMeasurements, MEASUREMENT_FIELDS, type MeasurementKey } fr
 import { ApiError, errorMessage } from '@/lib/api'
 import { useRequest } from '@/lib/useRequest'
 import { Button } from '@/ui/Button'
+import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, font, radius, space, type } from '@/ui/theme'
@@ -94,9 +95,9 @@ export function SizeGuideSheet({ visible, onClose, ...rest }: Props) {
         <View testID="size-guide" accessibilityViewIsModal style={[styles.sheet, { paddingBottom: insets.bottom }]}>
           <View style={styles.head}>
             <Text accessibilityRole="header" style={[type.h2, styles.grow]}>Size guide</Text>
-            <Pressable testID="size-guide-close" accessibilityRole="button" accessibilityLabel="Close size guide" onPress={onClose} style={styles.close}>
+            <PressableScale testID="size-guide-close" accessibilityRole="button" accessibilityLabel="Close size guide" onPress={onClose} style={styles.close}>
               <Ionicons name="close" size={24} color={color.obsidian} />
-            </Pressable>
+            </PressableScale>
           </View>
           <ScrollView contentContainerStyle={styles.body}>{visible && <Content onClose={onClose} {...rest} />}</ScrollView>
         </View>

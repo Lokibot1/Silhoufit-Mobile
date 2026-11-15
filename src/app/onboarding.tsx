@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useRef, useState, type ComponentRef } from 'react'
-import { BackHandler, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import { BackHandler, ScrollView, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useSession } from '@/auth/session'
 import { saveOnboarding, type OnboardingChoice } from '@/onboarding/status'
 import { Button } from '@/ui/Button'
+import { PressableScale } from '@/ui/PressableScale'
 import { color, hairline, radius, space, type } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
@@ -59,9 +60,9 @@ export default function Onboarding() {
     <View testID="onboarding" style={[styles.flex, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.top}>
         <Text testID="onboarding-step" accessibilityLiveRegion="polite" style={type.label}>{`(Step ${index + 1} of ${SLIDES.length})`}</Text>
-        <Pressable testID="onboarding-skip" accessibilityRole="button" accessibilityLabel="Skip tour" onPress={() => close('skipped')} style={({ pressed }) => [styles.skip, pressed && styles.pressed]}>
+        <PressableScale testID="onboarding-skip" accessibilityRole="button" accessibilityLabel="Skip tour" onPress={() => close('skipped')} style={({ pressed }) => [styles.skip, pressed && styles.pressed]}>
           <Text style={type.button}>Skip</Text>
-        </Pressable>
+        </PressableScale>
       </View>
 
       {/* Keyed by width (like PhotoViewer): a rotation or resize remounts the pager on the current slide, so the offset never goes stale. */}

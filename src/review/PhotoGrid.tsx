@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { type Photo } from '@/lib/imageUpload'
 import { REVIEW_LIMITS } from '@/lib/reviewValidation'
+import { PressableScale } from '@/ui/PressableScale'
 import { color, radius, space, type } from '@/ui/theme'
 
 /** A photo of the review: one it already has (`remote` set, no `photo`) or a new one that uploads on submit. */
@@ -30,17 +31,17 @@ function PhotoTile({ tile, n, size, locked, onRemove, onRetry }: { tile: Tile; n
         </View>
       )}
       {tile.state === 'failed' && (
-        <Pressable testID={`review-photo-${n}-retry`} accessibilityRole="button" accessibilityLabel={`Retry uploading photo ${n}`} onPress={onRetry} style={styles.overlay}>
+        <PressableScale testID={`review-photo-${n}-retry`} accessibilityRole="button" accessibilityLabel={`Retry uploading photo ${n}`} onPress={onRetry} style={styles.overlay}>
           <Text style={[type.small, styles.overlayText]}>Failed</Text>
           <Text style={[type.small, styles.overlayText, styles.retry]}>Retry</Text>
-        </Pressable>
+        </PressableScale>
       )}
       {!locked && (
-        <Pressable testID={`review-photo-${n}-remove`} accessibilityRole="button" accessibilityLabel={`Remove photo ${n}`} onPress={onRemove} style={styles.remove}>
+        <PressableScale testID={`review-photo-${n}-remove`} accessibilityRole="button" accessibilityLabel={`Remove photo ${n}`} onPress={onRemove} style={styles.remove}>
           <View style={styles.removeDot}>
             <Ionicons name="close" size={16} color={color.paper} />
           </View>
-        </Pressable>
+        </PressableScale>
       )}
     </View>
   )
@@ -54,7 +55,7 @@ export function PhotoGrid({ tiles, size, locked, onAdd, onRemove, onRetry }: { t
         <PhotoTile key={tile.id} tile={tile} n={i + 1} size={size} locked={locked} onRemove={() => onRemove(tile.id)} onRetry={onRetry} />
       ))}
       {tiles.length < REVIEW_LIMITS.photosMax && (
-        <Pressable
+        <PressableScale
           testID="review-add-photo"
           accessibilityRole="button"
           accessibilityLabel={`Add photo, ${tiles.length} of ${REVIEW_LIMITS.photosMax} added`}
@@ -64,7 +65,7 @@ export function PhotoGrid({ tiles, size, locked, onAdd, onRemove, onRetry }: { t
           style={[styles.tile, styles.add, { width: size, height: size }, locked && styles.locked]}>
           <Ionicons name="add" size={24} color={color.graphite} />
           <Text style={[type.small, type.numeric]}>{`${tiles.length}/${REVIEW_LIMITS.photosMax}`}</Text>
-        </Pressable>
+        </PressableScale>
       )}
     </View>
   )

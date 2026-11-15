@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { useState } from 'react'
-import { FlatList, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
+import { FlatList, Modal, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { PressableScale } from '@/ui/PressableScale'
 import { color, space, type } from '@/ui/theme'
 
 function Page({ url, label, width, height }: { url: string; label: string; width: number; height: number }) {
@@ -44,9 +45,9 @@ function Pager({ photos, start, author, onClose }: { photos: string[]; start: nu
             <Text style={[type.label, type.numeric, { color: color.paper }]}>{`${index + 1} / ${photos.length}`}</Text>
           </View>
         )}
-        <Pressable testID="photo-viewer-close" accessibilityRole="button" accessibilityLabel="Close photo" onPress={onClose} style={styles.close}>
+        <PressableScale testID="photo-viewer-close" accessibilityRole="button" accessibilityLabel="Close photo" onPress={onClose} style={styles.close}>
           <Ionicons name="close" size={24} color={color.paper} />
-        </Pressable>
+        </PressableScale>
       </View>
     </View>
   )

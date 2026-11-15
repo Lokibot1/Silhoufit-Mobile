@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import type { Address } from '@/api/addresses'
 import { Button } from '@/ui/Button'
+import { PressableScale } from '@/ui/PressableScale'
 import { color, font, radius, space, type } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
@@ -34,9 +35,9 @@ export function AddressSheet({ visible, addresses, selectedId, onSelect, onAdd, 
         <View testID="address-sheet" style={[styles.sheet, { maxHeight: height * 0.85, paddingBottom: insets.bottom + space.lg }]}>
           <View style={styles.head}>
             <Text ref={title} accessible accessibilityRole="header" style={[type.h2, styles.grow]}>Choose delivery address</Text>
-            <Pressable testID="address-sheet-close" accessibilityRole="button" accessibilityLabel="Close address list" onPress={onClose} style={styles.close}>
+            <PressableScale testID="address-sheet-close" accessibilityRole="button" accessibilityLabel="Close address list" onPress={onClose} style={styles.close}>
               <Ionicons name="close" size={24} color={color.obsidian} />
-            </Pressable>
+            </PressableScale>
           </View>
           <ScrollView accessibilityRole="radiogroup" contentContainerStyle={styles.list}>
             {addresses.map((address) => {
@@ -44,7 +45,7 @@ export function AddressSheet({ visible, addresses, selectedId, onSelect, onAdd, 
               const selected = address.id === selectedId
               const lines = addressLines(address)
               return (
-                <Pressable
+                <PressableScale
                   key={address.id}
                   testID={`address-option-${address.id}`}
                   accessibilityRole="radio"
@@ -61,13 +62,13 @@ export function AddressSheet({ visible, addresses, selectedId, onSelect, onAdd, 
                     {address.isDefault && <Text style={styles.tag}>Default</Text>}
                     {!pinned && <Text style={styles.reason}>{NO_PIN}</Text>}
                   </View>
-                </Pressable>
+                </PressableScale>
               )
             })}
-            <Pressable testID="address-add" accessibilityRole="button" accessibilityLabel="Add New Address" onPress={onAdd} style={styles.option}>
+            <PressableScale testID="address-add" accessibilityRole="button" accessibilityLabel="Add New Address" onPress={onAdd} style={styles.option}>
               <Ionicons name="add" size={24} color={color.obsidian} />
               <Text style={styles.name}>Add New Address</Text>
-            </Pressable>
+            </PressableScale>
           </ScrollView>
           <Button testID="address-sheet-cancel" variant="secondary" label="Cancel" onPress={onClose} />
         </View>

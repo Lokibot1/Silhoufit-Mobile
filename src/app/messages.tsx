@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react'
-import { AccessibilityInfo, ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { fetchMessages, fetchMyConversation, markRead, MAX_MESSAGE_LENGTH, sendFailureCopy, sendMessage, subscribeToConversation, type ChatMessage } from '@/api/chat'
@@ -9,6 +9,7 @@ import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { dateTime } from '@/lib/format'
 import { Button } from '@/ui/Button'
+import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, font, radius, space, type } from '@/ui/theme'
@@ -306,7 +307,7 @@ export default function MessagesScreen() {
               />
               {(inputFocused || text.length > 0) && <Text style={[type.small, type.numeric, styles.count, text.length >= WARN_FROM && styles.countWarn]}>{`${text.length}/${MAX_MESSAGE_LENGTH}`}</Text>}
             </View>
-            <Pressable
+            <PressableScale
               testID="messages-send"
               accessibilityRole="button"
               accessibilityLabel="Send message"
@@ -315,7 +316,7 @@ export default function MessagesScreen() {
               onPress={submit}
               style={styles.send}>
               {pending ? <ActivityIndicator color={color.obsidian} /> : <Ionicons name="send" size={24} color={blocked || empty ? color.stonewash : color.red} />}
-            </Pressable>
+            </PressableScale>
           </View>
         )}
       </KeyboardAvoidingView>

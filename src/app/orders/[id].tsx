@@ -2,7 +2,7 @@ import { Image } from 'expo-image'
 import { openBrowserAsync } from 'expo-web-browser'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, AppState, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { awaitsPayment, buildTimeline, cancelOrder, createCheckoutSession, fetchOrder, isClosed, orderSignature, paymentLabel, shipmentLabel, statusLabel, trackingLink, type Order, type OrderItem, type TimelineStep } from '@/api/orders'
@@ -13,6 +13,7 @@ import { useLivePoll } from '@/lib/useLivePoll'
 import { useRequest } from '@/lib/useRequest'
 import { OrderReviews } from '@/review/OrderReviews'
 import { Button } from '@/ui/Button'
+import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { CHIP_HEIGHT, StatusChip } from '@/ui/StatusChip'
@@ -422,9 +423,9 @@ export default function OrderScreen() {
           headerLeft: router.canGoBack()
             ? undefined
             : () => (
-                <Pressable testID="order-header-back" accessibilityRole="button" accessibilityLabel="Orders" onPress={() => router.navigate('/orders')} style={styles.headerBack}>
+                <PressableScale testID="order-header-back" accessibilityRole="button" accessibilityLabel="Orders" onPress={() => router.navigate('/orders')} style={styles.headerBack}>
                   <Text style={[type.label, { color: color.obsidian }]}>Orders</Text>
-                </Pressable>
+                </PressableScale>
               ),
         }}
       />

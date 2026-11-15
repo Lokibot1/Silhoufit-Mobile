@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { useEffect, useRef, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
 
 import { fetchProductReviews, onReviewsChanged, type Review, type ReviewSort, type ReviewSummary } from '@/api/reviews'
 import { errorMessage } from '@/lib/api'
@@ -9,6 +9,7 @@ import { dateOnly } from '@/lib/format'
 import { Avatar } from '@/ui/Avatar'
 import { Button } from '@/ui/Button'
 import { Chip } from '@/ui/Chip'
+import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { color, font, radius, space, type } from '@/ui/theme'
 import { PhotoViewer } from './PhotoViewer'
@@ -50,9 +51,9 @@ function Stars({ value, label, size = 16 }: { value: number; label: string; size
 function Photo({ url, label, onPress, testID }: { url: string; label: string; onPress: () => void; testID: string }) {
   const [failed, setFailed] = useState(false)
   return (
-    <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.photo}>
+    <PressableScale testID={testID} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.photo}>
       {failed ? <Ionicons name="image-outline" size={24} color={color.stonewash} /> : <Image source={{ uri: url }} accessible={false} contentFit="cover" onError={() => setFailed(true)} style={styles.fill} />}
-    </Pressable>
+    </PressableScale>
   )
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { PressableScale } from './PressableScale'
 import { color, font, radius, space, type } from './theme'
 
 export type SheetOption = { label: string; onPress: () => void; testID: string; destructive?: boolean }
@@ -35,13 +36,13 @@ export function ActionSheet({ visible, title, options, onClose }: { visible: boo
         <View accessibilityViewIsModal style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]}>
           <Text accessibilityRole="header" style={[type.h2, styles.title]}>{title}</Text>
           {options.map((option) => (
-            <Pressable key={option.testID} testID={option.testID} accessibilityRole="button" onPress={() => choose(option)} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+            <PressableScale key={option.testID} testID={option.testID} accessibilityRole="button" onPress={() => choose(option)} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
               <Text style={[type.body, option.destructive && styles.destructive]}>{option.label}</Text>
-            </Pressable>
+            </PressableScale>
           ))}
-          <Pressable testID="sheet-cancel" accessibilityRole="button" onPress={onClose} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+          <PressableScale testID="sheet-cancel" accessibilityRole="button" onPress={onClose} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
             <Text style={[type.body, styles.cancel]}>Cancel</Text>
-          </Pressable>
+          </PressableScale>
         </View>
       </View>
     </Modal>
