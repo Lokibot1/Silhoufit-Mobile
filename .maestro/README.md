@@ -123,3 +123,5 @@ Check Email ids: `check-email-address`, `check-email-input` (only without an add
 Reset ids: `reset-checking`, `reset-expired` (button "Send a New Reset Email"), `reset-shop`, `reset-retry`, `reset-password` (`reset-toggle-password`), `reset-checklist`, `reset-confirm` (`reset-toggle-confirm`), `reset-error`, `reset-submit`.
 Confirm ids: `confirm-checking`, `confirm-expired` (button "Send a New Link"), `confirm-retry`, `confirm-signin`.
 Age ids: `age-loading`, `age-signin`, `age-birthday`, `age-error`, `age-submit`, `age-back`, `age-underage`.
+
+Not-found (flow 56 is UNRUN like the rest): `silhoufitmobile://does-not-exist` shows the custom "Page not found" screen (`not-found-shop` "Go to Shop", `not-found-back` "Go Back", only when there is a screen to go back to) and "Go to Shop" lands on the tabs. The route error screen (`error-retry`, `error-shop`) only appears when a screen throws, so it is covered by Jest and MANUAL.md. Profile "About KRAL" ids: `profile-menu-about|privacy|terms|contact` (shown signed in and signed out).

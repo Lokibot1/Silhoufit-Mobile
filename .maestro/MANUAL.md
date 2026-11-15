@@ -299,3 +299,10 @@ Needs a rebuilt dev client (the WebView is a native module) and an order that is
 - [ ] "Map not showing? Open it in your browser" opens the courier page in the system browser; a double tap opens it once; with no browser it toasts "Couldn't open the tracking page. Try again."
 - [ ] An order with no link keeps "Tracking link isn't available yet..." and shows no map.
 - [ ] Dark mode is not applicable (the app is light only); TalkBack/VoiceOver reads the box as "Live delivery map" and the loading and error states are announced.
+
+## Not-found, error screen and About KRAL (dev build and release build)
+- [ ] `silhoufitmobile://does-not-exist` (adb `am start -a android.intent.action.VIEW -d`, or `xcrun simctl openurl`) shows "Page not found" with Go to Shop and, when a screen is underneath, Go Back; never "Unmatched Route". A cold start from the link and a warm one both work. Go to Shop lands on the Shop tab.
+- [ ] Google sign-in still returns cleanly (`silhoufitmobile://auth/callback`) and shows no not-found screen, on Android and iOS.
+- [ ] Error screen (temporarily throw in a screen's render in a dev build): "Something went wrong" with Try Again and Go to Shop, no message or stack text on screen. Try Again re-renders the screen; Go to Shop leaves the broken screen. Check the same for a throw in the root layout (the router may not navigate there: Try Again must still work). Release build: no red box, same screen.
+- [ ] Both screens: buttons 48px tall, text scales at the largest font size without clipping, TalkBack/VoiceOver reads the title as a heading and the error screen announces as an alert, no sideways scroll at 320px.
+- [ ] Profile "About KRAL": About, Privacy Policy and Terms and Conditions open the web pages in the system browser (check `EXPO_PUBLIC_SITE_URL`); with no browser or airplane mode they toast "Couldn't open the page...". Contact Us opens the email app addressed to team@silhoufit.dev; on a device or emulator with no email app it toasts "No email app found. Write to team@silhoufit.dev." The rows are 56px, read "<label>, Opens in your browser" (Contact Us: "Opens your email app") and show up when signed out as well.

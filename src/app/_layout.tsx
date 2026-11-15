@@ -14,6 +14,9 @@ import { color, type } from '@/ui/theme'
 import { ToastProvider } from '@/ui/toast'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
+// Expo Router renders this when a screen throws.
+export { RouteError as ErrorBoundary } from '@/ui/ErrorScreen'
+
 SplashScreen.preventAutoHideAsync()
 
 const kralTheme = {
@@ -76,6 +79,7 @@ function Gate() {
             headerTintColor: color.obsidian,
           }}
         />
+        <Stack.Screen name="+not-found" options={{ headerShown: false }} />
         <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
         <Stack.Screen
           name="sign-in"

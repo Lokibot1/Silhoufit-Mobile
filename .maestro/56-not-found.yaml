@@ -1,0 +1,22 @@
+appId: ${APP_ID}
+---
+# An unmatched deep link lands on the custom Page not found screen (src/app/+not-found.tsx), never "Unmatched Route".
+# Needs no backend and no account. In a dev build the dev launcher may intercept openLink (same caveat as flows 15, 24 and 26).
+# On iOS a system "Open in <app>?" prompt may appear; it is tapped if present.
+- runFlow: subflows/launch.yaml
+- openLink: silhoufitmobile://does-not-exist
+- tapOn:
+    text: '(?i)Open'
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: not-found-shop
+    timeout: 10000
+- assertVisible: Page not found
+- assertNotVisible: '(?i)Unmatched Route'
+- tapOn:
+    id: not-found-shop
+- extendedWaitUntil:
+    visible:
+      id: tab-profile
+    timeout: 10000

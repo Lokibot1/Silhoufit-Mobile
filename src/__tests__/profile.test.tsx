@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
-import { Alert } from 'react-native'
+import { Alert, Linking } from 'react-native'
 
 import Profile from '../app/(tabs)/profile'
 
@@ -8,10 +8,13 @@ jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), navigate: jest.fn() }, useFocusEffect: jest.fn() }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
 jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
+jest.mock('@/lib/site', () => ({ CONTACT_EMAIL: 'team@silhoufit.dev', openLegal: jest.fn(() => Promise.resolve()) }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
 const mockToast = jest.fn()
 const mockUseSession = jest.requireMock('@/auth/session').useSession
 const { push: mockPush, navigate: mockNavigate } = jest.requireMock('expo-router').router
+const mockOpenLegal = jest.requireMock('@/lib/site').openLegal as jest.Mock
+const openUrlSpy = jest.spyOn(Linking, 'openURL')
 const alertSpy = jest.spyOn(Alert, 'alert')
 const pressAlert = async (text: string) => {
   const buttons = alertSpy.mock.calls.at(-1)?.[2] ?? []
@@ -21,6 +24,8 @@ const pressAlert = async (text: string) => {
 beforeEach(() => {
   jest.clearAllMocks()
   alertSpy.mockImplementation(() => {})
+  openUrlSpy.mockResolvedValue(undefined)
+  mockOpenLegal.mockResolvedValue(undefined)
 })
 
 const base = { session: null, profile: null, loading: false, error: null, retry: jest.fn(), signOut: jest.fn().mockResolvedValue(undefined) }
@@ -189,4 +194,41 @@ describe('signed-in layout', () => {
     expect(screen.queryByTestId('profile-edit')).toBeNull() // default queries skip hidden elements
     expect(screen.getByLabelText('Edit Profile')).toBe(screen.getByTestId('profile-menu-edit'))
   })
+})
+
+it('opens About, Privacy and Terms in the browser from the About KRAL group', async () => {
+  mockUseSession.mockReturnValue({ ...base, session: {}, profile: me })
+  await render(<Profile />)
+  expect(screen.getByText('About KRAL')).toBeTruthy()
+  for (const id of ['about', 'privacy', 'terms']) await fireEvent.press(screen.getByTestId(`profile-menu-${id}`))
+  expect(mockOpenLegal.mock.calls).toEqual([['about'], ['privacy'], ['terms']])
+  expect(screen.getByTestId('profile-menu-privacy').props.accessibilityHint).toBe('Opens in your browser')
+})
+
+it('toasts when the browser cannot open', async () => {
+  mockOpenLegal.mockRejectedValue(new Error('no browser'))
+  mockUseSession.mockReturnValue({ ...base, session: {}, profile: me })
+  await render(<Profile />)
+  await fireEvent.press(screen.getByTestId('profile-menu-terms'))
+  await waitFor(() => expect(mockToast).toHaveBeenCalledWith("Couldn't open the page. Check your connection and try again."))
+})
+
+it('opens the email app for Contact Us, and toasts the address when there is none', async () => {
+  mockUseSession.mockReturnValue({ ...base, session: {}, profile: me })
+  await render(<Profile />)
+  await fireEvent.press(screen.getByTestId('profile-menu-contact'))
+  expect(openUrlSpy).toHaveBeenCalledWith('mailto:team@silhoufit.dev')
+  expect(mockToast).not.toHaveBeenCalled()
+  openUrlSpy.mockRejectedValue(new Error('no app'))
+  await fireEvent.press(screen.getByTestId('profile-menu-contact'))
+  await waitFor(() => expect(mockToast).toHaveBeenCalledWith('No email app found. Write to team@silhoufit.dev.'))
+})
+
+it('shows the About KRAL rows signed out too, but not while loading', async () => {
+  mockUseSession.mockReturnValue(base)
+  const view = await render(<Profile />)
+  expect(screen.getByTestId('profile-menu-contact')).toBeTruthy()
+  mockUseSession.mockReturnValue({ ...base, loading: true })
+  await view.rerender(<Profile />)
+  expect(screen.queryByTestId('profile-menu-contact')).toBeNull()
 })

@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import { type ComponentProps, useCallback, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
 import { useSession } from '@/auth/session'
 import { dateOnly } from '@/lib/format'
+import { CONTACT_EMAIL, openLegal } from '@/lib/site'
 import { Avatar } from '@/ui/Avatar'
 import { Button } from '@/ui/Button'
 import { HeaderIcon } from '@/ui/HeaderIcon'
@@ -29,13 +30,15 @@ const SOON = 'Coming soon'
 const openOrders = (tab: string) => router.navigate({ pathname: '/orders', params: { tab, nav: String(Date.now()) } })
 
 // A 56px menu row. A disabled row says why instead of pretending to go somewhere.
-function MenuRow({ icon, label, onPress, disabled = false, pending = false, divider = true, testID }: {
+function MenuRow({ icon, label, onPress, disabled = false, pending = false, divider = true, external = false, hint, testID }: {
   icon: IconName
   label: string
   onPress?: () => void
   disabled?: boolean
   pending?: boolean
   divider?: boolean
+  external?: boolean
+  hint?: string
   testID: string
 }) {
   const off = disabled || pending
@@ -44,6 +47,7 @@ function MenuRow({ icon, label, onPress, disabled = false, pending = false, divi
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={disabled ? `${label}, ${SOON}` : label}
+      accessibilityHint={hint}
       accessibilityState={{ disabled: off, busy: pending }}
       disabled={off}
       onPress={onPress}
@@ -55,7 +59,7 @@ function MenuRow({ icon, label, onPress, disabled = false, pending = false, divi
       ) : disabled ? (
         <Text style={[type.small, styles.off]}>{SOON}</Text>
       ) : (
-        <Ionicons name="chevron-forward" size={24} color={color.graphite} />
+        <Ionicons name={external ? 'open-outline' : 'chevron-forward'} size={24} color={color.graphite} />
       )}
     </Pressable>
   )
@@ -105,6 +109,9 @@ export default function Profile() {
     opening.current = true
     router.push('/profile/edit')
   }
+  const openPage = (doc: Parameters<typeof openLegal>[0]) =>
+    openLegal(doc).catch(() => toast("Couldn't open the page. Check your connection and try again."))
+  const writeToUs = () => Linking.openURL(`mailto:${CONTACT_EMAIL}`).catch(() => toast(`No email app found. Write to ${CONTACT_EMAIL}.`))
   const name = profile ? profile.fullName?.trim() || `${profile.firstName} ${profile.lastName}`.trim() : ''
 
   return (
@@ -198,6 +205,18 @@ export default function Profile() {
             <MenuRow testID="profile-menu-addresses" icon="location-outline" label="Delivery Addresses" disabled />
             <MenuRow testID="profile-menu-body" icon="body-outline" label="Body Profile" disabled />
             <MenuRow testID="profile-sign-out" icon="log-out-outline" label="Sign Out" pending={signingOut} onPress={confirmSignOut} />
+          </View>
+        </View>
+      )}
+      {/* Also shown signed out and on a profile error: the policies and contact need no account. */}
+      {!loading && (
+        <View style={styles.stack}>
+          <Text accessibilityRole="header" style={type.h2}>About KRAL</Text>
+          <View style={styles.card}>
+            <MenuRow testID="profile-menu-about" icon="information-circle-outline" label="About" external hint="Opens in your browser" onPress={() => openPage('about')} divider={false} />
+            <MenuRow testID="profile-menu-privacy" icon="shield-checkmark-outline" label="Privacy Policy" external hint="Opens in your browser" onPress={() => openPage('privacy')} />
+            <MenuRow testID="profile-menu-terms" icon="document-text-outline" label="Terms and Conditions" external hint="Opens in your browser" onPress={() => openPage('terms')} />
+            <MenuRow testID="profile-menu-contact" icon="mail-outline" label="Contact Us" external hint="Opens your email app" onPress={writeToUs} />
           </View>
         </View>
       )}
