@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useState } from 'react'
 import { Text } from 'react-native'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 import { AgeGate } from '@/auth/AgeGate'
 import { SessionProvider, useSession } from '@/auth/session'
@@ -48,6 +49,15 @@ function Gate() {
           name="orders/[id]"
           options={{
             headerTitle: () => <KralLogo width={72} />,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
+        <Stack.Screen
+          name="orders/review"
+          options={{
+            headerTitle: () => <Text style={type.h2}>Your Review</Text>,
             headerStyle: { backgroundColor: color.paper },
             headerShadowVisible: false,
             headerTintColor: color.obsidian,
@@ -230,12 +240,14 @@ export default function RootLayout() {
 
   if (!fontsSettled) return null
   return (
-    <SessionProvider>
-      <ThemeProvider value={kralTheme}>
-        <ToastProvider>
-          <Gate />
-        </ToastProvider>
-      </ThemeProvider>
-    </SessionProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SessionProvider>
+        <ThemeProvider value={kralTheme}>
+          <ToastProvider>
+            <Gate />
+          </ToastProvider>
+        </ThemeProvider>
+      </SessionProvider>
+    </GestureHandlerRootView>
   )
 }

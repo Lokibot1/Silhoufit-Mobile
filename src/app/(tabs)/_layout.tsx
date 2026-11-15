@@ -6,6 +6,7 @@ import { Text, type ColorValue } from 'react-native'
 import { useChatUnread } from '@/chat/useChatUnread'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { KralLogo } from '@/ui/KralLogo'
+import { PagedTabs } from '@/ui/PagedTabs'
 import { color, font } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
@@ -41,6 +42,7 @@ function HeaderMessages() {
 export default function TabsLayout() {
   const reduce = useReduceMotion()
   return (
+    <PagedTabs>
     <Tabs
       screenOptions={{
         animation: reduce ? 'none' : 'shift',
@@ -60,5 +62,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="notifications" options={{ title: 'Alerts', tabBarButtonTestID: 'tab-notifications', tabBarIcon: icon('notifications') }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarButtonTestID: 'tab-profile', tabBarIcon: icon('person') }} />
     </Tabs>
+    </PagedTabs>
   )
 }
