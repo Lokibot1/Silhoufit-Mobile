@@ -45,6 +45,14 @@
           "locationAlwaysPermission": false,
           "motionUsagePermission": false
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SilhouFit uses your photos so you can set a profile picture and add photos to your reviews.",
+          "cameraPermission": "SilhouFit uses your camera so you can take a profile picture or a review photo.",
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {
