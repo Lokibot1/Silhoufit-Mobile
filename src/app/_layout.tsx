@@ -4,7 +4,6 @@ import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useState } from 'react'
 import { Text } from 'react-native'
-import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 import { AgeGate } from '@/auth/AgeGate'
 import { SessionProvider, useSession } from '@/auth/session'
@@ -240,14 +239,12 @@ export default function RootLayout() {
 
   if (!fontsSettled) return null
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SessionProvider>
-        <ThemeProvider value={kralTheme}>
-          <ToastProvider>
-            <Gate />
-          </ToastProvider>
-        </ThemeProvider>
-      </SessionProvider>
-    </GestureHandlerRootView>
+    <SessionProvider>
+      <ThemeProvider value={kralTheme}>
+        <ToastProvider>
+          <Gate />
+        </ToastProvider>
+      </ThemeProvider>
+    </SessionProvider>
   )
 }

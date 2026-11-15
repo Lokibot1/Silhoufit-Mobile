@@ -1,7 +1,7 @@
 appId: ${APP_ID}
 ---
-# Swipe between tabs, UNRUN. Signs in, then drags from mid-screen over the product grid / lists: finger moving left goes Shop -> Cart -> Orders,
-# finger moving right comes back to Shop. Swipes start at 85%/15% of the width, below the chip rows, so no sideways scroller is hit.
+# Swipe between tabs, UNRUN. Signs in, then drags from mid-screen (native pager, the page follows the finger): finger moving left goes Shop -> Cart -> Orders,
+# finger moving right comes back to Shop. Swipes start at 85%/15% of the width and 60% down, below the chip rows, so no sideways scroller is hit.
 # Needs TEST_EMAIL and TEST_PASSWORD.
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/sign-in.yaml
