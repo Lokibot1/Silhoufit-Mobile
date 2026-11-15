@@ -6,6 +6,7 @@ jest.mock('expo-router', () => ({ router: { replace: jest.fn() }, DefaultTheme: 
 // The layout pulls in fonts, session and the intro loader; the boundary itself needs none of them.
 jest.mock('@/auth/session', () => ({}))
 jest.mock('@/auth/AgeGate', () => ({}))
+jest.mock('@/onboarding/OnboardingGate', () => ({}))
 jest.mock('@/ui/fonts', () => ({}))
 jest.mock('@/ui/IntroLoader', () => ({}))
 jest.mock('@/ui/KralLogo', () => ({}))

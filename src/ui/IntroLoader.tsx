@@ -13,7 +13,7 @@ import Svg, { ClipPath, Defs, G, Path } from 'react-native-svg'
 import { scheduleOnRN } from 'react-native-worklets'
 
 import { percentLabel } from '@/lib/format'
-import { LOGO_PATH } from './KralLogo'
+import { LOGO_PARTS } from './KralLogo'
 import { color, space, type } from './theme'
 import { WORDMARK } from './wordmark'
 
@@ -22,16 +22,16 @@ const { width: W, height: H } = WORDMARK
 const COUNT_MS = 2300
 const HOLD_MS = 320
 const FADE_MS = 500
-const PERIOD = 1200
-const AMP = 44
-const BACK_LIFT = 18
+const PERIOD = 900
+const AMP = 60
+const BACK_LIFT = 26
 const TRAVEL = H + 2 * AMP + BACK_LIFT
 
 const WAVE_PATH = (() => {
   const half = PERIOD / 2
   let d = 'M0 0'
   for (let i = 0; i < 14; i++) d += `Q${i * half + half / 2} ${i % 2 ? 2 * AMP : -2 * AMP} ${(i + 1) * half} 0`
-  return `${d}V900H0Z`
+  return `${d}V1500H0Z`
 })()
 
 const AnimatedG = Animated.createAnimatedComponent(G)
@@ -106,10 +106,14 @@ export function IntroLoader({ ready, onFinished }: { ready: boolean; onFinished:
         <Svg width="100%" style={{ aspectRatio: W / H }} viewBox={`0 0 ${W} ${H}`}>
           <Defs>
             <ClipPath id="kral-clip">
-              <Path clipRule="evenodd" d={LOGO_PATH} />
+              {LOGO_PARTS.map((d, i) => (
+                <Path key={i} clipRule="evenodd" d={d} />
+              ))}
             </ClipPath>
           </Defs>
-          <Path fill={color.graphite} fillRule="evenodd" d={LOGO_PATH} />
+          {LOGO_PARTS.map((d, i) => (
+            <Path key={i} fill={color.graphite} fillRule="evenodd" d={d} />
+          ))}
           <G clipPath="url(#kral-clip)">
             <Wave level={level} fill={color.redPress} lift={BACK_LIFT} flowMs={5400} reverse still={reduceMotion} />
             <Wave level={level} fill={color.red} lift={0} flowMs={3200} still={reduceMotion} />
