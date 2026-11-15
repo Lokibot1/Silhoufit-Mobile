@@ -164,7 +164,7 @@ export default function SignIn() {
         />
 
         <PressableScale testID="sign-in-no-email" accessibilityRole="link" accessibilityLabel="Didn't get a confirmation email?" onPress={() => router.push('/check-email')} style={styles.switch}>
-          <Text style={[type.body, styles.forgotText]}>Didn't get a confirmation email?</Text>
+          <Text style={[type.body, styles.forgotText]}>Didn&apos;t get a confirmation email?</Text>
         </PressableScale>
 
         <PressableScale testID="sign-in-create-account" accessibilityRole="link" accessibilityLabel="New to KRAL? Create Account" onPress={() => router.replace('/sign-up')} style={styles.switch}>
