@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
-import { Pressable, Text } from 'react-native'
+import { AccessibilityInfo, Pressable, Text } from 'react-native'
 
 import { ToastProvider, useToast } from '../toast'
 
@@ -20,6 +20,14 @@ it('sits above the safe area by default and lifts by the given offset', async ()
   await render(<ToastProvider><Trigger bottom={100} /></ToastProvider>)
   await fireEvent.press(screen.getByTestId('go'))
   expect(hostBottom()).toHaveStyle({ bottom: 126 })
+})
+
+it('announces the message to screen readers, since VoiceOver ignores live regions', async () => {
+  const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
+  await render(<ToastProvider><Trigger /></ToastProvider>)
+  await fireEvent.press(screen.getByTestId('go'))
+  expect(announce).toHaveBeenCalledWith('Hi')
+  announce.mockRestore()
 })
 
 it('shows an action button that closes the toast and runs the action, and lets touches through otherwise', async () => {

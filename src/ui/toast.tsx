@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { PressableScale } from './PressableScale'
@@ -28,6 +28,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setLift(options?.bottom ?? 0)
     setAction(options?.action ?? null)
     setMessage(next)
+    // iOS VoiceOver ignores accessibilityLiveRegion, so the message is spoken explicitly.
+    AccessibilityInfo.announceForAccessibility(next)
     timer.current = setTimeout(() => setMessage(null), options?.action ? ACTION_DISMISS_MS : DISMISS_MS)
   }
 
