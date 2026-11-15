@@ -69,7 +69,7 @@ function TabBar({ state, descriptors, emitter, navigateToTab, insets }: Material
           if (!event.defaultPrevented) navigateToTab(route.key)
         }
         return (
-          <PressableScale key={route.key} testID={options.tabBarButtonTestID} accessibilityRole="button" accessibilityLabel={options.title} accessibilityState={{ selected: focused }} onPress={onPress} style={styles.item}>
+          <PressableScale key={route.key} testID={options.tabBarButtonTestID} accessibilityRole="tab" accessibilityLabel={options.title} accessibilityState={{ selected: focused }} onPress={onPress} style={styles.item}>
             {options.tabBarIcon?.({ focused, color: tint })}
             <TabLabel color={tint}>{options.title ?? route.name}</TabLabel>
           </PressableScale>
@@ -97,7 +97,7 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  header: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, backgroundColor: color.paper, borderBottomWidth: 1, borderBottomColor: color.porcelain },
+  header: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg, backgroundColor: color.paper, borderBottomWidth: 1, borderBottomColor: color.porcelain },
   bar: { flexDirection: 'row', backgroundColor: color.paper, borderTopWidth: 1, borderTopColor: color.porcelain },
-  item: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
+  item: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', paddingVertical: space.xs },
 })

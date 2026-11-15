@@ -201,7 +201,7 @@ function WishlistScreen() {
                 onPress={() => remove(item)}
                 style={styles.remove}>
                 <View style={styles.disc}>
-                  <Ionicons name="heart" size={20} color={color.red} />
+                  <Ionicons name="heart" size={24} color={color.red} />
                 </View>
               </PressableScale>
             </View>
@@ -223,5 +223,5 @@ const styles = StyleSheet.create({
   gap: { height: space.md },
   // The 44px target sits in the tile's top-right corner; the visible disc is smaller.
   remove: { position: 'absolute', top: space.xs, right: space.xs, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  disc: { width: 32, height: 32, borderRadius: radius.pill, backgroundColor: color.paper, alignItems: 'center', justifyContent: 'center' },
+  disc: { width: 44, height: 44, borderRadius: radius.pill, backgroundColor: color.paper, alignItems: 'center', justifyContent: 'center' },
 })

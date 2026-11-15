@@ -36,10 +36,10 @@ beforeEach(() => {
   jest.clearAllMocks()
 })
 
-it('renders the five tab buttons with their testIDs, in order', async () => {
+it('renders the five tabs with their testIDs, in order', async () => {
   await render(<TabsLayout />)
   for (const id of ['tab-shop', 'tab-cart', 'tab-orders', 'tab-notifications', 'tab-profile']) expect(screen.getByTestId(id)).toBeTruthy()
-  expect(screen.getAllByRole('button').map((b) => b.props.testID)).toEqual(['tab-shop', 'tab-cart', 'tab-orders', 'tab-notifications', 'tab-profile'])
+  expect(screen.getAllByRole('tab').map((b) => b.props.testID)).toEqual(['tab-shop', 'tab-cart', 'tab-orders', 'tab-notifications', 'tab-profile'])
 })
 
 it('marks the focused tab selected and switches through tabPress', async () => {
@@ -57,6 +57,11 @@ it('shows the screen title in the header on the other tabs, and no title on the 
   for (const [path, title] of [['/cart', 'Cart'], ['/orders', 'Orders'], ['/notifications', 'Notifications'], ['/profile', 'Profile']]) {
     mockPath = path
     await render(<TabsLayout />)
+    expect(screen.getAllByRole('header').some((h) => h.props.children === title)).toBe(true)
+  }
+})
+
+it('shows the header with Messages on the other tabs but not on the Shop', async () => {
   await render(<TabsLayout />)
   expect(screen.queryByTestId('header-messages')).toBeNull()
   mockPath = '/cart'

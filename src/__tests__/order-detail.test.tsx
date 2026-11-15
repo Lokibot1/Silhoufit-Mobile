@@ -89,7 +89,7 @@ it('renders the order: number, status and payment labels, placed time, items, am
   expect(screen.getByTestId('order-payment-status')).toHaveTextContent('Unpaid')
   expect(screen.getByText('Placed Nov 14, 2026, 1:49 PM')).toBeTruthy()
   expect(screen.getByText('Linen Tee')).toBeTruthy()
-  expect(screen.getByText('Size M // Red')).toBeTruthy()
+  expect(screen.getByText('Size M / Red')).toBeTruthy()
   expect(screen.getByText('Qty 2')).toBeTruthy()
   expect(screen.getAllByText('₱1,100.00')).toHaveLength(2) // line total and subtotal
   expect(screen.getByText('₱150.00')).toBeTruthy()

@@ -142,7 +142,7 @@ export default function Profile() {
             {SHORTCUTS.map((s) => <View key={s.id} style={styles.grow}><Skeleton height={80} /></View>)}
           </View>
           <View style={styles.card}>
-            {[0, 1, 2, 3].map((i) => <View key={i} style={[styles.row, i > 0 && styles.divider]}><Skeleton height={24} /></View>)}
+            {[0, 1, 2, 3, 4].map((i) => <View key={i} style={[styles.row, i > 0 && styles.divider]}><Skeleton height={24} /></View>)}
           </View>
         </View>
       )}

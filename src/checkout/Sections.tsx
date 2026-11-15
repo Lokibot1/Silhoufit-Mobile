@@ -82,7 +82,7 @@ export function AddressSection({ req, selected, onChange, onAdd, disabled = fals
   return <Card title="(Delivery Address)">{body}</Card>
 }
 
-const variantLine = ({ size, color: colour }: CartItem['variant']) => [size && `Size ${size}`, colour].filter(Boolean).join(' // ')
+const variantLine = ({ size, color: colour }: CartItem['variant']) => [size && `Size ${size}`, colour].filter(Boolean).join(' / ')
 
 function ItemRow({ item }: { item: CartItem }) {
   const [failed, setFailed] = useState(false)

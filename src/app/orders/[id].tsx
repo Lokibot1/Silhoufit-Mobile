@@ -25,7 +25,7 @@ const TARGET = 44
 const IMG_W = 56
 const IMG_H = 72
 
-const variantLine = ({ size, color: colour }: OrderItem) => [size && `Size ${size}`, colour].filter(Boolean).join(' // ')
+const variantLine = ({ size, color: colour }: OrderItem) => [size && `Size ${size}`, colour].filter(Boolean).join(' / ')
 const isExpired = (failure: unknown) => failure instanceof ApiError && failure.status === 401
 
 function ItemRow({ item }: { item: OrderItem }) {
@@ -33,7 +33,11 @@ function ItemRow({ item }: { item: OrderItem }) {
   return (
     <View style={styles.item}>
       <View style={styles.tile}>
-        {item.imageUrl && !failed && <Image source={{ uri: item.imageUrl }} accessible={false} contentFit="cover" onError={() => setFailed(true)} style={styles.fill} />}
+        {item.imageUrl && !failed ? (
+          <Image source={{ uri: item.imageUrl }} accessible={false} contentFit="cover" onError={() => setFailed(true)} style={styles.fill} />
+        ) : (
+          <Text importantForAccessibility="no-hide-descendants" numberOfLines={4} maxFontSizeMultiplier={1.2} style={styles.fallback}>{item.name}</Text>
+        )}
       </View>
       <View style={styles.info}>
         <Text numberOfLines={2} style={styles.name}>{item.name}</Text>
@@ -453,6 +457,7 @@ const styles = StyleSheet.create({
   name: { fontFamily: font.semibold, fontSize: 14, lineHeight: 20, color: color.obsidian, textTransform: 'uppercase' },
   variant: { ...type.small, color: color.graphite },
   lineTotal: { ...type.body, ...type.numeric, textAlign: 'right' },
+  fallback: { ...type.small, color: color.graphite, textAlign: 'center' },
   amount: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   value: { ...type.body, ...type.numeric, textAlign: 'right' },
   total: { ...type.h2, ...type.numeric, textAlign: 'right' },
