@@ -60,11 +60,23 @@ it('lists cards with badges, hides Set as Default on the default and flags a mis
   expect(screen.getByText('Default')).toBeTruthy()
   expect(screen.getAllByText('Home')).toHaveLength(3)
   expect(screen.getAllByText('No map pin')).toHaveLength(1)
-  expect(screen.getByText('Add a map pin on the web to use this address at checkout')).toBeTruthy()
+  expect(screen.getByText('Edit this address to add a map pin and use it at checkout')).toBeTruthy()
   expect(screen.queryByTestId('address-default-a1')).toBeNull()
   expect(screen.getByTestId('address-default-a2')).toBeTruthy()
-  expect(screen.getByTestId('addresses-add-hint')).toBeTruthy()
-  expect(screen.queryByText('Edit')).toBeNull()
+  expect(screen.getByTestId('addresses-add')).toBeTruthy()
+  expect(screen.getByTestId('address-edit-a1')).toBeTruthy()
+})
+
+it('opens the Add form once on a double tap, and the Edit form for that card', async () => {
+  await render(<Addresses />)
+  await screen.findByTestId('addresses-list')
+  await fireEvent.press(screen.getByTestId('addresses-add'))
+  await fireEvent.press(screen.getByTestId('addresses-add'))
+  expect(router.push).toHaveBeenCalledTimes(1)
+  expect(router.push).toHaveBeenCalledWith('/addresses/new')
+  await refocus()
+  await fireEvent.press(screen.getByTestId('address-edit-a2'))
+  expect(router.push).toHaveBeenLastCalledWith({ pathname: '/addresses/[id]', params: { id: 'a2' } })
 })
 
 it('shows the error with Retry, then the list', async () => {
@@ -75,12 +87,12 @@ it('shows the error with Retry, then the list', async () => {
   expect(await screen.findByTestId('addresses-list')).toBeTruthy()
 })
 
-it('shows the empty state with the website hint and no Add Address button', async () => {
+it('shows the empty state with an Add Address button', async () => {
   api.fetchAddresses.mockResolvedValue([])
   await render(<Addresses />)
   expect(await screen.findByText('No saved addresses yet')).toBeTruthy()
-  expect(screen.queryByTestId('addresses-add')).toBeNull()
-  expect(screen.getByText('Adding addresses from the app is coming soon. You can add one on the website.')).toBeTruthy()
+  await fireEvent.press(screen.getByTestId('addresses-add'))
+  expect(router.push).toHaveBeenCalledWith('/addresses/new')
 })
 
 it('sends a 401 to sign-in', async () => {

@@ -5,13 +5,13 @@ import { color, font, radius, space } from './theme'
 
 // Filter chip: 36px tall with 4px of hit slop above and below so the touch target is 44px (a ScrollView holding chips needs 4px vertical padding or it clips the slop).
 const FONT_CAP = 1.3 // 20px line height x 1.3 stays inside the fixed 36px height
-export function Chip({ label, selected, onPress, testID, accessibilityLabel, disabled, tall }: { tall?: boolean; label: string; selected: boolean; onPress: () => void; testID: string; accessibilityLabel?: string; disabled?: boolean }) {
+export function Chip({ label, selected, onPress, testID, accessibilityLabel, disabled, tall, radio }: { radio?: boolean; tall?: boolean; label: string; selected: boolean; onPress: () => void; testID: string; accessibilityLabel?: string; disabled?: boolean }) {
   return (
     <PressableScale
       testID={testID}
-      accessibilityRole="button"
+      accessibilityRole={radio ? 'radio' : 'button'}
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ selected, disabled }}
+      accessibilityState={radio ? { checked: selected, disabled } : { selected, disabled }}
       disabled={disabled}
       hitSlop={{ top: space.xs, bottom: space.xs }}
       onPress={onPress}

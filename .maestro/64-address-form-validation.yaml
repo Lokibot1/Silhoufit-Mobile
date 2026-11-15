@@ -1,0 +1,91 @@
+appId: ${APP_ID}
+---
+# Add Address, validation only, UNRUN. Signs in, opens Profile -> Delivery Addresses -> Add Address and presses Save Address on the form:
+# the required-field errors show (phone, region, city, barangay, street, postal code and the map pin; the form is long, so each one is scrolled to from the bottom up) and nothing is sent. A short phone
+# number shows its error as soon as the field is left. Then it leaves with "Discard Changes" (the unsaved-changes alert). It NEVER drops a pin, never fills a valid address and never reaches the server, so nothing is saved.
+# Needs TEST_EMAIL and TEST_PASSWORD.
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/sign-in.yaml
+- scrollUntilVisible:
+    element:
+      id: profile-menu-addresses
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: profile-menu-addresses
+- extendedWaitUntil:
+    visible:
+      id: '(addresses-list|addresses-empty)'
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: addresses-add
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: addresses-add
+- extendedWaitUntil:
+    visible:
+      id: addr-phone
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: addr-save
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: addr-save
+- scrollUntilVisible:
+    element:
+      text: 'Postal code is required.'
+    direction: UP
+    timeout: 10000
+- assertVisible: 'Postal code is required.'
+- scrollUntilVisible:
+    element:
+      text: 'Street address is required.'
+    direction: UP
+    timeout: 10000
+- assertVisible: 'Street address is required.'
+- scrollUntilVisible:
+    element:
+      text: 'Choose your region.'
+    direction: UP
+    timeout: 10000
+- assertVisible: 'Choose your region.'
+- scrollUntilVisible:
+    element:
+      text: 'Drop a pin on the map.*'
+    direction: UP
+    timeout: 10000
+- assertVisible: 'Drop a pin on the map.*'
+- scrollUntilVisible:
+    element:
+      text: 'Phone number is required.'
+    direction: UP
+    timeout: 10000
+- assertVisible: 'Phone number is required.'
+- scrollUntilVisible:
+    element:
+      id: addr-phone
+    direction: UP
+    timeout: 10000
+- tapOn:
+    id: addr-phone
+- inputText: '12345'
+- tapOn:
+    id: addr-street
+- assertVisible: Enter a Philippine number.*
+- inputText: '12 Main St'
+- hideKeyboard
+- assertNotVisible: Street address is required.
+- back
+- extendedWaitUntil:
+    visible: '(?i)Discard changes\?'
+    timeout: 5000
+- tapOn:
+    text: '(?i)Discard Changes'
+- extendedWaitUntil:
+    visible:
+      id: '(addresses-list|addresses-empty)'
+    timeout: 10000

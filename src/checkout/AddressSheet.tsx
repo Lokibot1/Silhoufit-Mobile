@@ -11,13 +11,13 @@ import { useReduceMotion } from '@/ui/useReduceMotion'
 import { addressLines } from './AddressLines'
 
 const TARGET = 44
-export const NO_PIN = 'Needs a map pin: add it on the web'
+export const NO_PIN = 'Needs a map pin: edit it in Delivery Addresses'
 export const hasPin = ({ latitude, longitude }: Address) => latitude !== null && longitude !== null
 
-type Props = { visible: boolean; addresses: Address[]; selectedId: string | null; onSelect: (id: string) => void; onClose: () => void }
+type Props = { visible: boolean; addresses: Address[]; selectedId: string | null; onSelect: (id: string) => void; onAdd: () => void; onClose: () => void }
 
 // Pick where the order is delivered. A pinless address cannot be priced for delivery, so it is shown but disabled with the reason.
-export function AddressSheet({ visible, addresses, selectedId, onSelect, onClose }: Props) {
+export function AddressSheet({ visible, addresses, selectedId, onSelect, onAdd, onClose }: Props) {
   const insets = useSafeAreaInsets()
   const { height } = useWindowDimensions()
   const reduceMotion = useReduceMotion()
@@ -64,10 +64,10 @@ export function AddressSheet({ visible, addresses, selectedId, onSelect, onClose
                 </Pressable>
               )
             })}
-            <View testID="address-add" accessible accessibilityRole="button" accessibilityLabel="Add New Address, coming soon" accessibilityState={{ disabled: true }} style={styles.option}>
-              <View style={styles.off}><Ionicons name="add" size={24} color={color.graphite} /></View>
-              <Text style={styles.name}>Add New Address (coming soon)</Text>
-            </View>
+            <Pressable testID="address-add" accessibilityRole="button" accessibilityLabel="Add New Address" onPress={onAdd} style={styles.option}>
+              <Ionicons name="add" size={24} color={color.obsidian} />
+              <Text style={styles.name}>Add New Address</Text>
+            </Pressable>
           </ScrollView>
           <Button testID="address-sheet-cancel" variant="secondary" label="Cancel" onPress={onClose} />
         </View>

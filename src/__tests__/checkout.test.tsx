@@ -96,12 +96,12 @@ it('prompts sign-in when signed out and asks for nothing', async () => {
   expect(cartApi.fetchCart).not.toHaveBeenCalled()
 })
 
-it('with no address shows the disabled call to action and the bar hint, and asks for no quote', async () => {
+it('with no address offers Add a delivery address (opens the form from checkout) and the bar hint, and asks for no quote', async () => {
   addressApi.fetchAddresses.mockResolvedValue([])
   await render(<CheckoutScreen />)
   expect(await screen.findByText('You have no saved delivery address yet.')).toBeTruthy()
-  expect(screen.getByTestId('checkout-address-add').props.accessibilityState.disabled).toBe(true)
-  expect(screen.getByText('Coming soon')).toBeTruthy()
+  await fireEvent.press(screen.getByTestId('checkout-address-add'))
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/addresses/new', params: { from: 'checkout' } })
   expect(screen.getByTestId('checkout-bar-hint').props.children).toBe('Add an address first')
   expect(ordersApi.quoteShipping).not.toHaveBeenCalled()
   expect(screen.getByTestId('checkout-shipping-idle')).toBeTruthy()
@@ -146,10 +146,13 @@ it('selects the default address, skips one without a pin, and disables it in the
   await fireEvent.press(screen.getByTestId('checkout-address-change'))
   const pinless = screen.getByTestId('address-option-nopin')
   expect(pinless.props.accessibilityState).toEqual({ selected: false, disabled: true })
-  expect(within(pinless).getByText('Needs a map pin: add it on the web')).toBeTruthy()
+  expect(within(pinless).getByText('Needs a map pin: edit it in Delivery Addresses')).toBeTruthy()
   expect(screen.getByTestId('address-option-office').props.accessibilityState).toEqual({ selected: true, disabled: false })
-  expect(screen.getByTestId('address-add').props.accessibilityState.disabled).toBe(true)
-  expect(screen.getByText('Add New Address (coming soon)')).toBeTruthy()
+  expect(screen.getByText('Add New Address')).toBeTruthy()
+  await fireEvent.press(screen.getByTestId('address-add'))
+  expect(screen.queryByTestId('address-sheet')).toBeNull() // the sheet closes as the form opens
+  expect(mockPush).toHaveBeenCalledTimes(1)
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/addresses/new', params: { from: 'checkout' } })
 })
 
 it('auto-selects the default address and quotes it', async () => {

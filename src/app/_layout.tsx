@@ -99,6 +99,24 @@ function Gate() {
           }}
         />
         <Stack.Screen
+          name="addresses/new"
+          options={{
+            headerTitle: () => <Text style={type.h2}>Add Address</Text>,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
+        <Stack.Screen
+          name="addresses/[id]"
+          options={{
+            headerTitle: () => <Text style={type.h2}>Edit Address</Text>,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
+        <Stack.Screen
           name="profile/password"
           options={{
             headerTitle: () => <Text style={type.h2}>Change Password</Text>,

@@ -18,6 +18,7 @@ export type Address = {
 }
 
 export type NewAddress = Pick<Address, 'recipientName' | 'phone' | 'region' | 'cityMunicipality' | 'barangay' | 'streetAddress' | 'postalCode'> & {
+  label?: string
   province?: string
   addressLine2?: string
   latitude: number
@@ -67,6 +68,9 @@ export async function createAddress(input: NewAddress, signal?: AbortSignal): Pr
   return toAddress(await request('POST', '/users/me/addresses', body, signal))
 }
 
+/** The fields PATCH accepts; a null clears label, province or addressLine2. Send only what changed. */
+export type AddressPatch = Partial<Omit<NewAddress, 'label' | 'province' | 'addressLine2'>> & { label?: string | null; province?: string | null; addressLine2?: string | null }
+
 const addressPath = (id: string) => `/users/me/addresses/${encodeURIComponent(id)}`
 
 /** PATCH /users/me/addresses/:id { isDefault: true }. The API unsets the previous default; a 404 (deleted elsewhere) is an error the screen can read. */
@@ -81,4 +85,9 @@ export async function deleteAddress(id: string, signal?: AbortSignal): Promise<v
   } catch (error) {
     if (!(error instanceof ApiError && error.kind === 'not-found')) throw error
   }
+}
+
+/** PATCH /users/me/addresses/:id with only the changed fields. */
+export async function updateAddress(id: string, patch: AddressPatch, signal?: AbortSignal): Promise<Address> {
+  return toAddress(await request('PATCH', addressPath(id), patch, signal))
 }

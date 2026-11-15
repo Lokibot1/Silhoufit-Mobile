@@ -41,7 +41,7 @@ function Failure({ message, label, testID, onRetry }: { message: string; label: 
   )
 }
 
-export function AddressSection({ req, selected, onChange, disabled = false }: { req: Req<Address[]>; selected: Address | null; onChange: () => void; disabled?: boolean }) {
+export function AddressSection({ req, selected, onChange, onAdd, disabled = false }: { req: Req<Address[]>; selected: Address | null; onChange: () => void; onAdd: () => void; disabled?: boolean }) {
   const list = req.data ?? []
   let body: ReactNode
   if (req.status === 'loading') {
@@ -58,8 +58,7 @@ export function AddressSection({ req, selected, onChange, disabled = false }: { 
     body = (
       <View style={styles.gap}>
         <Text style={styles.body}>You have no saved delivery address yet.</Text>
-        <Button testID="checkout-address-add" label="Add a delivery address" disabled accessibilityHint="Coming soon" onPress={() => {}} />
-        <Text style={styles.small}>Coming soon</Text>
+        <Button testID="checkout-address-add" label="Add a delivery address" disabled={disabled} onPress={onAdd} />
       </View>
     )
   } else {
@@ -73,7 +72,7 @@ export function AddressSection({ req, selected, onChange, disabled = false }: { 
             <Text style={styles.body}>{lines.area}</Text>
           </View>
         ) : (
-          <Text testID="checkout-address-none" style={styles.body}>None of your addresses has a map pin yet. Add the pin on the web, then reload.</Text>
+          <Text testID="checkout-address-none" style={styles.body}>None of your addresses has a map pin yet. Edit one in Delivery Addresses to add its pin, or add a new address.</Text>
         )}
         <Button testID="checkout-address-change" variant="secondary" label="Change" accessibilityLabel="Change delivery address" disabled={disabled} onPress={onChange} />
       </View>

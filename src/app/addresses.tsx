@@ -15,8 +15,7 @@ import { useToast } from '@/ui/toast'
 
 const SKELETONS = [0, 1, 2]
 const TARGET = 44
-const NO_PIN_HINT = 'Add a map pin on the web to use this address at checkout'
-const ADD_SOON = 'Adding addresses from the app is coming soon. You can add one on the website.'
+const NO_PIN_HINT = 'Edit this address to add a map pin and use it at checkout'
 
 const isForbidden = (failure: unknown) => failure instanceof ApiError && failure.kind === 'forbidden'
 const defaultFirst = (list: Address[]) => [...list].sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
@@ -63,6 +62,16 @@ function AddressesScreen() {
     toastRef.current = toast
     shown.current = items !== null
   })
+  const openAdd = () => {
+    if (opening.current) return
+    opening.current = true
+    router.push('/addresses/new')
+  }
+  const openEdit = (id: string) => {
+    if (opening.current) return
+    opening.current = true
+    router.push({ pathname: '/addresses/[id]', params: { id } })
+  }
   const openSignIn = useCallback(() => {
     if (opening.current) return
     opening.current = true
@@ -198,7 +207,8 @@ function AddressesScreen() {
         <View style={styles.empty}>
           <Text accessibilityRole="header" style={type.h2}>No saved addresses yet</Text>
           <Text style={styles.body}>Addresses you save to your account show up here, ready for checkout.</Text>
-          <Text testID="addresses-add-hint" style={type.small}>{ADD_SOON}</Text>
+          <Text testID="addresses-add-hint" style={type.small}>Add one with a map pin so delivery can find you.</Text>
+          <Button testID="addresses-add" label="Add Address" onPress={openAdd} />
         </View>
       </View>
     )
@@ -214,8 +224,8 @@ function AddressesScreen() {
         contentContainerStyle={styles.content}
         refreshing={refreshing}
         onRefresh={refresh}
-        ListFooterComponent={<Text testID="addresses-add-hint" style={[type.small, styles.footer]}>{ADD_SOON}</Text>}
-        renderItem={({ item }) => <AddressCard address={item} onDefault={() => void makeDefault(item)} onDelete={() => setConfirming(item)} />}
+        ListFooterComponent={<View style={styles.footer}><Button testID="addresses-add" label="Add Address" onPress={openAdd} /></View>}
+        renderItem={({ item }) => <AddressCard address={item} onDefault={() => void makeDefault(item)} onEdit={() => openEdit(item.id)} onDelete={() => setConfirming(item)} />}
       />
       <Modal visible={confirming !== null} transparent animationType="fade" statusBarTranslucent onRequestClose={() => { if (!deleting) setConfirming(null) }}>
         <View style={styles.scrim}>
@@ -236,7 +246,7 @@ function AddressesScreen() {
   )
 }
 
-function AddressCard({ address, onDefault, onDelete }: { address: Address; onDefault: () => void; onDelete: () => void }) {
+function AddressCard({ address, onDefault, onEdit, onDelete }: { address: Address; onDefault: () => void; onEdit: () => void; onDelete: () => void }) {
   const lines = addressLines(address)
   const pinned = hasPin(address)
   return (
@@ -262,6 +272,14 @@ function AddressCard({ address, onDefault, onDelete }: { address: Address; onDef
             <Text style={styles.actionText}>Set as Default</Text>
           </Pressable>
         )}
+        <Pressable
+          testID={`address-edit-${address.id}`}
+          accessibilityRole="button"
+          accessibilityLabel={`Edit ${address.recipientName}, ${lines.street}`}
+          onPress={onEdit}
+          style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
+          <Text style={styles.actionText}>Edit</Text>
+        </Pressable>
         <Pressable
           testID={`address-delete-${address.id}`}
           accessibilityRole="button"

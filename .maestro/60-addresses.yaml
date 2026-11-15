@@ -24,8 +24,7 @@ appId: ${APP_ID}
     commands:
       - assertVisible:
           id: addresses-add
-          enabled: false
-      - assertVisible: Adding addresses from the app is coming soon. You can add one on the website.
+      - assertVisible: Add one with a map pin so delivery can find you.
 - runFlow:
     when:
       visible:

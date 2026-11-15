@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { createAddress, deleteAddress, fetchAddresses, setDefaultAddress } from '../addresses'
+import { createAddress, deleteAddress, fetchAddresses, setDefaultAddress, updateAddress } from '../addresses'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -93,5 +93,20 @@ describe('deleteAddress', () => {
       mockRequest.mockRejectedValueOnce(new ApiError(kind))
       await expect(deleteAddress('a1')).rejects.toMatchObject({ kind })
     }
+  })
+})
+
+describe('updateAddress', () => {
+  it('PATCHes only the given fields, nulls included, and returns the saved address', async () => {
+    mockRequest.mockResolvedValue(raw({ label: null, phone: '+639171234567' }))
+    const saved = await updateAddress('a 1', { phone: '+639171234567', label: null })
+    expect(mockRequest).toHaveBeenCalledWith('PATCH', '/users/me/addresses/a%201', { phone: '+639171234567', label: null }, undefined)
+    expect(saved).toMatchObject({ id: 'a1', phone: '+639171234567', label: null })
+  })
+  it('fails a malformed answer and passes errors through', async () => {
+    mockRequest.mockResolvedValueOnce({ id: 'a1' })
+    await expect(updateAddress('a1', { phone: '+639171234567' })).rejects.toMatchObject({ kind: 'server' })
+    mockRequest.mockRejectedValueOnce(new ApiError('validation', 'phone must be a valid Philippine phone number', 400))
+    await expect(updateAddress('a1', { phone: '1' })).rejects.toMatchObject({ kind: 'validation' })
   })
 })

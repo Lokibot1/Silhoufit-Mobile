@@ -12,6 +12,7 @@ import { peso } from '@/lib/format'
 import { useRequest } from '@/lib/useRequest'
 import { AddressSheet, hasPin } from '@/checkout/AddressSheet'
 import { cartWarning } from '@/checkout/cartWarning'
+import { takeCreated } from '@/checkout/newAddress'
 import { AddressSection, ItemsSection, PaymentSection, ShippingSection, SummarySection, totals } from '@/checkout/Sections'
 import { Button } from '@/ui/Button'
 import { StateMessage } from '@/ui/StateMessage'
@@ -80,11 +81,15 @@ export default function CheckoutScreen() {
   const focused = useRef(false)
   const mounted = useRef(false)
   const reload = useRef(cart.retry)
+  const reloadAddresses = useRef(addresses.retry)
+  const owner = useRef(userId)
   const [placing, setPlacing] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [fresh, setFresh] = useState<{ addressId: string; quote: ShippingQuote } | null>(null) // a re-quote taken at Place Order
   useEffect(() => {
     reload.current = cart.retry
+    reloadAddresses.current = addresses.retry
+    owner.current = userId
   })
 
   const list = addresses.data ?? []
@@ -115,13 +120,27 @@ export default function CheckoutScreen() {
     useCallback(() => {
       opening.current = false
       focused.current = true
-      if (mounted.current) reload.current()
+      if (mounted.current) {
+        reload.current()
+        // Back from Add New Address: load the list again and select the address just saved.
+        const created = takeCreated(owner.current ?? undefined)
+        if (created) {
+          reloadAddresses.current()
+          setChosen(created)
+        }
+      }
       mounted.current = true
       return () => {
         focused.current = false
       }
     }, []),
   )
+  const addAddress = () => {
+    if (opening.current || placing) return
+    opening.current = true
+    setPicking(false)
+    router.push({ pathname: '/addresses/new', params: { from: 'checkout' } })
+  }
   const signIn = () => {
     if (opening.current) return
     opening.current = true
@@ -317,7 +336,7 @@ export default function CheckoutScreen() {
           <Text style={type.label}>(Review)</Text>
           <Text accessibilityRole="header" style={type.h1}>Checkout</Text>
         </View>
-        <AddressSection req={addresses} selected={selected} disabled={placing} onChange={() => setPicking(true)} />
+        <AddressSection req={addresses} selected={selected} disabled={placing} onChange={() => setPicking(true)} onAdd={addAddress} />
         <ItemsSection req={cart} />
         <ShippingSection idle={idleShipping} req={shipping} />
         <PaymentSection />
@@ -351,6 +370,7 @@ export default function CheckoutScreen() {
           setNotice(null)
           setPicking(false)
         }}
+        onAdd={addAddress}
         onClose={() => setPicking(false)}
       />
     </View>
