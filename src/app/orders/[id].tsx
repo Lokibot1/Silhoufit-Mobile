@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { awaitsPayment, cancelOrder, createCheckoutSession, fetchOrder, isClosed, orderSignature, orderTimeline, paymentLabel, shipmentLabel, statusLabel, type Order, type OrderItem } from '@/api/orders'
+import { awaitsPayment, buildTimeline, cancelOrder, createCheckoutSession, fetchOrder, isClosed, orderSignature, paymentLabel, shipmentLabel, statusLabel, trackingLink, type Order, type OrderItem, type TimelineStep } from '@/api/orders'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { dateTime, peso } from '@/lib/format'
@@ -51,11 +51,45 @@ function AmountRow({ label, value, testID, strong }: { label: string; value: str
   )
 }
 
-type Props = { order: Order; action: 'pay' | 'cancel' | null; failure: string | null; onPay: () => void; onCancel: () => void }
+// One stage: marker + connecting line on the left, label / time / note on the right. Done is a filled Obsidian square, current a larger Red one, upcoming an outline, cancelled a Red cross.
+// The marker is centred on a zero-width body-style line, so it follows the first text line at any font scale.
+function TimelineRow({ step, next }: { step: TimelineStep; next?: TimelineStep }) {
+  const { state } = step
+  const stateWord = state === 'cancelled' ? null : state
+  const label = [step.label, stateWord, step.at && dateTime(step.at), step.note].filter(Boolean).join(', ')
+  return (
+    <View accessible accessibilityRole="listitem" accessibilityLabel={label} testID={`timeline-${step.key}`} style={styles.step}>
+      <View style={styles.rail}>
+        <View style={styles.markCell}>
+          <Text style={type.body}>{'​'}</Text>
+          {state === 'cancelled' ? (
+            <View style={styles.cross}>
+              <View style={[styles.bar, styles.barUp]} />
+              <View style={[styles.bar, styles.barDown]} />
+            </View>
+          ) : (
+            <View style={[styles.marker, state === 'upcoming' && styles.markerUpcoming, state === 'current' && styles.markerCurrent]} />
+          )}
+        </View>
+        {next && <View style={[styles.line, state === 'done' && styles.lineDone]} />}
+      </View>
+      <View style={[styles.info, next && styles.stepGap]}>
+        <Text style={state === 'current' ? styles.recipient : state === 'upcoming' ? styles.body : type.body}>{step.label}</Text>
+        {step.at && <Text style={[styles.variant, type.numeric]}>{dateTime(step.at)}</Text>}
+        {step.note && <Text style={styles.variant}>{step.note}</Text>}
+      </View>
+    </View>
+  )
+}
 
-function OrderDetail({ order, action, failure, onPay, onCancel }: Props) {
+type Props = { order: Order; action: 'pay' | 'cancel' | null; failure: string | null; onPay: () => void; onCancel: () => void; onTrack: (url: string) => void }
+
+function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props) {
   const { address, shipment } = order
   const unpaid = awaitsPayment(order)
+  const tracking = trackingLink(order)
+  const onTheWay = order.status === 'DISPATCHED' || order.status === 'OUT_FOR_DELIVERY'
+  const timeline = buildTimeline(order)
   return (
     <View testID="order-detail" style={styles.content}>
       <Text style={type.label}>(Order)</Text>
@@ -103,18 +137,28 @@ function OrderDetail({ order, action, failure, onPay, onCancel }: Props) {
         </View>
       )}
 
+      {onTheWay && (
+        <View testID="order-tracking" style={styles.section}>
+          <Text style={type.label}>(Delivery Tracking)</Text>
+          {shipment && <Text style={styles.body}>{`Courier: ${shipmentLabel(shipment.status)}`}</Text>}
+          {tracking ? (
+            <>
+              <Button testID="order-track-delivery" label="Track Delivery" onPress={() => onTrack(tracking)} />
+              <Text style={styles.variant}>Opens the live courier map in your browser.</Text>
+            </>
+          ) : (
+            <Text testID="order-tracking-pending" style={styles.body}>Tracking link isn&apos;t available yet. It appears once the courier assigns a driver.</Text>
+          )}
+        </View>
+      )}
+
       <View style={styles.section}>
         <Text style={type.label}>(Timeline)</Text>
-        {orderTimeline(order).map((step) => (
-          <View key={step.label} style={styles.step}>
-            <View style={styles.marker} />
-            <View style={styles.info}>
-              <Text style={styles.recipient}>{step.label}</Text>
-              <Text style={[styles.variant, type.numeric]}>{dateTime(step.at)}</Text>
-              {step.note && <Text style={styles.variant}>{step.note}</Text>}
-            </View>
-          </View>
-        ))}
+        <View accessibilityRole="list" testID="order-timeline">
+          {timeline.map((step, i) => (
+            <TimelineRow key={step.key} step={step} next={timeline[i + 1]} />
+          ))}
+        </View>
       </View>
     </View>
   )
@@ -144,6 +188,23 @@ function DetailSkeleton() {
       ))}
       <Skeleton height={96} />
       <Skeleton height={48} />
+      <View style={styles.section}>
+        <Skeleton width={80} height={20} />
+        {/* Typical in-progress order: six stages, the first two timed (a real order's length is unknown while loading). */}
+        {[true, true, false, false, false, false].map((timed, i) => (
+          <View key={i} style={styles.step}>
+            <View style={styles.rail}>
+              <View style={styles.skeletonMark}>
+                <Skeleton width={12} height={12} />
+              </View>
+            </View>
+            <View style={[styles.info, i < 5 && styles.stepGap]}>
+              <Skeleton width="40%" height={24} />
+              {timed && <Skeleton width="30%" height={20} />}
+            </View>
+          </View>
+        ))}
+      </View>
     </View>
   )
 }
@@ -174,6 +235,7 @@ export default function OrderScreen() {
   const busy = useRef(false)
   const asking = useRef(false)
   const opening = useRef(false)
+  const tracking = useRef(false)
   const returning = useRef(0) // when Pay Now opened the browser; 0 = not away
   const reloadedAt = useRef(0) // when the return reload started
   const expired = useRef(false)
@@ -303,6 +365,17 @@ export default function OrderScreen() {
       { cancelable: true, onDismiss: release },
     )
   }
+  const track = async (url: string) => {
+    if (tracking.current) return
+    tracking.current = true
+    try {
+      await openBrowserAsync(url)
+    } catch {
+      toast("Couldn't open the tracking page. Try again.")
+    } finally {
+      tracking.current = false
+    }
+  }
   const signIn = () => {
     if (opening.current) return
     opening.current = true
@@ -335,7 +408,7 @@ export default function OrderScreen() {
         )}
       </View>
     )
-  } else if (shown) body = <OrderDetail order={shown} action={action} failure={failure} onPay={pay} onCancel={cancel} />
+  } else if (shown) body = <OrderDetail order={shown} action={action} failure={failure} onPay={pay} onCancel={cancel} onTrack={(url) => void track(url)} />
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={{ paddingBottom: insets.bottom + space.xl }}>
@@ -379,6 +452,18 @@ const styles = StyleSheet.create({
   total: { ...type.h2, ...type.numeric, textAlign: 'right' },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
   step: { flexDirection: 'row', gap: space.md },
-  marker: { width: 8, height: 8, marginTop: space.sm, backgroundColor: color.obsidian },
+  rail: { width: 16, alignItems: 'center' },
+  markCell: { width: '100%', alignItems: 'center', justifyContent: 'center' },
+  skeletonMark: { height: 24, justifyContent: 'center' },
+  marker: { position: 'absolute', width: 12, height: 12, backgroundColor: color.obsidian },
+  markerCurrent: { width: 16, height: 16, backgroundColor: color.red },
+  markerUpcoming: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: color.stonewash },
+  cross: { position: 'absolute', width: 16, height: 16, alignItems: 'center', justifyContent: 'center' },
+  bar: { position: 'absolute', width: 20, height: 2, backgroundColor: color.red },
+  barUp: { transform: [{ rotate: '45deg' }] },
+  barDown: { transform: [{ rotate: '-45deg' }] },
+  line: { flex: 1, width: 2, backgroundColor: color.porcelain },
+  lineDone: { backgroundColor: color.obsidian },
+  stepGap: { paddingBottom: space.lg },
   headerBack: { minHeight: TARGET, minWidth: TARGET, justifyContent: 'center' },
 })

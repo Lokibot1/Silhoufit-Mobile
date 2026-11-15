@@ -91,20 +91,179 @@ it('renders the order: number, status and payment labels, placed time, items, am
   expect(screen.getByText('Makati, Metro Manila, 1200')).toBeTruthy()
 })
 
-it('builds the timeline only from fields the API sent', async () => {
-  api.fetchOrder.mockResolvedValue(order())
-  await render(<OrderScreen />)
-  await screen.findByTestId('order-detail')
-  expect(screen.getByText('Placed')).toBeTruthy()
-  for (const label of ['Paid', 'Handed to courier', 'Delivered', 'Cancelled']) expect(screen.queryByText(label)).toBeNull()
+describe('timeline', () => {
+  const steps = () => ['placed', 'paid', 'preparing', 'shipped', 'out', 'delivered', 'cancelled', 'refunded'].filter((k) => screen.queryByTestId(`timeline-${k}`))
+  const label = (key: string) => screen.getByTestId(`timeline-${key}`).props.accessibilityLabel
+  const shipment = (over: Record<string, unknown> = {}) => ({ status: 'ASSIGNING_DRIVER', pickupTime: null, deliveredAt: null, trackingUrl: null, ...over })
+
+  it('shows the full flow with the current step, times only where the API has them', async () => {
+    api.fetchOrder.mockResolvedValue(paid({ status: 'PROCESSING' }))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(steps()).toEqual(['placed', 'paid', 'preparing', 'shipped', 'out', 'delivered'])
+    expect(screen.getByTestId('order-timeline').props.accessibilityRole).toBe('list')
+    expect(label('placed')).toBe('Placed, done, Nov 14, 2026, 1:49 PM')
+    expect(label('paid')).toBe('Paid, done, Nov 14, 2026, 2:00 PM')
+    expect(label('preparing')).toBe('Preparing, current')
+    expect(label('shipped')).toBe('Shipped, upcoming')
+    expect(label('delivered')).toBe('Delivered, upcoming')
+  })
+
+  it('an unpaid order is waiting on Paid', async () => {
+    api.fetchOrder.mockResolvedValue(order())
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(label('paid')).toBe('Paid, current')
+  })
+
+  it('a delivered order is done end to end', async () => {
+    api.fetchOrder.mockResolvedValue(paid({ status: 'DELIVERED', shipment: shipment({ status: 'COMPLETED', pickupTime: '2026-11-15T01:00:00.000Z', deliveredAt: '2026-11-15T03:00:00.000Z' }) }))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(label('shipped')).toBe('Shipped, done, Nov 15, 2026, 9:00 AM')
+    expect(label('out')).toBe('Out for delivery, done')
+    expect(label('delivered')).toBe('Delivered, done, Nov 15, 2026, 11:00 AM')
+  })
+
+  it('shows the cancellation step and its reason', async () => {
+    api.fetchOrder.mockResolvedValue(order({ status: 'CANCELLED', cancelledAt: '2026-11-14T07:00:00.000Z', cancellationReason: 'Cancelled by customer' }))
+    await render(<OrderScreen />)
+    expect(await screen.findByText('Cancelled by customer')).toBeTruthy()
+    expect(steps()).toEqual(['placed', 'cancelled'])
+    expect(label('cancelled')).toBe('Cancelled, Nov 14, 2026, 3:00 PM, Cancelled by customer')
+  })
+
+  it('a refunded order ends on Refunded without a time', async () => {
+    api.fetchOrder.mockResolvedValue(paid({ status: 'REFUNDED' }))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(steps()).toEqual(['placed', 'paid', 'refunded'])
+    expect(label('refunded')).toBe('Refunded, current')
+    expect(screen.getByTestId('order-status')).toHaveTextContent('Refunded')
+  })
+
+  it('a refunded delivered order shows every stage it reached, then Refunded', async () => {
+    api.fetchOrder.mockResolvedValue(paid({ status: 'REFUNDED', paymentStatus: 'REFUNDED', shipment: shipment({ status: 'COMPLETED', pickupTime: '2026-11-15T01:00:00.000Z', deliveredAt: '2026-11-15T03:00:00.000Z' }) }))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(steps()).toEqual(['placed', 'paid', 'preparing', 'shipped', 'out', 'delivered', 'refunded'])
+    expect(label('delivered')).toBe('Delivered, done, Nov 15, 2026, 11:00 AM')
+    expect(label('refunded')).toBe('Refunded, current')
+  })
+
+  it('a failed payment is labelled Payment failed on the Paid step', async () => {
+    api.fetchOrder.mockResolvedValue(order({ status: 'PAYMENT_FAILED', paymentStatus: 'FAILED' }))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(label('paid')).toBe('Payment failed, current')
+    expect(screen.getByTestId('order-status')).toHaveTextContent('Payment failed')
+  })
+
+  it('an out-for-delivery order has Out for delivery current and the stages before it done', async () => {
+    api.fetchOrder.mockResolvedValue(paid({ status: 'OUT_FOR_DELIVERY', shipment: shipment({ status: 'ON_GOING', pickupTime: '2026-11-15T01:00:00.000Z', trackingUrl: 'https://share.lalamove.test/1' }) }))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(label('shipped')).toBe('Shipped, done, Nov 15, 2026, 9:00 AM')
+    expect(label('out')).toBe('Out for delivery, current')
+    expect(label('delivered')).toBe('Delivered, upcoming')
+    expect(screen.getByTestId('order-track-delivery')).toBeTruthy()
+  })
+
+  it('a cancelled order with no recorded time or reason shows the step bare', async () => {
+    api.fetchOrder.mockResolvedValue(order({ status: 'CANCELLED' }))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(label('cancelled')).toBe('Cancelled')
+    expect(label('placed')).toBe('Placed, done, Nov 14, 2026, 1:49 PM')
+  })
+
+  it('shipment times are not shown while the status is behind them', async () => {
+    api.fetchOrder.mockResolvedValue(paid({ status: 'PROCESSING', shipment: shipment({ pickupTime: '2026-11-15T01:00:00.000Z', deliveredAt: '2026-11-15T03:00:00.000Z' }) }))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(label('shipped')).toBe('Shipped, upcoming')
+    expect(label('delivered')).toBe('Delivered, upcoming')
+  })
+
+  it('each stage is a list item', async () => {
+    api.fetchOrder.mockResolvedValue(order())
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(screen.getByTestId('timeline-placed').props.accessibilityRole).toBe('listitem')
+  })
 })
 
-it('shows the cancellation step and its reason when the API sent them', async () => {
-  api.fetchOrder.mockResolvedValue(order({ status: 'CANCELLED', cancelledAt: '2026-11-14T07:00:00.000Z', cancellationReason: 'Cancelled by customer' }))
-  await render(<OrderScreen />)
-  expect(await screen.findByText('Cancelled by customer')).toBeTruthy()
-  expect(screen.getAllByText('Cancelled').length).toBeGreaterThan(0)
-  expect(screen.queryByText('Paid')).toBeNull()
+describe('delivery tracking', () => {
+  const shipment = (trackingUrl: string | null) => ({ status: 'ON_GOING', pickupTime: null, deliveredAt: null, trackingUrl })
+  const onTheWay = (url: string | null, status = 'DISPATCHED') => paid({ status, shipment: shipment(url) })
+
+  it.each(['DISPATCHED', 'OUT_FOR_DELIVERY'])('%s with a link: status line, Track Delivery and the honest copy, above the timeline', async (status) => {
+    api.fetchOrder.mockResolvedValue(onTheWay('https://share.lalamove.test/1', status))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(screen.getByTestId('order-tracking')).toHaveTextContent(/Courier: Driver on the way/)
+    expect(screen.getByTestId('order-track-delivery')).toBeTruthy()
+    expect(screen.getByText('Opens the live courier map in your browser.')).toBeTruthy()
+    expect(screen.queryByTestId('order-tracking-pending')).toBeNull()
+    const tree = JSON.stringify(screen.toJSON())
+    expect(tree.indexOf('"order-tracking"')).toBeLessThan(tree.indexOf('"order-timeline"'))
+  })
+
+  it('dispatched without a link says it is not available yet and offers no button', async () => {
+    api.fetchOrder.mockResolvedValue(onTheWay(null))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(screen.getByTestId('order-tracking-pending')).toHaveTextContent("Tracking link isn't available yet. It appears once the courier assigns a driver.")
+    expect(screen.queryByTestId('order-track-delivery')).toBeNull()
+  })
+
+  it.each(['javascript:alert(1)', 'http://share.lalamove.test/1'])('%s counts as no link: only https is offered', async (url) => {
+    api.fetchOrder.mockResolvedValue(onTheWay(url))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(screen.queryByTestId('order-track-delivery')).toBeNull()
+    expect(screen.getByTestId('order-tracking-pending')).toBeTruthy()
+  })
+
+  it('opens the browser once on a double tap', async () => {
+    api.fetchOrder.mockResolvedValue(onTheWay('https://share.lalamove.test/1'))
+    let done: (value: unknown) => void = () => {}
+    mockOpen.mockReturnValue(new Promise((r) => (done = r)))
+    await render(<OrderScreen />)
+    const button = await screen.findByTestId('order-track-delivery')
+    await act(async () => {
+      button.props.onClick({})
+      button.props.onClick({})
+    })
+    expect(mockOpen).toHaveBeenCalledTimes(1)
+    await act(async () => done({ type: 'dismiss' }))
+    await act(async () => button.props.onClick({}))
+    expect(mockOpen).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([paid({ status: 'PROCESSING' }), paid({ status: 'DELIVERED', shipment: shipment('https://share.lalamove.test/1') }), order()])('has no tracking section for %#', async (shown) => {
+    api.fetchOrder.mockResolvedValue(shown)
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    expect(screen.queryByTestId('order-tracking')).toBeNull()
+  })
+
+  it('Track Delivery opens the courier page in the browser', async () => {
+    api.fetchOrder.mockResolvedValue(onTheWay('https://share.lalamove.test/1'))
+    mockOpen.mockResolvedValue({ type: 'opened' })
+    await render(<OrderScreen />)
+    await fireEvent.press(await screen.findByTestId('order-track-delivery'))
+    expect(mockOpen).toHaveBeenCalledWith('https://share.lalamove.test/1')
+    expect(mockToast).not.toHaveBeenCalled()
+  })
+
+  it('toasts when the browser cannot open', async () => {
+    api.fetchOrder.mockResolvedValue(onTheWay('https://share.lalamove.test/1'))
+    mockOpen.mockRejectedValue(new Error('no browser'))
+    await render(<OrderScreen />)
+    await fireEvent.press(await screen.findByTestId('order-track-delivery'))
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith("Couldn't open the tracking page. Try again."))
+  })
 })
 
 describe('actions are offered only when the order is unpaid', () => {
@@ -435,6 +594,29 @@ describe('live polling', () => {
     expect(screen.queryByRole('progressbar')).toBeNull()
     expect(screen.getByTestId('order-status')).toHaveTextContent('Paid')
     expect(screen.queryByTestId('order-pay-now')).toBeNull()
+  })
+
+  it('a status change from the poll advances the current timeline step in place', async () => {
+    const shipment = { status: 'ASSIGNING_DRIVER', pickupTime: null, deliveredAt: null, trackingUrl: null }
+    api.fetchOrder.mockResolvedValueOnce(paid({ status: 'PROCESSING' })).mockResolvedValue(paid({ status: 'DISPATCHED', updatedAt: '2026-11-14T08:00:00.000Z', shipment }))
+    await open()
+    expect(screen.getByTestId('timeline-preparing').props.accessibilityLabel).toBe('Preparing, current')
+    expect(screen.getByTestId('timeline-shipped').props.accessibilityLabel).toBe('Shipped, upcoming')
+    await tick(POLL)
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.getByTestId('timeline-preparing').props.accessibilityLabel).toBe('Preparing, done')
+    expect(screen.getByTestId('timeline-shipped').props.accessibilityLabel).toBe('Shipped, current')
+    expect(screen.getByTestId('order-tracking-pending')).toBeTruthy()
+  })
+
+  it('a poll that adds the tracking link adds the tracking section in place', async () => {
+    const shipment = { status: 'ON_GOING', pickupTime: null, deliveredAt: null, trackingUrl: 'https://share.lalamove.test/1' }
+    api.fetchOrder.mockResolvedValueOnce(paid({ status: 'PROCESSING' })).mockResolvedValue(paid({ status: 'DISPATCHED', updatedAt: '2026-11-14T08:00:00.000Z', shipment }))
+    await open()
+    expect(screen.queryByTestId('order-tracking')).toBeNull()
+    await tick(POLL)
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.getByTestId('order-track-delivery')).toBeTruthy()
   })
 
   it('stops once the order is closed', async () => {

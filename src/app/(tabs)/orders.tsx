@@ -165,6 +165,7 @@ export default function OrdersScreen() {
   const userRef = useRef(userId)
   const itemsRef = useRef<Order[] | null>(null)
   const opening = useRef(false)
+  const tracking = useRef(false)
   const seq = useRef(0) // the newest load wins: an earlier one is dropped when it lands
   const expired = useRef(false)
   const flight = useRef<{ uid: string; signal: AbortSignal; promise: Promise<boolean>; quiet: boolean } | null>(null)
@@ -265,10 +266,14 @@ export default function OrdersScreen() {
     router.push({ pathname: '/orders/[id]', params: { id } })
   }
   async function track(url: string) {
+    if (tracking.current) return
+    tracking.current = true
     try {
       await openBrowserAsync(url)
     } catch {
       notify.current("Couldn't open the tracking page. Try again.")
+    } finally {
+      tracking.current = false
     }
   }
 

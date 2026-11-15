@@ -185,23 +185,46 @@ export function matchesTab(order: Pick<Order, 'status'>, tab: OrderTab) {
 export const tabCounts = (orders: Pick<Order, 'status'>[]) =>
   Object.fromEntries(ORDER_TABS.map((tab) => [tab.id, orders.filter((order) => matchesTab(order, tab.id)).length])) as Record<OrderTab, number>
 
-/** The courier's tracking page for an order on its way; only a web address is ever linked. */
+/** The courier's tracking page for an order on its way; only a secure (https) address is ever linked. */
 export function trackingLink({ status, shipment }: Pick<Order, 'status' | 'shipment'>): string | null {
   const url = shipment?.trackingUrl
-  return (status === 'DISPATCHED' || status === 'OUT_FOR_DELIVERY') && url && /^https?:\/\//i.test(url) ? url : null
+  return (status === 'DISPATCHED' || status === 'OUT_FOR_DELIVERY') && url && /^https:\/\//i.test(url) ? url : null
 }
 
-/** The steps the API has a time for, in order: nothing is invented for stages with no timestamp. */
-export function orderTimeline(order: Order): { label: string; at: string; note?: string }[] {
-  const { shipment } = order
-  const steps: { label: string; at: string | null; note?: string }[] = [
-    { label: 'Placed', at: order.createdAt },
-    { label: 'Paid', at: order.paidAt },
-    { label: 'Handed to courier', at: shipment?.pickupTime ?? null },
-    { label: 'Delivered', at: shipment?.deliveredAt ?? null },
-    { label: 'Cancelled', at: order.cancelledAt, note: order.cancellationReason ?? undefined },
-  ]
-  return steps.filter((step): step is { label: string; at: string; note?: string } => step.at !== null)
+export type StepState = 'done' | 'current' | 'upcoming' | 'cancelled'
+export type TimelineStep = { key: string; label: string; at: string | null; state: StepState; note?: string }
+
+// Same stages as the web. A stage reached by status but with no timestamp stays timeless: nothing is invented.
+const FLOW = [
+  { key: 'placed', label: 'Placed' },
+  { key: 'paid', label: 'Paid' },
+  { key: 'preparing', label: 'Preparing' },
+  { key: 'shipped', label: 'Shipped' },
+  { key: 'out', label: 'Out for delivery' },
+  { key: 'delivered', label: 'Delivered' },
+]
+// The stage each live status is working on; stages before it are done. DELIVERED has none left.
+const CURRENT_STEP = new Map([['PENDING_PAYMENT', 1], ['PAYMENT_FAILED', 1], ['PAID', 2], ['PROCESSING', 2], ['DISPATCHED', 3], ['OUT_FOR_DELIVERY', 4]])
+
+/** The order's journey: done / current / upcoming stages. Cancelled stops at Cancelled; Refunded shows what happened, then Refunded. */
+export function buildTimeline(order: Order): TimelineStep[] {
+  const stamps = [order.createdAt, order.paidAt, null, order.shipment?.pickupTime ?? null, null, order.shipment?.deliveredAt ?? null]
+  const placed: TimelineStep = { key: 'placed', label: 'Placed', at: order.createdAt, state: 'done' }
+  if (order.status === 'CANCELLED') {
+    return [placed, { key: 'cancelled', label: 'Cancelled', at: order.cancelledAt, state: 'cancelled', note: order.cancellationReason ?? undefined }]
+  }
+  if (order.status === 'REFUNDED') {
+    const reached = order.shipment?.deliveredAt ? 6 : order.shipment?.pickupTime ? 4 : order.paidAt ? 2 : 1
+    const done = FLOW.slice(0, reached).map((step, i): TimelineStep => ({ ...step, at: stamps[i], state: 'done' }))
+    return [...done, { key: 'refunded', label: 'Refunded', at: null, state: 'current' }]
+  }
+  const current = order.status === 'DELIVERED' ? FLOW.length : CURRENT_STEP.get(order.status)
+  if (current === undefined) return [placed] // a status the API adds later: claim nothing beyond the placement
+  return FLOW.map((step, i): TimelineStep => {
+    const state: StepState = i < current ? 'done' : i === current ? 'current' : 'upcoming'
+    const failed = step.key === 'paid' && order.status === 'PAYMENT_FAILED'
+    return { ...step, label: failed ? 'Payment failed' : step.label, at: state === 'upcoming' ? null : stamps[i], state }
+  })
 }
 
 const CLOSED = ['DELIVERED', 'CANCELLED', 'REFUNDED']

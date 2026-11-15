@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { awaitsPayment, cancelOrder, isClosed, orderSignature, ordersSignature, createCheckoutSession, createOrder, quoteShipping, fetchAllOrders, fetchOrder, fetchOrdersPage, matchesTab, ORDER_TABS, orderTimeline, tabCounts, trackingLink, orderUpdates, paymentLabel, shipmentLabel, statusLabel, toOrder, toOrdersPage } from '../orders'
+import { awaitsPayment, cancelOrder, isClosed, orderSignature, ordersSignature, createCheckoutSession, createOrder, quoteShipping, fetchAllOrders, fetchOrder, fetchOrdersPage, matchesTab, ORDER_TABS, buildTimeline, tabCounts, trackingLink, orderUpdates, paymentLabel, shipmentLabel, statusLabel, toOrder, toOrdersPage } from '../orders'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -96,12 +96,49 @@ describe('labels and rules', () => {
     expect(awaitsPayment({ status: 'PENDING_PAYMENT', paymentStatus: 'PAID' })).toBe(false)
     for (const status of ['PAID', 'PROCESSING', 'DISPATCHED', 'DELIVERED', 'CANCELLED', 'REFUNDED', 'SOMETHING_NEW']) expect(awaitsPayment({ status, paymentStatus: 'UNPAID' })).toBe(false)
   })
-  it('builds the timeline only from timestamps the API sent', () => {
-    expect(orderTimeline(toOrder(raw()))).toEqual([{ label: 'Placed', at: '2026-11-14T05:49:00.000Z' }])
-    const full = toOrder(raw({ status: 'DELIVERED', paidAt: '2026-11-14T06:00:00Z', shipment: { status: 'COMPLETED', pickupTime: '2026-11-15T01:00:00Z', deliveredAt: '2026-11-15T03:00:00Z' } }))
-    expect(orderTimeline(full).map((s) => s.label)).toEqual(['Placed', 'Paid', 'Handed to courier', 'Delivered'])
-    const cancelled = toOrder(raw({ status: 'CANCELLED', cancelledAt: '2026-11-14T07:00:00Z', cancellationReason: 'Cancelled by customer' }))
-    expect(orderTimeline(cancelled).at(-1)).toEqual({ label: 'Cancelled', at: '2026-11-14T07:00:00Z', note: 'Cancelled by customer' })
+  describe('buildTimeline', () => {
+    const states = (o: ReturnType<typeof toOrder>) => buildTimeline(o).map((s) => `${s.key}:${s.state}`)
+    const FLOW = ['placed', 'paid', 'preparing', 'shipped', 'out', 'delivered']
+    const at = { paidAt: '2026-11-14T06:00:00Z', shipment: { status: 'ON_GOING', pickupTime: '2026-11-15T01:00:00Z', deliveredAt: null } }
+    it.each([
+      ['PENDING_PAYMENT', 1],
+      ['PAYMENT_FAILED', 1],
+      ['PAID', 2],
+      ['PROCESSING', 2],
+      ['DISPATCHED', 3],
+      ['OUT_FOR_DELIVERY', 4],
+    ])('%s: stages before are done, one is current, the rest upcoming', (status, current) => {
+      expect(states(toOrder(raw({ status })))).toEqual(FLOW.map((key, i) => `${key}:${i < current ? 'done' : i === current ? 'current' : 'upcoming'}`))
+    })
+    it('a delivered order is done end to end', () => {
+      expect(states(toOrder(raw({ status: 'DELIVERED' }))).every((s) => s.endsWith(':done'))).toBe(true)
+    })
+    it('uses only real times: none invented for a stage reached by status, none for upcoming', () => {
+      const steps = buildTimeline(toOrder(raw({ status: 'PROCESSING', ...at })))
+      expect(steps.map((s) => s.at)).toEqual(['2026-11-14T05:49:00.000Z', '2026-11-14T06:00:00Z', null, null, null, null])
+      const shipped = buildTimeline(toOrder(raw({ status: 'DISPATCHED', ...at })))
+      expect(shipped.map((s) => s.at)).toEqual(['2026-11-14T05:49:00.000Z', '2026-11-14T06:00:00Z', null, '2026-11-15T01:00:00Z', null, null])
+    })
+    it('labels the second stage Payment failed after a failed payment', () => {
+      expect(buildTimeline(toOrder(raw({ status: 'PAYMENT_FAILED' })))[1].label).toBe('Payment failed')
+    })
+    it('stops at Cancelled with its reason', () => {
+      const cancelled = toOrder(raw({ status: 'CANCELLED', cancelledAt: '2026-11-14T07:00:00Z', cancellationReason: 'Cancelled by customer' }))
+      expect(buildTimeline(cancelled)).toEqual([
+        { key: 'placed', label: 'Placed', at: '2026-11-14T05:49:00.000Z', state: 'done' },
+        { key: 'cancelled', label: 'Cancelled', at: '2026-11-14T07:00:00Z', state: 'cancelled', note: 'Cancelled by customer' },
+      ])
+    })
+    it('a refunded order shows what happened, then Refunded as current', () => {
+      expect(states(toOrder(raw({ status: 'REFUNDED' })))).toEqual(['placed:done', 'refunded:current'])
+      expect(states(toOrder(raw({ status: 'REFUNDED', ...at })))).toEqual(['placed:done', 'paid:done', 'preparing:done', 'shipped:done', 'refunded:current'])
+      const delivered = { status: 'COMPLETED', pickupTime: '2026-11-15T01:00:00Z', deliveredAt: '2026-11-15T03:00:00Z' }
+      expect(states(toOrder(raw({ status: 'REFUNDED', ...at, shipment: delivered }))).at(-2)).toBe('delivered:done')
+    })
+    it('claims nothing beyond the placement for a status it does not know', () => {
+      expect(states(toOrder(raw({ status: 'SOMETHING_NEW' })))).toEqual(['placed:done'])
+      expect(states(toOrder(raw({ status: 'constructor' })))).toEqual(['placed:done'])
+    })
   })
 })
 
@@ -116,10 +153,11 @@ describe('order tabs', () => {
     expect(matchesTab({ status: 'PAID' }, 'to-pay')).toBe(false)
     expect(matchesTab({ status: 'SOMETHING_NEW' }, 'all')).toBe(true)
   })
-  it('links tracking only for an order on its way and only to a web address', () => {
+  it('links tracking only for an order on its way and only to a secure web address', () => {
     const shipment = (trackingUrl: string | null) => ({ status: 'ON_GOING', pickupTime: null, deliveredAt: null, trackingUrl })
     expect(trackingLink({ status: 'DISPATCHED', shipment: shipment('https://t.test/1') })).toBe('https://t.test/1')
-    expect(trackingLink({ status: 'OUT_FOR_DELIVERY', shipment: shipment('HTTP://t.test/1') })).toBe('HTTP://t.test/1')
+    expect(trackingLink({ status: 'OUT_FOR_DELIVERY', shipment: shipment('HTTPS://t.test/1') })).toBe('HTTPS://t.test/1')
+    expect(trackingLink({ status: 'DISPATCHED', shipment: shipment('http://t.test/1') })).toBeNull()
     expect(trackingLink({ status: 'DELIVERED', shipment: shipment('https://t.test/1') })).toBeNull()
     expect(trackingLink({ status: 'DISPATCHED', shipment: shipment('javascript:alert(1)') })).toBeNull()
     expect(trackingLink({ status: 'DISPATCHED', shipment: shipment(null) })).toBeNull()
