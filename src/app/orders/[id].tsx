@@ -58,14 +58,18 @@ function AmountRow({ label, value, testID, strong }: { label: string; value: str
   )
 }
 
+// Newest first. A stage older than the latest one fades a little more with each step down, so the eye lands on where the order is now.
+const FADE_STEP = 0.18
+const MIN_OPACITY = 0.3
+
 // One stage: marker + connecting line on the left, label / time / note on the right. Done is a filled Obsidian square, current a larger Red one, upcoming an outline, cancelled a Red cross.
-// The marker is centred on a zero-width body-style line, so it follows the first text line at any font scale.
-function TimelineRow({ step, next }: { step: TimelineStep; next?: TimelineStep }) {
+// The marker is centred on a zero-width body-style line, so it follows the first text line at any font scale. `next` is the older stage drawn below this one.
+function TimelineRow({ step, next, opacity = 1 }: { step: TimelineStep; next?: TimelineStep; opacity?: number }) {
   const { state } = step
   const stateWord = state === 'cancelled' ? null : state
   const label = [step.label, stateWord, step.at && dateTime(step.at), step.note].filter(Boolean).join(', ')
   return (
-    <View accessible accessibilityLabel={label} testID={`timeline-${step.key}`} style={styles.step}>
+    <View accessible accessibilityLabel={label} testID={`timeline-${step.key}`} style={[styles.step, { opacity }]}>
       <View style={styles.rail}>
         <View style={styles.markCell}>
           <Text style={type.body}>{'​'}</Text>
@@ -78,7 +82,7 @@ function TimelineRow({ step, next }: { step: TimelineStep; next?: TimelineStep }
             <View style={[styles.marker, state === 'upcoming' && styles.markerUpcoming, state === 'current' && styles.markerCurrent]} />
           )}
         </View>
-        {next && <View style={[styles.line, state === 'done' && styles.lineDone]} />}
+        {next && <View style={[styles.line, state !== 'upcoming' && next.state === 'done' && styles.lineDone]} />}
       </View>
       <View style={[styles.info, next && styles.stepGap]}>
         <Text style={state === 'current' ? styles.recipient : state === 'upcoming' ? styles.body : type.body}>{step.label}</Text>
@@ -96,7 +100,8 @@ function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props
   const unpaid = awaitsPayment(order)
   const tracking = trackingLink(order)
   const onTheWay = order.status === 'DISPATCHED' || order.status === 'OUT_FOR_DELIVERY'
-  const timeline = buildTimeline(order)
+  const steps = buildTimeline(order).reverse()
+  const latest = steps.findIndex((step) => step.state !== 'upcoming') // the newest stage the order has reached
   const delivered = order.status === 'DELIVERED' || order.status === 'COMPLETED'
   return (
     <View testID="order-detail" style={styles.content}>
@@ -164,8 +169,8 @@ function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props
       <View style={styles.section}>
         <Text style={type.label}>(Timeline)</Text>
         <View accessibilityRole="list" testID="order-timeline">
-          {timeline.map((step, i) => (
-            <TimelineRow key={step.key} step={step} next={timeline[i + 1]} />
+          {steps.map((step, i) => (
+            <TimelineRow key={step.key} step={step} next={steps[i + 1]} opacity={i > latest ? Math.max(MIN_OPACITY, 1 - FADE_STEP * (i - latest)) : 1} />
           ))}
         </View>
       </View>

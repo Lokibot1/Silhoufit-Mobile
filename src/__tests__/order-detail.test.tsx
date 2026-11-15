@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { Alert, AppState } from 'react-native'
+import { Alert, AppState, StyleSheet } from 'react-native'
 
 import { ApiError } from '@/lib/api'
 import OrderScreen from '../app/orders/[id]'
@@ -114,6 +114,19 @@ describe('timeline', () => {
     expect(label('preparing')).toBe('Preparing, current')
     expect(label('shipped')).toBe('Shipped, upcoming')
     expect(label('delivered')).toBe('Delivered, upcoming')
+  })
+
+  it('lists the newest stage first and fades each older stage a little more, the latest at full strength', async () => {
+    api.fetchOrder.mockResolvedValue(paid({ status: 'PROCESSING' }))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+    const rows = screen.getAllByTestId(/^timeline-/)
+    expect(rows.map((row) => row.props.testID)).toEqual(['timeline-delivered', 'timeline-out', 'timeline-shipped', 'timeline-preparing', 'timeline-paid', 'timeline-placed'])
+    const opacity = (key: string) => StyleSheet.flatten(screen.getByTestId(`timeline-${key}`).props.style).opacity
+    expect(opacity('preparing')).toBe(1) // the latest stage the order has reached
+    expect(opacity('paid')).toBeCloseTo(0.82)
+    expect(opacity('placed')).toBeCloseTo(0.64)
+    expect(opacity('shipped')).toBe(1) // stages still to come are not faded
   })
 
   it('an unpaid order is waiting on Paid', async () => {
