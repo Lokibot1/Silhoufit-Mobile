@@ -20,6 +20,7 @@ import {
   validateSuffix,
 } from '@/lib/signUpValidation'
 import { Button } from '@/ui/Button'
+import { BirthdayField } from '@/ui/BirthdayField'
 import { FloatingField } from '@/ui/FloatingField'
 import { GoogleMark } from '@/ui/GoogleMark'
 import { KralLogo } from '@/ui/KralLogo'
@@ -41,7 +42,6 @@ const SANITIZERS: Partial<Record<Field, (input: string) => string>> = {
   middleName: sanitizeName,
   suffix: sanitizeSuffix,
   email: (input) => stripEmoji(input).replace(/\s/g, ''),
-  birthday: (input) => input.replace(/[^\d\-/.]/g, ''),
   password: stripEmoji,
   confirm: stripEmoji,
 }
@@ -206,7 +206,7 @@ export default function SignUp() {
           autoComplete="email"
           textContentType="emailAddress"
         />
-        <FloatingField {...field('birthday')} label="Birthday (YYYY-MM-DD)" helper="You must be 18 or older." maxLength={10} keyboardType="numbers-and-punctuation" autoComplete="birthdate-full" autoCorrect={false} />
+        <BirthdayField testID="sign-up-birthday" value={values.birthday} onChange={(iso) => change('birthday', iso)} onClose={() => blur('birthday')} error={errorOf('birthday')} helper="You must be 18 or older." editable={pending === null} />
         <FloatingField
           {...field('password')}
           toggleTestID="sign-up-toggle-password"

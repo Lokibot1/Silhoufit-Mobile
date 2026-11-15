@@ -1,5 +1,6 @@
 import { router, useNavigation } from 'expo-router'
-import { useRef, useState, type ComponentRef } from 'react'
+import { useRef, useState } from 'react'
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native'
 
 import { updateMe } from '@/api/me'
 import { useSession } from '@/auth/session'
@@ -7,12 +8,12 @@ import { errorMessage } from '@/lib/api'
 import { normalizeBirthday } from '@/lib/profileValidation'
 import { UNDERAGE_MESSAGE, validateAdultBirthday } from '@/lib/signUpValidation'
 import { Button } from '@/ui/Button'
-import { FloatingField } from '@/ui/FloatingField'
+import { BirthdayField } from '@/ui/BirthdayField'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
-
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
+
 // Shown once after a first Google sign-in, which gives no birthday: the web asks the same before letting a new account in.
 export default function Age() {
   const { session, loading, signOut, update } = useSession()
@@ -24,7 +25,6 @@ export default function Age() {
   const [failure, setFailure] = useState<string | null>(null)
   const [underage, setUnderage] = useState(false)
   const inFlight = useRef(false)
-  const inputRef = useRef<ComponentRef<typeof TextInput>>(null)
   const error = validateAdultBirthday(birthday) ?? undefined
 
   async function back() {
@@ -46,7 +46,7 @@ export default function Age() {
       setPending(false)
       return setUnderage(true)
     }
-    if (error) return inputRef.current?.focus()
+    if (error) return
 
     inFlight.current = true
     setPending(true)
@@ -92,21 +92,14 @@ export default function Age() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text accessibilityRole="header" style={type.h1}>Confirm Your Age</Text>
         <Text style={[type.body, { color: color.graphite }]}>Google did not share your birthday. KRAL accounts are for people 18 or older, so enter yours to continue.</Text>
-        <FloatingField
-          ref={inputRef}
+        <BirthdayField
           testID="age-birthday"
-          label="Birthday (YYYY-MM-DD)"
           value={birthday}
-          onChangeText={(text) => setBirthday(text.replace(/[^\d\-/.]/g, ''))}
-          onBlur={() => setTouched(true)}
+          onChange={setBirthday}
+          onClose={() => setTouched(true)}
           error={touched && error !== UNDERAGE_MESSAGE ? error : undefined}
           helper="You must be 18 or older."
           editable={!pending}
-          maxLength={10}
-          keyboardType="numbers-and-punctuation"
-          autoCorrect={false}
-          returnKeyType="go"
-          onSubmitEditing={submit}
         />
         {failure && (
           <View testID="age-error" accessibilityRole="alert" style={styles.banner}>

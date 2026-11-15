@@ -1,14 +1,16 @@
 import { router, useFocusEffect, useNavigation } from 'expo-router'
 import { useCallback, useRef, useState, type ComponentRef } from 'react'
+import { Alert, Keyboard, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { updateMe, type Gender, type Me, type MePatch } from '@/api/me'
 import { hasPasswordLogin } from '@/auth/email'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
-import { NAME_MAX, GENDER_OPTIONS, SUFFIX_MAX, normalizeBirthday, normalizeName, validateBirthday, validateName, validateSuffix } from '@/lib/profileValidation'
+import { NAME_MAX, GENDER_OPTIONS, SUFFIX_MAX, normalizeName, validateBirthday, validateName, validateSuffix } from '@/lib/profileValidation'
 import { AvatarEditor } from '@/profile/AvatarEditor'
 import { Button } from '@/ui/Button'
+import { BirthdayField } from '@/ui/BirthdayField'
 import { Chip } from '@/ui/Chip'
 import { FloatingField } from '@/ui/FloatingField'
 import { Skeleton } from '@/ui/Skeleton'
@@ -43,8 +45,7 @@ function changes(v: Values, saved: Values): MePatch {
   if (normalizeName(v.lastName) !== normalizeName(saved.lastName)) patch.lastName = normalizeName(v.lastName)
   if (normalizeName(v.middleName) !== normalizeName(saved.middleName)) patch.middleName = normalizeName(v.middleName) || null
   if (v.suffix.trim() !== saved.suffix.trim()) patch.suffix = v.suffix.trim() || null
-  const birthday = v.birthday.trim() ? (normalizeBirthday(v.birthday) ?? v.birthday.trim()) : ''
-  if (birthday !== saved.birthday) patch.birthday = birthday || null
+  if (v.birthday !== saved.birthday) patch.birthday = v.birthday
   if (v.gender !== saved.gender) patch.gender = v.gender
   return patch
 }
@@ -75,7 +76,6 @@ function Form({ me }: { me: Me }) {
   const middleNameRef = useRef<ComponentRef<typeof TextInput>>(null)
   const lastNameRef = useRef<ComponentRef<typeof TextInput>>(null)
   const suffixRef = useRef<ComponentRef<typeof TextInput>>(null)
-  const birthdayRef = useRef<ComponentRef<typeof TextInput>>(null)
 
   const errors = validate(values)
   const shown = (field: Field) => (touched[field] ? errors[field] : undefined)
@@ -88,8 +88,6 @@ function Form({ me }: { me: Me }) {
   }
   function blur(field: Field) {
     setTouched((current) => ({ ...current, [field]: true }))
-    // Show a forgivingly typed birthday the way it will be saved.
-    if (field === 'birthday') set({ birthday: normalizeBirthday(values.birthday) ?? values.birthday })
   }
 
   // Read focus at call time: if this screen is gone or covered by now, going back would pop an unrelated screen.
@@ -108,7 +106,8 @@ function Form({ me }: { me: Me }) {
     if (inFlight.current || !changed) return
     setTouched({ firstName: true, middleName: true, lastName: true, suffix: true, birthday: true })
     const invalid = ORDER.find((field) => errors[field])
-    if (invalid) return { firstName: firstNameRef, middleName: middleNameRef, lastName: lastNameRef, suffix: suffixRef, birthday: birthdayRef }[invalid].current?.focus()
+    if (invalid === 'birthday') return // picked from a calendar, so there is no input to focus
+    if (invalid) return { firstName: firstNameRef, middleName: middleNameRef, lastName: lastNameRef, suffix: suffixRef }[invalid].current?.focus()
 
     inFlight.current = true
     setPending(true)
@@ -196,24 +195,21 @@ function Form({ me }: { me: Me }) {
           autoCorrect={false}
           textContentType="nameSuffix"
           maxLength={SUFFIX_MAX}
-          returnKeyType="next"
-          onSubmitEditing={() => birthdayRef.current?.focus()}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
         />
         <FloatingField
-          ref={birthdayRef}
+        <BirthdayField
           testID="edit-birthday"
-          label="Birthday (optional)"
           value={values.birthday}
-          onChangeText={(text) => set({ birthday: text })}
-          onBlur={() => blur('birthday')}
+          onChange={(iso) => set({ birthday: iso })}
+          onClose={() => setTouched((current) => ({ ...current, birthday: true }))}
           error={shown('birthday')}
           helper="YYYY-MM-DD, like 1995-05-15"
           editable={!locked}
           keyboardType={Platform.select({ ios: 'numbers-and-punctuation', default: 'default' })}
           autoCorrect={false}
           maxLength={14}
-          returnKeyType="done"
-          onSubmitEditing={() => Keyboard.dismiss()}
         />
 
         <View style={styles.group}>

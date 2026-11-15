@@ -23,10 +23,10 @@ tags:
 - tapOn:
     id: sign-up-email
 - inputText: ${output.email}
+# The birthday is picked from a calendar: it opens on the day 18 years ago, which is an adult, so OK accepts it.
 - tapOn:
-    id: sign-up-birthday
-- inputText: 1990-01-15
-- hideKeyboard
+    id: sign-up-birthday-open
+- tapOn: "OK"
 - scrollUntilVisible:
     element:
       id: sign-up-password

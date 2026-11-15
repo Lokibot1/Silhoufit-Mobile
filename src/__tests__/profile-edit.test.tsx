@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 
 import { ApiError } from '@/lib/api'
 import EditProfile from '../app/profile/edit'
+import { pickBirthday } from '@/test/pickBirthday'
 
 jest.mock('@/api/me', () => ({ updateMe: jest.fn() }))
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
@@ -9,7 +10,6 @@ jest.mock('expo-linking', () => ({ createURL: (path: string) => `silhoufitmobile
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) },
-  useNavigation: () => ({ isFocused: () => mockFocused.value }),
   useFocusEffect: (callback: () => void) => {
     mockRefocus = callback
     jest.requireActual('react').useEffect(callback, [])
@@ -46,7 +46,7 @@ it('pre-fills every field from the profile', async () => {
   expect(screen.getByTestId('edit-middle-name').props.value).toBe('Maria')
   expect(screen.getByTestId('edit-last-name').props.value).toBe('Cruz')
   expect(screen.getByTestId('edit-suffix').props.value).toBe('')
-  expect(screen.getByTestId('edit-birthday').props.value).toBe('1995-05-15')
+  expect(screen.getByTestId('edit-birthday', { includeHiddenElements: true }).props.value).toBe('May 15, 1995')
   expect(screen.getByTestId('edit-gender-female').props.accessibilityState).toMatchObject({ checked: true })
   expect(screen.getByTestId('edit-gender-male').props.accessibilityState).toMatchObject({ checked: false })
 })
@@ -115,16 +115,24 @@ describe('validation', () => {
     expect(screen.getByText('3/20')).toBeTruthy()
   })
 
-  it('rejects a bad and a future birthday, and tidies a forgiving one on blur', async () => {
+  it('picks the birthday from a calendar, shows it as a date and cannot be typed into', async () => {
     await render(<EditProfile />)
-    await type('edit-birthday', '2023-02-31')
-    await fireEvent(screen.getByTestId('edit-birthday'), 'blur')
-    expect(screen.getByText('Enter your birthday as YYYY-MM-DD, like 1995-05-15.')).toBeTruthy()
-    await type('edit-birthday', '2999-01-01')
-    expect(screen.getByText("Birthday can't be in the future. Enter today or an earlier date.")).toBeTruthy()
-    await type('edit-birthday', '1996/5/9')
-    await fireEvent(screen.getByTestId('edit-birthday'), 'blur')
-    expect(screen.getByTestId('edit-birthday').props.value).toBe('1996-05-09')
+    expect(screen.getByTestId('edit-birthday', { includeHiddenElements: true }).props.readOnly).toBe(true)
+    await pickBirthday('edit-birthday', '1996-05-09')
+    expect(screen.getByTestId('edit-birthday', { includeHiddenElements: true }).props.value).toBe('May 9, 1996')
+  })
+
+  it('requires a birthday: an account with none cannot save until one is chosen', async () => {
+    mockUseSession.mockReturnValue({ ...base, profile: { ...me, birthday: null } })
+    mockUpdateMe.mockResolvedValue(me)
+    await render(<EditProfile />)
+    await type('edit-first-name', 'Anna')
+    await fireEvent.press(screen.getByTestId('edit-save'))
+    expect(screen.getByText('Choose your birthday from the calendar.')).toBeTruthy()
+    expect(mockUpdateMe).not.toHaveBeenCalled()
+    await pickBirthday('edit-birthday', '1996-05-09')
+    await fireEvent.press(screen.getByTestId('edit-save'))
+    expect(mockUpdateMe).toHaveBeenCalledWith({ firstName: 'Anna', birthday: '1996-05-09' })
   })
 
   it('does not send while a field is invalid', async () => {
@@ -159,13 +167,12 @@ describe('saving', () => {
     expect(mockUpdateMe).toHaveBeenCalledWith({ firstName: 'Anna', middleName: null, gender: 'other' })
   })
 
-  it('sends Not specified as a null gender and a cleared birthday as null', async () => {
+  it('sends Not specified as a null gender', async () => {
     mockUpdateMe.mockResolvedValue(me)
     await render(<EditProfile />)
     await fireEvent.press(screen.getByTestId('edit-gender-none'))
-    await type('edit-birthday', '')
     await fireEvent.press(screen.getByTestId('edit-save'))
-    expect(mockUpdateMe).toHaveBeenCalledWith({ gender: null, birthday: null })
+    expect(mockUpdateMe).toHaveBeenCalledWith({ gender: null })
   })
 
   it('on success toasts, updates the session and goes back', async () => {

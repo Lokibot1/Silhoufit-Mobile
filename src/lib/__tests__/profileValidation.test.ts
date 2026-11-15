@@ -32,7 +32,7 @@ describe('birthday', () => {
   it('formats today in local time', () => expect(today(now)).toBe('2026-11-15'))
   it.each([['1995-05-15', '1995-05-15'], ['1995/5/9', '1995-05-09'], ['1995.05.09', '1995-05-09'], [' 1995 5 9 ', '1995-05-09'], ['2024-02-29', '2024-02-29']])('normalizes %s', (input, out) => expect(normalizeBirthday(input)).toBe(out))
   it.each(['2023-02-31', '2023-13-01', '95-05-15', '15-05-1995', 'abcd', '1995-05'])('rejects %s as not a real date', (input) => expect(normalizeBirthday(input)).toBeNull())
-  it('allows blank to clear', () => expect(validateBirthday('  ', now)).toBeNull())
+  it('requires a birthday', () => expect(validateBirthday('  ', now)).toBe('Choose your birthday from the calendar.'))
   it('accepts today and earlier', () => {
     expect(validateBirthday('2026-11-15', now)).toBeNull()
     expect(validateBirthday('1995-05-15', now)).toBeNull()

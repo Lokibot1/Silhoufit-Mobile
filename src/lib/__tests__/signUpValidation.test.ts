@@ -109,7 +109,7 @@ describe('strength', () => {
 describe('birthday', () => {
   const now = new Date(2026, 10, 15) // 15 Nov 2026
   it('requires one', () => {
-    expect(validateAdultBirthday('', now)).toBe('Enter your birthday. You must be 18 or older to sign up.')
+    expect(validateAdultBirthday('', now)).toBe('Choose your birthday from the calendar. You must be 18 or older to sign up.')
   })
   it('reuses the profile format and future checks', () => {
     expect(validateAdultBirthday('15/11/2000', now)).toBe('Enter your birthday as YYYY-MM-DD, like 1995-05-15.')

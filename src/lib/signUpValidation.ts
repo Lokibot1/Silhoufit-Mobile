@@ -122,7 +122,7 @@ export function ageFrom(birthday: string, now = new Date()): number {
 
 /** Required birthday of someone old enough to register, or the message that says why not. */
 export function validateAdultBirthday(value: string, now = new Date()): string | null {
-  if (!value.trim()) return 'Enter your birthday. You must be 18 or older to sign up.'
+  if (!value.trim()) return 'Choose your birthday from the calendar. You must be 18 or older to sign up.'
   const invalid = validateBirthday(value, now)
   if (invalid) return invalid
   return ageFrom(normalizeBirthday(value)!, now) < MIN_AGE ? UNDERAGE_MESSAGE : null

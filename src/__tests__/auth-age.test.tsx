@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
+import { pickBirthday } from '@/test/pickBirthday'
 import Age from '../app/auth/age'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
@@ -17,7 +18,7 @@ let mockSession: Record<string, unknown>
 const updateMe = jest.requireMock('@/api/me').updateMe as jest.Mock
 const { back, replace } = jest.requireMock('expo-router').router as Record<'back' | 'replace', jest.Mock>
 
-const type = (text: string) => fireEvent.changeText(screen.getByTestId('age-birthday'), text)
+const type = (iso: string) => pickBirthday('age-birthday', iso)
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -29,7 +30,7 @@ it('saves an adult birthday, toasts and goes back', async () => {
   const me = { id: '1' }
   updateMe.mockResolvedValue(me)
   await render(<Age />)
-  await type('1995/5/15')
+  await type('1995-05-15')
   await fireEvent.press(screen.getByTestId('age-submit'))
   await waitFor(() => expect(back).toHaveBeenCalled())
   expect(updateMe).toHaveBeenCalledWith({ birthday: '1995-05-15' })
@@ -49,19 +50,17 @@ it('signs out and explains when the user is under 18', async () => {
   expect(replace).toHaveBeenCalledWith('/sign-in')
 })
 
-it('shows an inline error for an invalid date and saves nothing', async () => {
+it('shows the chosen day as a date, and the field cannot be typed into', async () => {
   await render(<Age />)
-  await type('1995-02-31')
-  await fireEvent.press(screen.getByTestId('age-submit'))
-  expect(await screen.findByText('Enter your birthday as YYYY-MM-DD, like 1995-05-15.')).toBeTruthy()
-  expect(updateMe).not.toHaveBeenCalled()
-  expect(mockSignOut).not.toHaveBeenCalled()
+  expect(screen.getByTestId('age-birthday', { includeHiddenElements: true }).props.readOnly).toBe(true)
+  await type('1995-05-15')
+  expect(screen.getByTestId('age-birthday', { includeHiddenElements: true }).props.value).toBe('May 15, 1995')
 })
 
 it('shows the required message for a blank birthday', async () => {
   await render(<Age />)
   await fireEvent.press(screen.getByTestId('age-submit'))
-  expect(await screen.findByText('Enter your birthday. You must be 18 or older to sign up.')).toBeTruthy()
+  expect(await screen.findByText('Choose your birthday from the calendar. You must be 18 or older to sign up.')).toBeTruthy()
 })
 
 it('shows a retryable banner when saving fails', async () => {

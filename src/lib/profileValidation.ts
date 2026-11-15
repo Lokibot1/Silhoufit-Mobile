@@ -62,9 +62,9 @@ export function normalizeBirthday(input: string): string | null {
   return real ? `${match[1]}-${pad(month)}-${pad(day)}` : null
 }
 
-/** Blank is allowed (it clears the birthday). */
+/** A birthday is required: it is chosen from a calendar, so blank means nothing was chosen yet. */
 export function validateBirthday(value: string, now = new Date()): string | null {
-  if (!value.trim()) return null
+  if (!value.trim()) return 'Choose your birthday from the calendar.'
   const date = normalizeBirthday(value)
   if (!date) return 'Enter your birthday as YYYY-MM-DD, like 1995-05-15.'
   if (date.slice(0, 4) < '1900') return 'Enter a birthday from 1900 or later.'

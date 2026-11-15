@@ -18,6 +18,8 @@ type Props = Omit<TextInputProps, 'style' | 'placeholder' | 'accessibilityLabel'
   numeric?: boolean
   /** Only used with secureTextEntry: testID of the show/hide button. */
   toggleTestID?: string
+  /** Makes the field a button that opens a picker instead of a text input; `value` is what it shows. The input's testID stays on the input, the button's is `<testID>-open`. */
+  onPress?: () => void
   ref?: Ref<ComponentRef<typeof TextInput>>
 }
 
@@ -32,6 +34,7 @@ export function FloatingField({
   helper,
   background = color.paper,
   toggleTestID,
+  onPress,
   numeric,
   secureTextEntry,
   editable = true,
@@ -62,6 +65,9 @@ export function FloatingField({
           ref={ref}
           value={value}
           editable={editable}
+          readOnly={!!onPress}
+          importantForAccessibility={onPress ? 'no-hide-descendants' : undefined}
+          accessibilityElementsHidden={!!onPress}
           secureTextEntry={secureTextEntry && !revealed}
           accessibilityLabel={label}
           accessibilityState={{ disabled: !editable }}
@@ -97,6 +103,16 @@ export function FloatingField({
             {label}
           </Animated.Text>
         </View>
+        {onPress && (
+          <PressableScale
+            testID={input.testID ? `${input.testID}-open` : undefined}
+            accessibilityRole="button"
+            accessibilityLabel={value ? `${label}, ${value}` : `${label}, not set`}
+            disabled={!editable}
+            style={StyleSheet.absoluteFill}
+            onPress={onPress}
+          />
+        )}
         {secureTextEntry && (
           <PressableScale
             testID={toggleTestID}
