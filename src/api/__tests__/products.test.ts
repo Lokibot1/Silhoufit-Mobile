@@ -80,19 +80,23 @@ describe('toProduct', () => {
       category: 'Shirt',
       description: 'Soft linen.',
       images: [{ url: 'https://x.test/1.jpg', altText: 'Front' }, { url: 'https://x.test/2.jpg', altText: null }],
-      variants: [variant],
+      variants: [{ ...variant, measurements: null }],
       rating: 4.5,
       reviewCount: 12,
     })
+  })
+  it("keeps a variant's garment measurements", () => {
+    const measurements = { id: 'm1', chestWidthCm: 54, totalLengthCm: '70.5', waistWidthCm: 0 }
+    expect(toProduct({ ...detail, variants: [{ ...variant, measurements }] }).variants[0].measurements).toMatchObject({ chestWidthCm: 54, totalLengthCm: 70.5, waistWidthCm: null, neckCm: null })
   })
   it('has no rating without a summary', () => expect(toProduct({ ...detail, ratingSummary: undefined })).toMatchObject({ rating: null, reviewCount: 0 }))
   it('tolerates missing optional fields on the product and a variant', () => {
     const product = toProduct({ id: 'p1', name: 'X', variants: [{ id: 'v1', price: 100 }] })
     expect(product).toMatchObject({ brand: null, category: null, description: null, images: [], rating: null, reviewCount: 0 })
-    expect(product.variants).toEqual([{ id: 'v1', size: null, color: null, colorHex: null, price: 100, stock: 0, imageUrl: null }])
+    expect(product.variants).toEqual([{ id: 'v1', size: null, color: null, colorHex: null, price: 100, stock: 0, imageUrl: null, measurements: null }])
   })
   it('drops a variant with no id or price', () => {
-    expect(toProduct({ ...detail, variants: [{ ...variant, id: undefined }, { ...variant, price: 'x' }, null, variant] }).variants).toEqual([variant])
+    expect(toProduct({ ...detail, variants: [{ ...variant, id: undefined }, { ...variant, price: 'x' }, null, variant] }).variants).toEqual([{ ...variant, measurements: null }])
   })
   it('accepts a product with no variants', () => {
     expect(toProduct({ ...detail, variants: [] }).variants).toEqual([])

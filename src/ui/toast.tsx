@@ -1,37 +1,56 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { color, space, type } from './theme'
 
 const DISMISS_MS = 4500
-type Show = (message: string, options?: { bottom?: number }) => void
+// A toast with an action (Undo) stays longer so there is time to read it and reach the button.
+const ACTION_DISMISS_MS = 8000
+type Action = { label: string; onPress: () => void }
+type Show = (message: string, options?: { bottom?: number; action?: Action }) => void
 const ToastContext = createContext<Show | null>(null)
 
 // One toast at a time: a new message replaces the current one and restarts the timer.
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState<string | null>(null)
   const [lift, setLift] = useState(0)
+  const [action, setAction] = useState<Action | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const insets = useSafeAreaInsets()
 
   useEffect(() => () => clearTimeout(timer.current), [])
 
-  // `bottom` lifts the toast above a sticky bar the screen owns; later toasts without it drop back down.
+  // `bottom` lifts the toast above a sticky bar the screen owns; later toasts without it drop back down. `action` adds one 44px button (Undo) that closes the toast first.
   const show: Show = (next, options) => {
     clearTimeout(timer.current)
     setLift(options?.bottom ?? 0)
+    setAction(options?.action ?? null)
     setMessage(next)
-    timer.current = setTimeout(() => setMessage(null), DISMISS_MS)
+    timer.current = setTimeout(() => setMessage(null), options?.action ? ACTION_DISMISS_MS : DISMISS_MS)
   }
 
   return (
     <ToastContext value={show}>
       {children}
-      <View testID="toast-host" pointerEvents="none" accessibilityLiveRegion="polite" style={[styles.host, { bottom: insets.bottom + space.lg + lift }]}>
+      <View testID="toast-host" pointerEvents="box-none" accessibilityLiveRegion="polite" style={[styles.host, { bottom: insets.bottom + space.lg + lift }]}>
         {message && (
-          <View style={styles.toast} testID="toast">
+          <View style={styles.toast} testID="toast" pointerEvents={action ? 'auto' : 'none'}>
             <Text style={styles.text}>{message}</Text>
+            {action && (
+              <Pressable
+                testID="toast-action"
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
+                onPress={() => {
+                  clearTimeout(timer.current)
+                  setMessage(null)
+                  action.onPress()
+                }}
+                style={styles.action}>
+                <Text style={styles.actionText}>{action.label}</Text>
+              </Pressable>
+            )}
           </View>
         )}
       </View>
@@ -49,4 +68,6 @@ const styles = StyleSheet.create({
   host: { position: 'absolute', left: space.lg, right: space.lg },
   toast: { backgroundColor: color.obsidian, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.lg },
   text: { ...type.body, color: color.paper },
+  action: { minHeight: 44, minWidth: 44, alignSelf: 'flex-start', justifyContent: 'center', marginTop: space.xs },
+  actionText: { ...type.button, color: color.paper, textDecorationLine: 'underline' },
 })

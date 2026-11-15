@@ -161,6 +161,16 @@ describe('signed-in layout', () => {
     expect(mockNavigate).toHaveBeenCalledWith({ pathname: '/orders', params: { tab: 'all', nav: expect.stringMatching(/^\d+$/) } })
   })
 
+  it('opens the Wishlist from its row, once on a double tap', async () => {
+    await render(<Profile />)
+    expect(screen.getByTestId('profile-menu-wishlist').props.accessibilityState).toMatchObject({ disabled: false })
+    expect(screen.getByLabelText('Wishlist')).toBe(screen.getByTestId('profile-menu-wishlist'))
+    await fireEvent.press(screen.getByTestId('profile-menu-wishlist'))
+    await fireEvent.press(screen.getByTestId('profile-menu-wishlist'))
+    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith('/wishlist')
+  })
+
   it('shows the unbuilt rows as disabled and captioned, and Edit Profile as enabled', async () => {
     await render(<Profile />)
     expect(screen.getByTestId('profile-menu-edit').props.accessibilityState).toMatchObject({ disabled: false })

@@ -1,0 +1,120 @@
+appId: ${APP_ID}
+---
+# Product reviews, signed out (the endpoint is public), read-only. Needs an active product as the first Shop card.
+# The section always ends in one of: the summary (`reviews-average`), "No reviews yet" (`reviews-empty`) or its own error (`reviews-retry`).
+# With reviews it filters (5 stars, with photos, back to All), cycles the sort, loads more when there is another page, and opens and
+# closes a review photo when one exists. Whatever it shows, the rest of the page (name, Add to Cart) is still there.
+- runFlow: subflows/launch.yaml
+- extendedWaitUntil:
+    visible:
+      id: 'shop-card-(?!.*-image$).+'
+    timeout: 15000
+- tapOn:
+    id: 'shop-card-(?!.*-image$).+'
+- extendedWaitUntil:
+    visible:
+      id: product-name
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: product-reviews
+    direction: DOWN
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: 'reviews-average|reviews-empty|reviews-retry'
+    timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: reviews-average
+    commands:
+      - assertVisible:
+          id: reviews-summary
+      - scrollUntilVisible:
+          element:
+            id: reviews-filter-5
+          direction: DOWN
+          timeout: 20000
+      # All while nothing is filtered must be a no-op: the summary and list stay, no endless skeleton.
+      - tapOn:
+          id: reviews-filter-all
+      - assertVisible:
+          id: reviews-average
+      - assertNotVisible:
+          id: reviews-list-loading
+      - tapOn:
+          id: reviews-filter-5
+      - assertVisible:
+          id: reviews-filter-5
+          selected: true
+      # The list settles on a page of 5-star reviews or the filtered empty state; the summary stays.
+      - extendedWaitUntil:
+          visible:
+            id: 'review-.+|reviews-none|reviews-retry'
+          timeout: 15000
+      - assertVisible:
+          id: reviews-average
+      - tapOn:
+          id: reviews-filter-all
+      - assertVisible:
+          id: reviews-filter-all
+          selected: true
+      - tapOn:
+          id: reviews-sort
+      - extendedWaitUntil:
+          visible:
+            id: 'review-.+|reviews-none|reviews-retry'
+          timeout: 15000
+      - tapOn:
+          id: reviews-filter-photos
+      - extendedWaitUntil:
+          visible:
+            id: 'review-.+|reviews-none|reviews-retry'
+          timeout: 15000
+      - runFlow:
+          when:
+            visible:
+              id: 'review-photo-.+'
+          commands:
+            - tapOn:
+                id: 'review-photo-.+'
+            - extendedWaitUntil:
+                visible:
+                  id: photo-viewer-close
+                timeout: 10000
+            - tapOn:
+                id: photo-viewer-close
+            - extendedWaitUntil:
+                notVisible:
+                  id: photo-viewer
+                timeout: 10000
+      - tapOn:
+          id: reviews-filter-all
+      - extendedWaitUntil:
+          visible:
+            id: 'review-.+|reviews-retry'
+          timeout: 15000
+      - runFlow:
+          when:
+            visible:
+              id: reviews-load-more
+          commands:
+            - tapOn:
+                id: reviews-load-more
+            - extendedWaitUntil:
+                visible:
+                  id: reviews-count
+                  text: 'Showing (1[1-9]|[2-9]\d|\d{3,}) of \d+'
+                timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: reviews-empty
+    commands:
+      - assertVisible: No reviews yet
+      - assertNotVisible:
+          id: reviews-filter-all
+# A failure here is its own block with Retry and never replaces the page.
+- assertVisible:
+    id: product-add-to-cart

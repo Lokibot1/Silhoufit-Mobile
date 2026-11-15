@@ -1,0 +1,96 @@
+appId: ${APP_ID}
+---
+# Size guide, signed out (the endpoint is public), read-only. Needs an active product as the first Shop card; a product with no
+# sizes has no Size Guide link, so the flow then only asserts that the link is absent.
+# Opens the guide from the link next to the size options with the first enabled size picked, waits for its end state (a card per size,
+# the "No size guide yet" empty state or its own error with Retry), checks the picked size is highlighted, and closes it with the
+# close button; on Android it also reopens it and closes it with the back button.
+- runFlow: subflows/launch.yaml
+- extendedWaitUntil:
+    visible:
+      id: 'shop-card-(?!.*-image$).+'
+    timeout: 15000
+- tapOn:
+    id: 'shop-card-(?!.*-image$).+'
+- extendedWaitUntil:
+    visible:
+      id: product-name
+    timeout: 15000
+# First ENABLED colour, then the link (sizes in stock depend on the colour; same pattern as flow 13).
+- scrollUntilVisible:
+    element:
+      id: 'product-swatch-.+'
+    direction: DOWN
+    timeout: 20000
+    optional: true
+- tapOn:
+    id: 'product-swatch-.+'
+    enabled: true
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: 'size-guide-link|product-description|product-reviews'
+    direction: DOWN
+    timeout: 20000
+- runFlow:
+    when:
+      notVisible:
+        id: size-guide-link
+    commands:
+      - assertNotVisible:
+          id: size-guide-link
+- runFlow:
+    when:
+      visible:
+        id: size-guide-link
+    commands:
+      - tapOn:
+          id: 'product-size-.+'
+          enabled: true
+          optional: true
+      - tapOn:
+          id: size-guide-link
+      - extendedWaitUntil:
+          visible:
+            id: size-guide
+          timeout: 10000
+      - assertVisible: Size guide
+      - extendedWaitUntil:
+          visible:
+            id: 'size-guide-row-.+|size-guide-empty-close|size-guide-retry'
+          timeout: 15000
+      # The picked size's card is the highlighted (selected) one.
+      - runFlow:
+          when:
+            visible:
+              id: 'size-guide-row-.+'
+          commands:
+            - assertVisible:
+                id: 'size-guide-row-.+'
+                selected: true
+      - tapOn:
+          id: size-guide-close
+      - extendedWaitUntil:
+          notVisible:
+            id: size-guide
+          timeout: 10000
+      - assertVisible:
+          id: product-add-to-cart
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - tapOn:
+                id: size-guide-link
+            - extendedWaitUntil:
+                visible:
+                  id: size-guide
+                timeout: 10000
+            - back
+            - extendedWaitUntil:
+                notVisible:
+                  id: size-guide
+                timeout: 10000
+            # Back closed the sheet only: the product is still on screen.
+            - assertVisible:
+                id: product-add-to-cart

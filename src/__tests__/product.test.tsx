@@ -6,6 +6,9 @@ import ProductScreen from '../app/product/[id]'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/api/products', () => ({ fetchProduct: jest.fn() }))
 jest.mock('@/api/cart', () => ({ addCartItem: jest.fn() }))
+jest.mock('@/api/wishlist', () => ({ fetchWishlistIds: jest.fn(() => Promise.resolve([])), addWishlistItem: jest.fn(), removeWishlistItem: jest.fn() }))
+jest.mock('@/api/reviews', () => ({ fetchProductReviews: jest.fn(() => new Promise(() => {})) }))
+jest.mock('@/api/sizeMeasurements', () => ({ ...jest.requireActual('@/api/sizeMeasurements'), fetchCategoryMeasurements: jest.fn(() => Promise.resolve([])) }))
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('@/lib/useCartCount', () => ({ useCartCount: () => ({ count: mockCount, refresh: mockRefresh }) }))
 jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
@@ -26,7 +29,7 @@ const mockAdd: jest.Mock = jest.requireMock('@/api/cart').addCartItem
 const mockUseSession: jest.Mock = jest.requireMock('@/auth/session').useSession
 const { router, useLocalSearchParams } = jest.requireMock('expo-router')
 
-const v = (id: string, color: string, size: string, stock: number, price = 1250) => ({ id, color, size, colorHex: '#123456', price, stock, imageUrl: null })
+const v = (id: string, color: string, size: string, stock: number, price = 1250) => ({ id, color, size, colorHex: '#123456', price, stock, imageUrl: null, measurements: null })
 const product = (over = {}) => ({
   id: 'p1',
   name: 'Linen Shirt',
@@ -39,6 +42,7 @@ const product = (over = {}) => ({
   reviewCount: 12,
   ...over,
 })
+const measured = (chestWidthCm: number) => ({ ...jest.requireActual('@/api/sizeMeasurements').toMeasurements({}), chestWidthCm })
 const never = () => new Promise(() => {})
 
 beforeEach(() => {
@@ -46,7 +50,7 @@ beforeEach(() => {
   mockCount = 0
   useLocalSearchParams.mockReturnValue({ id: 'p1' })
   router.canGoBack.mockReturnValue(true)
-  mockUseSession.mockReturnValue({ session: {} })
+  mockUseSession.mockReturnValue({ session: { user: { id: 'u1' } } })
 })
 
 async function pickNavyM() {
@@ -405,4 +409,52 @@ describe('gallery accessibility', () => {
     await render(<ProductScreen />)
     expect(await screen.findByLabelText(/^Linen Shirt, From /)).toBeTruthy()
   })
+})
+
+it('shows the heart, the size guide link and the reviews section, in order, without disturbing the rest', async () => {
+  mockFetch.mockResolvedValue(product())
+  await render(<ProductScreen />)
+  await screen.findByTestId('product-name')
+  expect(screen.getByRole('button', { name: 'Add to wishlist' })).toBe(screen.getByTestId('product-wishlist'))
+  expect(screen.getByRole('button', { name: 'Size guide' })).toBe(screen.getByTestId('size-guide-link'))
+  expect(screen.getByTestId('product-reviews')).toBeTruthy()
+  expect(screen.getByTestId('product-add-to-cart')).toBeTruthy()
+})
+
+it('opens the size guide from the link with the picked size highlighted, and closes it', async () => {
+  mockFetch.mockResolvedValue(product({ variants: [{ ...v('v1', 'Navy', 'M', 10), measurements: measured(54) }, { ...v('v2', 'Navy', 'L', 4), measurements: measured(58) }] }))
+  await render(<ProductScreen />)
+  await fireEvent.press(await screen.findByTestId('product-size-M'))
+  expect(screen.queryByTestId('size-guide')).toBeNull()
+  await fireEvent.press(screen.getByTestId('size-guide-link'))
+  expect(await screen.findByTestId('size-guide-row-M')).toBeTruthy()
+  expect(screen.getByTestId('size-guide-row-M').props.accessibilityState).toMatchObject({ selected: true })
+  expect(screen.getByTestId('size-guide-row-L').props.accessibilityState).toMatchObject({ selected: false })
+  await fireEvent.press(screen.getByTestId('size-guide-close'))
+  expect(screen.queryByTestId('size-guide')).toBeNull()
+})
+
+it('has no size guide link on a product without sizes', async () => {
+  mockFetch.mockResolvedValue(product({ variants: [{ ...v('v1', 'Navy', 'M', 10), size: null }] }))
+  await render(<ProductScreen />)
+  await screen.findByTestId('product-name')
+  expect(screen.queryByTestId('size-guide-link')).toBeNull()
+})
+
+it('sends a signed-out tap on the heart to sign in', async () => {
+  mockUseSession.mockReturnValue({ session: null })
+  mockFetch.mockResolvedValue(product())
+  await render(<ProductScreen />)
+  await fireEvent.press(await screen.findByTestId('product-wishlist'))
+  expect(router.push).toHaveBeenCalledWith('/sign-in')
+})
+
+it('toasts a saved piece above the sticky bar', async () => {
+  mockFetch.mockResolvedValue(product())
+  jest.requireMock('@/api/wishlist').addWishlistItem.mockResolvedValue(undefined)
+  await render(<ProductScreen />)
+  await fireEvent(await screen.findByTestId('product-bar'), 'layout', { nativeEvent: { layout: { height: 120 } } })
+  await waitFor(() => expect(screen.getByTestId('product-wishlist').props.accessibilityState).toMatchObject({ disabled: false }))
+  await fireEvent.press(screen.getByTestId('product-wishlist'))
+  await waitFor(() => expect(mockToast).toHaveBeenCalledWith('Saved to wishlist', { bottom: 120 }))
 })

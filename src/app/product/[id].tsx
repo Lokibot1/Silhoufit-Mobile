@@ -11,6 +11,9 @@ import { ApiError, errorMessage } from '@/lib/api'
 import { peso } from '@/lib/format'
 import { useCartCount } from '@/lib/useCartCount'
 import { useRequest } from '@/lib/useRequest'
+import { ProductReviews } from '@/product/ProductReviews'
+import { SizeGuideSheet } from '@/product/SizeGuideSheet'
+import { WishlistHeart } from '@/product/WishlistHeart'
 import { Button } from '@/ui/Button'
 import { Chip } from '@/ui/Chip'
 import { HeaderIcon } from '@/ui/HeaderIcon'
@@ -102,6 +105,7 @@ function ProductView({ product }: { product: Product }) {
   const [pickedColor, setPickedColor] = useState<string | null>(null)
   const [pickedSize, setPickedSize] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
   const [failure, setFailure] = useState<{ variantId: string; message: string } | null>(null)
   const barHeight = useRef(0)
   const busy = useRef(false)
@@ -143,6 +147,9 @@ function ProductView({ product }: { product: Product }) {
     router.push('/sign-in')
   }
 
+  // A toast above the sticky bar, like Added to cart.
+  const notify = (message: string) => toast(message, { bottom: Math.max(0, barHeight.current - insets.bottom) })
+
   const prices = variants.map((v) => v.price)
   const price = variant ? peso(variant.price) : prices.length ? (Math.min(...prices) === Math.max(...prices) ? peso(prices[0]) : `From ${peso(Math.min(...prices))}`) : null
   const stock = allSoldOut ? 'Sold out' : !variant ? null : variant.stock <= 0 ? 'Sold out' : variant.stock <= LOW_STOCK ? `Only ${variant.stock} left` : null
@@ -176,13 +183,16 @@ function ProductView({ product }: { product: Product }) {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <Gallery product={product} />
         <View style={styles.block}>
-          {/* Name first for a screen reader; the price stays first on screen. */}
-          <View accessible accessibilityRole="header" accessibilityLabel={[product.name, price, stock].filter(Boolean).join(', ')} style={styles.heading}>
-          <View style={styles.priceRow}>
-            {price && <Text testID="product-price" style={styles.price}>{price}</Text>}
-            {stock && <Text testID="product-stock" style={[styles.stock, stock === 'Sold out' && styles.soldOut]}>{stock}</Text>}
-          </View>
-          <Text testID="product-name" accessibilityRole="header" style={[type.h2, styles.wrap]}>{product.name}</Text>
+          <View style={styles.headRow}>
+            {/* Name first for a screen reader; the price stays first on screen. */}
+            <View accessible accessibilityRole="header" accessibilityLabel={[product.name, price, stock].filter(Boolean).join(', ')} style={styles.heading}>
+              <View style={styles.priceRow}>
+                {price && <Text testID="product-price" style={styles.price}>{price}</Text>}
+                {stock && <Text testID="product-stock" style={[styles.stock, stock === 'Sold out' && styles.soldOut]}>{stock}</Text>}
+              </View>
+              <Text testID="product-name" accessibilityRole="header" style={[type.h2, styles.wrap]}>{product.name}</Text>
+            </View>
+            <WishlistHeart productId={product.id} notify={notify} />
           </View>
           {rated && (
             <Text testID="product-rating" accessibilityLabel={`Rated ${product.rating?.toFixed(1)} out of 5 from ${reviews}`} style={styles.rating}>
@@ -224,7 +234,12 @@ function ProductView({ product }: { product: Product }) {
 
         {hasSize && (
           <View style={styles.block}>
-            <Text style={type.label}>(Size)</Text>
+            <View style={styles.sizeHead}>
+              <Text style={type.label}>(Size)</Text>
+              <Pressable testID="size-guide-link" accessibilityRole="button" accessibilityLabel="Size guide" onPress={() => setGuideOpen(true)} style={styles.guideLink}>
+                <Text style={[type.small, styles.guideText]}>Size Guide</Text>
+              </Pressable>
+            </View>
             <View style={styles.row}>
               {sizes.map((s) => {
                 const ok = sizeOk(s)
@@ -241,7 +256,10 @@ function ProductView({ product }: { product: Product }) {
             <Text testID="product-description" style={styles.description}>{product.description}</Text>
           </View>
         )}
+
+        <ProductReviews productId={product.id} />
       </ScrollView>
+      <SizeGuideSheet visible={guideOpen} onClose={() => setGuideOpen(false)} category={product.category} variants={variants} selected={chosenSize === NONE ? null : chosenSize} />
 
       <View testID="product-bar" onLayout={(event) => { barHeight.current = event.nativeEvent.layout.height }} style={[styles.bar, { paddingBottom: insets.bottom + space.sm }]}>
         {variants.length === 0 && <Text testID="product-unavailable" style={styles.hint}>Not available to buy yet</Text>}
@@ -349,7 +367,11 @@ const styles = StyleSheet.create({
   counterText: { ...type.label, ...type.numeric },
   block: { paddingHorizontal: space.lg, paddingVertical: space.lg, gap: space.sm, borderBottomWidth: 1, borderBottomColor: color.porcelain },
   wrap: { flexShrink: 1 },
-  heading: { gap: space.sm },
+  headRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
+  heading: { flex: 1, gap: space.sm },
+  sizeHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  guideLink: { minHeight: TARGET, minWidth: TARGET, justifyContent: 'center', alignItems: 'flex-end' },
+  guideText: { color: color.obsidian, textDecorationLine: 'underline' },
   priceRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: space.md },
   price: { fontFamily: font.bold, fontSize: 24, lineHeight: 32, color: color.red, ...type.numeric },
   rating: { ...type.small, ...type.numeric, color: color.graphite },

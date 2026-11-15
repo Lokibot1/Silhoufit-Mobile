@@ -59,3 +59,12 @@ it('tries the photo again when the url changes', async () => {
   await rerender(<Avatar name="Ana Cruz" url="https://x.test/b.png" />)
   expect(screen.getByLabelText('Profile photo of Ana Cruz')).toBeTruthy()
 })
+
+it('steps the letter size with the avatar size: sm 14, md 16, lg 18', async () => {
+  const { rerender } = await render(<Avatar name="Ana Cruz" url={null} size="sm" />)
+  expect(screen.getByText('AC')).toHaveStyle({ fontSize: 14 })
+  await rerender(<Avatar name="Ana Cruz" url={null} size="md" />)
+  expect(screen.getByText('AC')).toHaveStyle({ fontSize: 16 })
+  await rerender(<Avatar name="Ana Cruz" url={null} />)
+  expect(screen.getByText('AC')).toHaveStyle({ fontSize: 18 })
+})

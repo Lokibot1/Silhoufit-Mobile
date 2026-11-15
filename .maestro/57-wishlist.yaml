@@ -1,0 +1,102 @@
+appId: ${APP_ID}
+---
+# Wishlist. Signed out, the heart on a product opens Sign In and signing in returns to the SAME product; then the piece is saved
+# (only if it is not already), listed on the Wishlist screen (Profile -> Wishlist), removed with the Undo toast, undone, and removed
+# again, so the account ends without it. Use a DEDICATED test account: the first card on the Wishlist screen is taken to be the newest
+# saved piece (the one just added); if the account had other pieces saved after it, a different one is removed.
+# Needs TEST_EMAIL and TEST_PASSWORD and an active product as the first Shop card.
+- runFlow: subflows/launch.yaml
+- extendedWaitUntil:
+    visible:
+      id: 'shop-card-(?!.*-image$).+'
+    timeout: 15000
+- tapOn:
+    id: 'shop-card-(?!.*-image$).+'
+- extendedWaitUntil:
+    visible:
+      id: product-name
+    timeout: 15000
+- tapOn:
+    id: product-wishlist
+- extendedWaitUntil:
+    visible:
+      id: sign-in-submit
+    timeout: 10000
+- tapOn:
+    id: sign-in-email
+- inputText: ${TEST_EMAIL}
+- tapOn:
+    id: sign-in-password
+- inputText: ${TEST_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: sign-in-submit
+# The product stays mounted under the modal: wait for the modal to slide away, then for the heart to finish loading its state.
+- extendedWaitUntil:
+    notVisible:
+      id: sign-in-submit
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: product-wishlist
+      enabled: true
+    timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: product-wishlist
+        selected: false
+    commands:
+      - tapOn:
+          id: product-wishlist
+      - extendedWaitUntil:
+          visible: Saved to wishlist
+          timeout: 10000
+- assertVisible:
+    id: product-wishlist
+    selected: true
+# Wishlist screen: Profile -> Wishlist row. The product is a root Stack screen above the tabs: go back first.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '(?i)(back|shop|\(tabs\))'
+- tapOn:
+    id: tab-profile
+- scrollUntilVisible:
+    element:
+      id: profile-menu-wishlist
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: profile-menu-wishlist
+- extendedWaitUntil:
+    visible:
+      id: wishlist-list
+    timeout: 15000
+- assertVisible:
+    id: 'shop-card-(?!.*-image$).+'
+- tapOn:
+    id: 'wishlist-remove-.+'
+- extendedWaitUntil:
+    visible: Removed from wishlist
+    timeout: 10000
+# Undo puts it back (the toast lives 4.5 s; the wait polls inside that window).
+- tapOn:
+    id: toast-action
+- extendedWaitUntil:
+    visible: Back in your wishlist
+    timeout: 10000
+- assertVisible:
+    id: wishlist-list
+- tapOn:
+    id: 'wishlist-remove-.+'
+- extendedWaitUntil:
+    visible: Removed from wishlist
+    timeout: 10000

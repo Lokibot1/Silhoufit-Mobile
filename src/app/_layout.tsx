@@ -79,6 +79,15 @@ function Gate() {
             headerTintColor: color.obsidian,
           }}
         />
+        <Stack.Screen
+          name="wishlist"
+          options={{
+            headerTitle: () => <Text style={type.h2}>Wishlist</Text>,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
         <Stack.Screen name="+not-found" options={{ headerShown: false }} />
         <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
         <Stack.Screen

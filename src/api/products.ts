@@ -1,4 +1,5 @@
 import { ApiError, isNum, isRecord, request, str } from '@/lib/api'
+import { toMeasurements, type Measurements } from './sizeMeasurements'
 
 // The list payload carries no sizes or variants; stock is the API's `totalStock`.
 export type ProductListItem = {
@@ -13,7 +14,8 @@ export type ProductListItem = {
 }
 export type ProductPage = { items: ProductListItem[]; total: number; page: number; hasNextPage: boolean }
 
-function toListItem(value: unknown): ProductListItem {
+/** One product card from a list payload (GET /products, GET /wishlist); throws ApiError('server') on a wrong shape. */
+export function toListItem(value: unknown): ProductListItem {
   if (!isRecord(value)) throw new ApiError('server')
   const { id, name, minPrice, maxPrice, totalStock, primaryImage, ratingSummary } = value
   if (!str(id) || !str(name)) throw new ApiError('server')
@@ -37,7 +39,7 @@ export function toProductPage(body: unknown, requestedPage = 1): ProductPage {
   return { items: body.data.map(toListItem), total: meta.total || body.data.length, page: Number(meta.page) || requestedPage, hasNextPage: meta.hasNextPage === true }
 }
 
-export type ProductVariant = { id: string; size: string | null; color: string | null; colorHex: string | null; price: number; stock: number; imageUrl: string | null }
+export type ProductVariant = { id: string; size: string | null; color: string | null; colorHex: string | null; price: number; stock: number; imageUrl: string | null; measurements: Measurements | null }
 export type Product = {
   id: string
   name: string
@@ -61,6 +63,7 @@ function toVariant(value: unknown): ProductVariant | null {
     price: value.price,
     stock: isNum(value.stock) ? value.stock : 0,
     imageUrl: str(value.imageUrl),
+    measurements: toMeasurements(value.measurements),
   }
 }
 
