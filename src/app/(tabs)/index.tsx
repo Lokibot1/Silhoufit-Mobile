@@ -243,7 +243,7 @@ export default function Shop() {
 
       {status === 'loading' && (
         <View accessible accessibilityLabel="Loading" accessibilityRole="progressbar" style={styles.skeletons}>
-          {SKELETONS.map((key) => <ProductCardSkeleton key={key} />)}
+          {SKELETONS.map((key) => <ProductCardSkeleton key={key} rows={rows} />)}
         </View>
       )}
       {status === 'error' && (
