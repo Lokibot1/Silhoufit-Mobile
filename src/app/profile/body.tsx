@@ -137,7 +137,7 @@ function Form({ saved: initial }: { saved: BodyProfile | null }) {
           <Text style={type.label}>(Body Model)</Text>
           <View accessibilityRole="radiogroup" style={styles.chips}>
             {MODELS.map((option) => (
-              <Chip tall key={option.value} testID={`body-model-${option.value}`} label={option.label} selected={model === option.value} disabled={pending} onPress={() => setModel(option.value)} />
+              <Chip tall radio key={option.value} testID={`body-model-${option.value}`} label={option.label} selected={model === option.value} disabled={pending} onPress={() => setModel(option.value)} />
             ))}
           </View>
         </View>
@@ -145,7 +145,7 @@ function Form({ saved: initial }: { saved: BodyProfile | null }) {
           <Text style={type.label}>(Build)</Text>
           <View accessibilityRole="radiogroup" style={styles.chips}>
             {BUILDS.map((option) => (
-              <Chip tall key={option.value} testID={`body-build-${option.value}`} label={option.label} selected={build === option.value} disabled={pending} onPress={() => setBuild(option.value)} />
+              <Chip tall radio key={option.value} testID={`body-build-${option.value}`} label={option.label} selected={build === option.value} disabled={pending} onPress={() => setBuild(option.value)} />
             ))}
           </View>
         </View>

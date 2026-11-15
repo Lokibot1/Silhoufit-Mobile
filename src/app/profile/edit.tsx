@@ -225,8 +225,11 @@ function Form({ me }: { me: Me }) {
                 testID={`edit-gender-${option.value ?? 'none'}`}
                 label={option.label}
                 selected={values.gender === option.value}
-                onPress={() => !locked && set({ gender: option.value })}
+                disabled={locked}
+                onPress={() => set({ gender: option.value })}
               />
+                tall
+                radio
             ))}
           </View>
         </View>

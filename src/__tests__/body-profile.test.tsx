@@ -46,7 +46,7 @@ it('prefills from the saved profile with Save disabled', async () => {
   await render(<BodyProfileScreen />)
   expect((await screen.findByTestId('body-height')).props.value).toBe('170')
   expect(screen.getByTestId('body-chest').props.value).toBe('90')
-  expect(screen.getByTestId('body-model-male').props.accessibilityState).toMatchObject({ selected: true })
+  expect(screen.getByTestId('body-model-male').props.accessibilityState).toMatchObject({ checked: true })
   expect(screen.queryByTestId('body-bust')).toBeNull()
   expect(saveDisabled()).toBe(true)
   expect(screen.getByTestId('body-privacy')).toBeTruthy()

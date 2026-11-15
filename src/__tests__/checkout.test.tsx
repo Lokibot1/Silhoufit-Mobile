@@ -145,9 +145,9 @@ it('selects the default address, skips one without a pin, and disables it in the
   expect(ordersApi.quoteShipping).toHaveBeenCalledWith('office', expect.anything())
   await fireEvent.press(screen.getByTestId('checkout-address-change'))
   const pinless = screen.getByTestId('address-option-nopin')
-  expect(pinless.props.accessibilityState).toEqual({ selected: false, disabled: true })
+  expect(pinless.props.accessibilityState).toEqual({ checked: false, disabled: true })
   expect(within(pinless).getByText('Needs a map pin: edit it in Delivery Addresses')).toBeTruthy()
-  expect(screen.getByTestId('address-option-office').props.accessibilityState).toEqual({ selected: true, disabled: false })
+  expect(screen.getByTestId('address-option-office').props.accessibilityState).toEqual({ checked: true, disabled: false })
   expect(screen.getByText('Add New Address')).toBeTruthy()
   await fireEvent.press(screen.getByTestId('address-add'))
   expect(screen.queryByTestId('address-sheet')).toBeNull() // the sheet closes as the form opens
@@ -602,7 +602,7 @@ describe('while the order is in flight', () => {
     await place()
     expect(screen.getByTestId('checkout-address-change').props.accessibilityState.disabled).toBe(true)
     await fireEvent.press(screen.getByTestId('address-option-office'))
-    expect(screen.getByTestId('address-option-home').props.accessibilityState.selected).toBe(true)
+    expect(screen.getByTestId('address-option-home').props.accessibilityState.checked).toBe(true)
     expect(ordersApi.quoteShipping).toHaveBeenCalledTimes(1)
     await act(async () => finish({ id: 'o1', total: 2650 })) // settles the request so its timer is cleared
   })

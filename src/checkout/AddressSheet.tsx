@@ -50,7 +50,7 @@ export function AddressSheet({ visible, addresses, selectedId, onSelect, onAdd, 
                   testID={`address-option-${address.id}`}
                   accessibilityRole="radio"
                   accessibilityLabel={[address.recipientName, lines.street, lines.area, address.isDefault && 'Default', !pinned && NO_PIN].filter(Boolean).join(', ')}
-                  accessibilityState={{ selected, disabled: !pinned }}
+                  accessibilityState={{ checked: selected, disabled: !pinned }}
                   disabled={!pinned}
                   onPress={() => onSelect(address.id)}
                   style={[styles.option, selected && styles.optionOn]}>

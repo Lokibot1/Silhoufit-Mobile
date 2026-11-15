@@ -47,8 +47,8 @@ it('pre-fills every field from the profile', async () => {
   expect(screen.getByTestId('edit-last-name').props.value).toBe('Cruz')
   expect(screen.getByTestId('edit-suffix').props.value).toBe('')
   expect(screen.getByTestId('edit-birthday').props.value).toBe('1995-05-15')
-  expect(screen.getByTestId('edit-gender-female').props.accessibilityState).toMatchObject({ selected: true })
-  expect(screen.getByTestId('edit-gender-male').props.accessibilityState).toMatchObject({ selected: false })
+  expect(screen.getByTestId('edit-gender-female').props.accessibilityState).toMatchObject({ checked: true })
+  expect(screen.getByTestId('edit-gender-male').props.accessibilityState).toMatchObject({ checked: false })
 })
 
 it('is clean on open when the saved name has stray spaces, and spacing alone is not a change', async () => {
