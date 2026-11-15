@@ -204,7 +204,7 @@ export default function Profile() {
                 onPress={() => openOrders(s.id)}
                 style={({ pressed }) => [styles.tile, pressed && styles.pressed]}>
                 <Ionicons name={s.icon} size={24} color={color.obsidian} />
-                <Text maxFontSizeMultiplier={1.3} style={[type.small, styles.tileLabel]}>{s.label}</Text>
+                <Text numberOfLines={1} maxFontSizeMultiplier={1.15} style={[type.small, styles.tileLabel]}>{s.label}</Text>
               </PressableScale>
             ))}
           </View>
@@ -250,9 +250,11 @@ const styles = StyleSheet.create({
   skeletonText: { gap: space.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
   viewAll: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 44, paddingLeft: space.md },
-  tiles: { flexDirection: 'row', gap: space.sm },
-  tile: { flex: 1, minHeight: 80, alignItems: 'center', justifyContent: 'center', gap: space.xs, padding: space.sm, borderRadius: radius.soft, ...hairline },
-  tileLabel: { color: color.obsidian, textAlign: 'center' },
+  tiles: { flexDirection: 'row', gap: space.xs },
+  // No border: the icon and label sit directly on the page, evenly spaced. The radius only shapes the pressed highlight.
+  tile: { flex: 1, minHeight: 80, alignItems: 'center', justifyContent: 'center', gap: space.xs, paddingVertical: space.sm, paddingHorizontal: 0, borderRadius: radius.soft },
+  // One line, one size for all four so they match: 12px fits "Completed" in a quarter of a 320px screen.
+  tileLabel: { color: color.obsidian, textAlign: 'center', alignSelf: 'stretch', fontSize: 12, lineHeight: 16 },
   card: { borderRadius: radius.soft, overflow: 'hidden', ...hairline },
   row: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg },
   divider: { borderTopWidth: 1, borderTopColor: color.porcelain },
