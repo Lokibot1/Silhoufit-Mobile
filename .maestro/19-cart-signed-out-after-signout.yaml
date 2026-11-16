@@ -1,15 +1,16 @@
 appId: ${APP_ID}
 ---
-# Signed in, load the Cart, sign out on Profile: the Cart tab then shows the signed-out prompt and none of the previous account's bag.
+# Signed in, load the Cart, sign out on Profile: the Cart then shows the signed-out prompt and none of the previous account's bag.
 # Read-only on the cart; the check is strongest when TEST_EMAIL's bag has a row (run flow 13 first), but passes with an empty bag.
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/sign-in.yaml
 - tapOn:
-    id: tab-cart
+    id: shop-cart
 - extendedWaitUntil:
     visible:
       id: 'cart-list|cart-empty-action'
     timeout: 15000
+- runFlow: subflows/back-from-stack.yaml
 - tapOn:
     id: tab-profile
 - scrollUntilVisible:
@@ -28,7 +29,9 @@ appId: ${APP_ID}
       id: profile-sign-in
     timeout: 10000
 - tapOn:
-    id: tab-cart
+    id: tab-shop
+- tapOn:
+    id: shop-cart
 - extendedWaitUntil:
     visible:
       id: cart-sign-in

@@ -1,9 +1,9 @@
 appId: ${APP_ID}
 ---
-# Cart is the one tab that needs a session; Shop stays public.
+# The Cart (opened from the Shop's cart button) is the one screen that needs a session; Shop stays public.
 - runFlow: subflows/launch.yaml
 - tapOn:
-    id: tab-cart
+    id: shop-cart
 - extendedWaitUntil:
     visible:
       id: cart-sign-in

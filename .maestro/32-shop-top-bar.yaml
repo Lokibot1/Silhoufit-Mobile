@@ -1,9 +1,8 @@
 appId: ${APP_ID}
 ---
-# The Shop's top bar is a Paper band holding the search field, the cart button and the messages button; the tab header (KRAL logo) is hidden on the Shop only.
-# The other tabs keep the logo header, which carries header-messages (the Shop has its own shop-messages instead).
-# The logo (src/ui/KralLogo.tsx) has no testID: it is an image with accessibilityLabel "KRAL", matched by that text (full-string regex).
-# The intro loader's label is "Loading KRAL", which this exact match never hits. Needs only the backend (signed out).
+# The Shop's top bar is a Paper band holding the search field, the cart button and the messages button; the tab header is hidden on the Shop only.
+# The other tabs show their screen title in that header, which carries header-messages (the Shop has its own shop-messages instead); the Wishlist header also carries header-cart.
+# Needs only the backend (signed out).
 - runFlow: subflows/launch.yaml
 - extendedWaitUntil:
     visible:
@@ -17,22 +16,23 @@ appId: ${APP_ID}
     visible:
       id: shop-list
     timeout: 15000
-- assertNotVisible: KRAL
 - assertNotVisible:
     id: header-messages
 # Tab switches shift: wait for each screen instead of asserting right after the tap.
 - tapOn:
-    id: tab-cart
+    id: tab-wishlist
 - extendedWaitUntil:
     visible:
-      id: cart-sign-in
+      id: wishlist-sign-in
     timeout: 10000
-# The other tabs keep the logo header, with its messages button.
+# The other tabs show their title in the header, with its messages button; the Wishlist adds the cart button.
 - extendedWaitUntil:
-    visible: KRAL
+    visible: Wishlist
     timeout: 10000
 - assertVisible:
     id: header-messages
+- assertVisible:
+    id: header-cart
 - assertNotVisible:
     id: shop-search
 - assertNotVisible:
@@ -51,8 +51,9 @@ appId: ${APP_ID}
     visible:
       id: shop-list
     timeout: 15000
-- assertNotVisible: KRAL
 - assertNotVisible:
     id: header-messages
 - assertNotVisible:
-    id: cart-sign-in
+    id: header-cart
+- assertNotVisible:
+    id: wishlist-sign-in

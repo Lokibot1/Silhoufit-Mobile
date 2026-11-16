@@ -7,7 +7,7 @@ appId: ${APP_ID}
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/sign-in.yaml
 - tapOn:
-    id: tab-cart
+    id: shop-cart
 - extendedWaitUntil:
     visible:
       id: 'cart-list|cart-empty-action'
@@ -35,7 +35,8 @@ appId: ${APP_ID}
           timeout: 10000
 - assertNotVisible:
     id: 'cart-row-(?!error-).+'
-# Add exactly one piece, same steps as flow 13.
+# Add exactly one piece, same steps as flow 13. The Cart sits above the tabs, so go back to the Shop first.
+- runFlow: subflows/back-from-stack.yaml
 - tapOn:
     id: tab-shop
 - extendedWaitUntil:
@@ -74,25 +75,14 @@ appId: ${APP_ID}
     visible: Added to cart
     timeout: 10000
 # The product page is a root Stack screen above the tabs, so the tab bar is hidden: go back to the Shop first.
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - back
-- runFlow:
-    when:
-      platform: iOS
-    commands:
-      # The native back button has no testID and its label is the previous screen's title, so match the likely labels.
-      - tapOn:
-          text: '(?i)(back|shop|\(tabs\))'
+- runFlow: subflows/back-from-stack.yaml
 - extendedWaitUntil:
     visible:
-      id: tab-cart
+      id: shop-cart
     timeout: 10000
-# The Cart tab refetches on focus, so the new row shows without a manual refresh.
+# The Cart refetches on focus, so the new row shows without a manual refresh.
 - tapOn:
-    id: tab-cart
+    id: shop-cart
 - extendedWaitUntil:
     visible:
       id: cart-list

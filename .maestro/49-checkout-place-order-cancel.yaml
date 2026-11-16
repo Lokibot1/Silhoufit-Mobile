@@ -37,7 +37,9 @@ onFlowComplete:
             id: orders-tab-empty-action
           timeout: 10000
 - tapOn:
-    id: tab-cart
+    id: tab-shop
+- tapOn:
+    id: shop-cart
 - extendedWaitUntil:
     visible:
       id: 'cart-list|cart-empty-action'
@@ -113,10 +115,10 @@ onFlowComplete:
           text: '(?i)(back|shop|\(tabs\))'
 - extendedWaitUntil:
     visible:
-      id: tab-cart
+      id: shop-cart
     timeout: 10000
 - tapOn:
-    id: tab-cart
+    id: shop-cart
 - extendedWaitUntil:
     visible:
       id: cart-list

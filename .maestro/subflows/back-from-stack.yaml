@@ -1,0 +1,15 @@
+appId: ${APP_ID}
+---
+# The Cart and the product page sit above the tabs, so the tab bar is hidden there: go back first.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # The native back button has no testID and its label is the previous screen's title, so match the likely labels.
+      - tapOn:
+          text: '(?i)(back|shop|wishlist|profile|\(tabs\))'

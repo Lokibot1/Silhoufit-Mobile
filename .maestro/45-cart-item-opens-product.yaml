@@ -56,11 +56,11 @@ appId: ${APP_ID}
           text: '(?i)(back|shop|\(tabs\))'
 - extendedWaitUntil:
     visible:
-      id: tab-cart
+      id: shop-cart
     timeout: 10000
-# The Cart tab refetches on focus; the card animates in, so wait for it.
+# The Cart refetches on focus; the card animates in, so wait for it.
 - tapOn:
-    id: tab-cart
+    id: shop-cart
 - extendedWaitUntil:
     visible:
       id: cart-list

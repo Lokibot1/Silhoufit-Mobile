@@ -1,10 +1,10 @@
 appId: ${APP_ID}
 ---
-# Signed out: the Cart prompt opens Sign In; signing in closes the modal (router.back()) and lands on the Cart tab, not Profile or Shop.
+# Signed out: the Cart prompt opens Sign In; signing in closes the modal (router.back()) and lands on the Cart screen, not Profile or Shop.
 # Read-only on the cart. Needs a seeded customer.
 - runFlow: subflows/launch.yaml
 - tapOn:
-    id: tab-cart
+    id: shop-cart
 - extendedWaitUntil:
     visible:
       id: cart-sign-in
@@ -24,7 +24,7 @@ appId: ${APP_ID}
 - hideKeyboard
 - tapOn:
     id: sign-in-submit
-# Back on the Cart tab with the account's bag (rows or the empty state).
+# Back on the Cart screen with the account's bag (rows or the empty state).
 - extendedWaitUntil:
     visible:
       id: 'cart-list|cart-empty-action'
