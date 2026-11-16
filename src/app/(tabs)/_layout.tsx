@@ -6,13 +6,14 @@ import { StyleSheet, Text, View, type ColorValue } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useChatUnread } from '@/chat/useChatUnread'
+import { useCartCount } from '@/lib/useCartCount'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
 import { color, font, space, type } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
 // Outline when idle, solid when active, so the current tab reads at a glance.
-const icon = (name: 'storefront' | 'bag' | 'receipt' | 'notifications' | 'person') =>
+const icon = (name: 'storefront' | 'heart' | 'receipt' | 'notifications' | 'person') =>
   function TabIcon({ focused, color: tint }: { focused: boolean; color: ColorValue }) {
     return <Ionicons name={focused ? name : `${name}-outline`} size={24} color={focused ? color.red : (tint as string)} />
   }
@@ -40,8 +41,14 @@ function HeaderMessages() {
   return <HeaderIcon testID="header-messages" name="chatbubble-ellipses-outline" label="Messages" status={unread ? 'unread messages' : undefined} dot={unread} onPress={open} />
 }
 
+// The Wishlist header carries the same cart button as the Shop's band, since the cart is no longer a tab.
+function HeaderCart() {
+  const { count } = useCartCount()
+  return <HeaderIcon testID="header-cart" name="bag-outline" label="Cart" status={count > 0 ? `${count} ${count === 1 ? 'item' : 'items'}` : undefined} count={count} onPress={() => router.navigate('/cart')} />
+}
+
 // The screen title lives here, not in the content area; the tab label stays short (Alerts) but its screen is Notifications.
-const TITLES: Record<string, string> = { '/cart': 'Cart', '/orders': 'Orders', '/notifications': 'Notifications', '/profile': 'Profile' }
+const TITLES: Record<string, string> = { '/wishlist': 'Wishlist', '/orders': 'Orders', '/notifications': 'Notifications', '/profile': 'Profile' }
 
 // Material top tabs have no header, so it is drawn here; the Shop has its own band.
 function TabsHeader() {
@@ -51,7 +58,10 @@ function TabsHeader() {
   return (
     <View style={[styles.header, { paddingTop: top }]}>
       <Text accessibilityRole="header" style={type.h1}>{TITLES[pathname]}</Text>
-      <HeaderMessages />
+      <View style={styles.actions}>
+        {pathname === '/wishlist' && <HeaderCart />}
+        <HeaderMessages />
+      </View>
     </View>
   )
 }
@@ -86,7 +96,7 @@ export default function TabsLayout() {
       <TabsHeader />
       <TopTabs tabBarPosition="bottom" tabBar={TabBar} screenOptions={{ animationEnabled: !reduce, lazy: true }}>
         <TopTabs.Screen name="index" options={{ title: 'Shop', tabBarButtonTestID: 'tab-shop', tabBarIcon: icon('storefront') }} />
-        <TopTabs.Screen name="cart" options={{ title: 'Cart', tabBarButtonTestID: 'tab-cart', tabBarIcon: icon('bag') }} />
+        <TopTabs.Screen name="wishlist" options={{ title: 'Wishlist', tabBarButtonTestID: 'tab-wishlist', tabBarIcon: icon('heart') }} />
         <TopTabs.Screen name="orders" options={{ title: 'Orders', tabBarButtonTestID: 'tab-orders', tabBarIcon: icon('receipt') }} />
         <TopTabs.Screen name="notifications" options={{ title: 'Alerts', tabBarButtonTestID: 'tab-notifications', tabBarIcon: icon('notifications') }} />
         <TopTabs.Screen name="profile" options={{ title: 'Profile', tabBarButtonTestID: 'tab-profile', tabBarIcon: icon('person') }} />
@@ -98,6 +108,7 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg, backgroundColor: color.paper, borderBottomWidth: 1, borderBottomColor: color.porcelain },
+  actions: { flexDirection: 'row', alignItems: 'center' },
   bar: { flexDirection: 'row', backgroundColor: color.paper, borderTopWidth: 1, borderTopColor: color.porcelain },
   item: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', paddingVertical: space.xs },
 })

@@ -91,9 +91,9 @@ function Gate() {
           }}
         />
         <Stack.Screen
-          name="wishlist"
+          name="cart"
           options={{
-            headerTitle: () => <Text style={type.h2}>Wishlist</Text>,
+            headerTitle: () => <Text accessibilityRole="header" style={type.h2}>Cart</Text>,
             headerStyle: { backgroundColor: color.paper },
             headerShadowVisible: false,
             headerTintColor: color.obsidian,

@@ -1,11 +1,10 @@
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 
 import type { ProductListItem } from '@/api/products'
 import { deliveryLabel, peso, soldLabel } from '@/lib/format'
-import { WishlistHeart } from '@/product/WishlistHeart'
 import { PressableScale } from './PressableScale'
 import { Skeleton } from './Skeleton'
 import { color, font, radius, space, type } from './theme'
@@ -13,6 +12,7 @@ import { color, font, radius, space, type } from './theme'
 const LOW_STOCK = 5
 const NAME_HEIGHT = 40 // two lines of 20
 const PRICE_HEIGHT = 24
+const ACTION_SIZE = 44
 const ROW_HEIGHT = 20
 const CHIP_HEIGHT = 24 // 20 line + hairline border either side, rounded up
 const FONT_CAP = 1.3 // keeps the fixed name and row heights in step with the skeleton
@@ -60,11 +60,10 @@ export function useCardRows(items: ProductListItem[]): CardRows {
   return merged
 }
 
-type Wishlist = { saved: boolean; onChange: (saved: boolean) => void; notify: (message: string) => void }
-
-// With `wishlist` a heart sits over the image tile. It is a sibling of the card button, not inside it, so screen readers reach both.
-export function ProductCard({ item, onPress, wishlist, rows = ALL_ROWS }: { item: ProductListItem; onPress?: () => void; wishlist?: Wishlist; rows?: CardRows }) {
+// `action` is one 44px button placed at the right end of the price row (the Wishlist's remove heart). It is a sibling of the card button, not inside it, so screen readers reach both.
+export function ProductCard({ item, onPress, action, rows = ALL_ROWS }: { item: ProductListItem; onPress?: () => void; action?: ReactNode; rows?: CardRows }) {
   const width = useCardWidth()
+  const [priceTop, setPriceTop] = useState<number | null>(null)
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
   const price = priceLabel(item)
   const stock = stockLabel(item)
@@ -110,7 +109,7 @@ export function ProductCard({ item, onPress, wishlist, rows = ALL_ROWS }: { item
             )}
           </View>
         )}
-        <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} style={[styles.price, stock === 'Sold out' && styles.soldOut]}>{price}</Text>
+        <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} onLayout={action ? (e) => setPriceTop(e.nativeEvent.layout.y) : undefined} style={[styles.price, action ? styles.priceBeside : null, stock === 'Sold out' && styles.soldOut]}>{price}</Text>
         {rows.sold && <Text numberOfLines={1} maxFontSizeMultiplier={FONT_CAP} style={styles.sold}>{sold ?? ''}</Text>}
         {rows.delivery && (
           <View style={styles.row}>
@@ -123,11 +122,7 @@ export function ProductCard({ item, onPress, wishlist, rows = ALL_ROWS }: { item
           </View>
         )}
       </PressableScale>
-      {wishlist && (
-        <View style={styles.heart}>
-          <WishlistHeart testID={`shop-card-${item.id}-wishlist`} productId={item.id} name={item.name} saved={wishlist.saved} onChange={wishlist.onChange} notify={wishlist.notify} />
-        </View>
-      )}
+      {action ? <View style={[styles.action, { top: ((priceTop ?? 0) + PRICE_HEIGHT / 2) - ACTION_SIZE / 2, opacity: priceTop === null ? 0 : 1 }]}>{action}</View> : null}
     </View>
   )
 }
@@ -151,8 +146,6 @@ export function ProductCardSkeleton({ rows = ALL_ROWS }: { rows?: CardRows }) {
 
 const styles = StyleSheet.create({
   card: { gap: space.xs },
-  // A 44px paper disc so the heart reads on any photo; inset by xs from the tile corner.
-  heart: { position: 'absolute', top: space.xs, right: space.xs, borderRadius: radius.pill, backgroundColor: color.paper },
   tile: { backgroundColor: color.porcelain, borderRadius: radius.soft, overflow: 'hidden', marginBottom: space.xs },
   fill: { width: '100%', height: '100%' },
   fallback: { alignItems: 'center', justifyContent: 'center', padding: space.md },
@@ -163,6 +156,8 @@ const styles = StyleSheet.create({
   nameSkeleton: { height: NAME_HEIGHT, justifyContent: 'space-between', marginTop: space.xs },
   // Left-aligned under the name: in a two-column grid the price reads with its own product, not as a column to compare.
   price: { fontFamily: font.bold, fontSize: 16, lineHeight: PRICE_HEIGHT, color: color.red, ...type.numeric, minHeight: PRICE_HEIGHT },
+  priceBeside: { marginRight: ACTION_SIZE - 12 }, // the 44px target is wider than the 18px heart in it,
+  action: { position: 'absolute', right: 0, width: ACTION_SIZE, height: ACTION_SIZE, alignItems: 'center', justifyContent: 'center' },
   soldOut: { color: color.graphite },
   // The rows below the name always reserve their height, present or not, so cards with and without data line up.
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs, height: CHIP_HEIGHT },

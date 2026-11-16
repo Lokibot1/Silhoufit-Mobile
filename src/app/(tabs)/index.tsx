@@ -5,8 +5,6 @@ import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TextInput, V
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { fetchCategories, fetchProducts, type ProductListItem, type ProductSort } from '@/api/products'
-import { fetchWishlistIds } from '@/api/wishlist'
-import { useSession } from '@/auth/session'
 import { useChatUnread } from '@/chat/useChatUnread'
 import { ApiError, errorMessage } from '@/lib/api'
 import { useCartCount } from '@/lib/useCartCount'
@@ -55,15 +53,6 @@ export default function Shop() {
   const opening = useRef(false)
   // A fast double tap must not push the product twice; allow it again when the Shop regains focus.
   useFocusEffect(useCallback(() => { opening.current = false }, []))
-  // The saved ids load once for every card's heart, and again quietly when the Shop regains focus (the Wishlist or a product page may have changed them). Signed out, nothing loads.
-  const userId = useSession().session?.user.id
-  const [saved, setSaved] = useState<string[]>([])
-  useFocusEffect(useCallback(() => {
-    if (!userId) return setSaved((current) => (current.length ? [] : current))
-    const ctl = new AbortController()
-    fetchWishlistIds(ctl.signal).then((ids) => !ctl.signal.aborted && setSaved(ids), () => {})
-    return () => ctl.abort()
-  }, [userId]))
   const { count: badge } = useCartCount()
   const unread = useChatUnread()
   // Category chips come from the API; if it fails the row simply keeps "All".
@@ -77,7 +66,6 @@ export default function Shop() {
     opening.current = true
     router.push({ pathname: '/product/[id]', params: { id } })
   }
-  const setSavedId = (id: string, on: boolean) => setSaved((current) => (on ? [...current.filter((known) => known !== id), id] : current.filter((known) => known !== id)))
   const openMessages = () => {
     if (opening.current) return
     opening.current = true
@@ -270,9 +258,8 @@ export default function Shop() {
               data={items}
               keyExtractor={(item) => item.id}
               numColumns={2}
-              extraData={saved}
               renderItem={({ item }) => (
-                <ProductCard item={item} rows={rows} onPress={() => open(item.id)} wishlist={{ saved: saved.includes(item.id), onChange: (on) => setSavedId(item.id, on), notify: toast }} />
+                <ProductCard item={item} rows={rows} onPress={() => open(item.id)} />
               )}
               columnWrapperStyle={styles.columns}
               ItemSeparatorComponent={Gap}

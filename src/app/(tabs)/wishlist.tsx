@@ -10,7 +10,7 @@ import { PressableScale } from '@/ui/PressableScale'
 import { ProductCard, ProductCardSkeleton, useCardRows } from '@/ui/ProductCard'
 import { PullToRefresh } from '@/ui/PullToRefresh'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, radius, space } from '@/ui/theme'
+import { color, space } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const SKELETONS = [0, 1, 2, 3]
@@ -192,19 +192,21 @@ function WishlistScreen() {
           ItemSeparatorComponent={Gap}
           contentContainerStyle={styles.content}
           renderItem={({ item }) => (
-            <View>
-              <ProductCard item={item.product} rows={rows} onPress={() => open(item.productId)} />
-              <PressableScale
-                testID={`wishlist-remove-${item.productId}`}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${item.product.name} from wishlist`}
-                onPress={() => remove(item)}
-                style={styles.remove}>
-                <View style={styles.disc}>
-                  <Ionicons name="heart" size={24} color={color.red} />
-                </View>
-              </PressableScale>
-            </View>
+            <ProductCard
+              item={item.product}
+              rows={rows}
+              onPress={() => open(item.productId)}
+              action={
+                <PressableScale
+                  testID={`wishlist-remove-${item.productId}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${item.product.name} from wishlist`}
+                  onPress={() => remove(item)}
+                  style={styles.remove}>
+                  <Ionicons name="heart" size={18} color={color.red} />
+                </PressableScale>
+              }
+            />
           )}
         />
       )}
@@ -221,7 +223,5 @@ const styles = StyleSheet.create({
   content: { padding: space.lg, paddingBottom: space.xl },
   columns: { gap: space.md },
   gap: { height: space.md },
-  // The 44px target sits in the tile's top-right corner; the visible disc is smaller.
-  remove: { position: 'absolute', top: space.xs, right: space.xs, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  disc: { width: 44, height: 44, borderRadius: radius.pill, backgroundColor: color.paper, alignItems: 'center', justifyContent: 'center' },
+  remove: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 })

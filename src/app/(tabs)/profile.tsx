@@ -113,7 +113,7 @@ export default function Profile() {
   const openWishlist = () => {
     if (opening.current) return
     opening.current = true
-    router.push('/wishlist')
+    router.navigate('/wishlist')
   }
   const openRoute = (href: Parameters<typeof router.push>[0]) => {
     if (opening.current) return

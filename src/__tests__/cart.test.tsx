@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { Alert } from 'react-native'
 
 import { ApiError } from '@/lib/api'
-import CartScreen from '../app/(tabs)/cart'
+import CartScreen from '../app/cart'
 
 jest.mock('@/api/cart', () => ({ fetchCart: jest.fn(), setCartItemQuantity: jest.fn(), removeCartItem: jest.fn(), clearCart: jest.fn() }))
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
@@ -28,7 +28,6 @@ const mockToast = jest.fn()
 const api = jest.requireMock('@/api/cart')
 const mockUseSession = jest.requireMock('@/auth/session').useSession
 const { push: mockPush, navigate: mockNavigate } = jest.requireMock('expo-router').router
-const lifted = (message: string) => [message, { bottom: expect.any(Number) }] as const
 const alertSpy = jest.spyOn(Alert, 'alert')
 
 const mockSignOut = jest.fn()
@@ -143,7 +142,7 @@ describe('with items', () => {
     await pressAlert('Remove Item')
     expect(api.removeCartItem).toHaveBeenCalledTimes(1)
     expect(api.removeCartItem).toHaveBeenCalledWith('a')
-    expect(mockToast).toHaveBeenCalledWith(...lifted('Item removed'))
+    expect(mockToast).toHaveBeenCalledWith('Item removed')
     await waitFor(() => expect(screen.queryByTestId('cart-row-a')).toBeNull())
     expect(screen.getByTestId('cart-row-b')).toBeTruthy()
   })
@@ -199,24 +198,6 @@ describe('with items', () => {
     expect(mockPush).not.toHaveBeenCalled()
   })
 
-  it('lifts toasts above the bar by its measured top edge', async () => {
-    const bar = screen.getByTestId('cart-bar')
-    // window 1334 high, bar top at 500, safe-area bottom 20: 1334 - 500 + 8 (gap) - 20 - 16 (toast base) = 806
-    const view = jest.requireActual('react-native').View.prototype
-    const original = view.measureInWindow
-    view.measureInWindow = (done: (x: number, y: number) => void) => done(0, 500)
-    try {
-      await fireEvent(bar, 'layout', { nativeEvent: { layout: { x: 0, y: 500, width: 400, height: 140 } } })
-      api.removeCartItem.mockResolvedValue(undefined)
-      api.fetchCart.mockResolvedValue(cartOf([line('b', { quantity: 1, lineTotal: 1250 })]))
-      await fireEvent.press(screen.getByTestId('cart-remove-a'))
-      await pressAlert('Remove Item')
-      expect(mockToast).toHaveBeenCalledWith('Item removed', { bottom: 806 })
-    } finally {
-      view.measureInWindow = original
-    }
-  })
-
   it('asks before clearing, then shows the empty state', async () => {
     await fireEvent.press(screen.getByTestId('cart-clear'))
     await pressAlert('Cancel')
@@ -227,7 +208,7 @@ describe('with items', () => {
     await fireEvent.press(screen.getByTestId('cart-clear'))
     await pressAlert('Clear All Items')
     expect(api.clearCart).toHaveBeenCalledTimes(1)
-    expect(mockToast).toHaveBeenCalledWith('Cart cleared', undefined) // the bar is gone with the last item, so no lift
+    expect(mockToast).toHaveBeenCalledWith('Cart cleared')
     expect(await screen.findByText('Your cart is empty')).toBeTruthy()
   })
 })
@@ -268,7 +249,7 @@ it('refreshes silently on focus (no skeleton) and keeps the rows with a toast wh
   expect(screen.queryByRole('progressbar')).toBeNull()
   expect(await screen.findByTestId('cart-row-b')).toBeTruthy()
   await act(async () => void mockFocus.current())
-  expect(mockToast).toHaveBeenCalledWith(...lifted("Can't reach the server. Check your connection and try again."))
+  expect(mockToast).toHaveBeenCalledWith("Can't reach the server. Check your connection and try again.")
   expect(screen.getByTestId('cart-row-a')).toBeTruthy()
   expect(screen.queryByTestId('cart-retry')).toBeNull()
 })
@@ -278,7 +259,7 @@ it('signs out once and toasts on a 401, without showing a sign-in form to a sign
   await render(<CartScreen />)
   await waitFor(() => expect(mockSignOut).toHaveBeenCalledTimes(1))
   expect(mockToast).toHaveBeenCalledTimes(1)
-  expect(mockToast).toHaveBeenCalledWith('Your session has expired. Sign in again.', undefined) // signing out removes the bar, so no lift
+  expect(mockToast).toHaveBeenCalledWith('Your session has expired. Sign in again.')
   expect(screen.queryByTestId('cart-sign-in')).toBeNull()
 })
 
@@ -392,8 +373,8 @@ describe('removing and clearing', () => {
     expect(screen.getByTestId('cart-row-b')).toBeTruthy()
     expect(screen.getByTestId('cart-subtotal').props.children).toBe('₱1,250.00')
     expect(screen.queryByTestId('cart-row-error-b')).toBeNull()
-    expect(mockToast).toHaveBeenCalledWith(...lifted('Item removed'))
-    expect(mockToast).toHaveBeenCalledWith(...lifted(soft))
+    expect(mockToast).toHaveBeenCalledWith('Item removed')
+    expect(mockToast).toHaveBeenCalledWith(soft)
   })
 
   it('treats a 404 on remove as gone', async () => {
@@ -410,7 +391,7 @@ describe('removing and clearing', () => {
     api.fetchCart.mockResolvedValue(cartOf([line('b', { quantity: 1, lineTotal: 1250 })]))
     await fireEvent.press(screen.getByTestId('cart-inc-a'))
     await waitFor(() => expect(screen.queryByTestId('cart-row-a')).toBeNull())
-    expect(mockToast).toHaveBeenCalledWith(...lifted('That item is no longer in your cart.'))
+    expect(mockToast).toHaveBeenCalledWith('That item is no longer in your cart.')
   })
 
   it('clears locally when the refetch fails after Clear Cart', async () => {
@@ -419,8 +400,8 @@ describe('removing and clearing', () => {
     await fireEvent.press(screen.getByTestId('cart-clear'))
     await pressAlert('Clear All Items')
     expect(await screen.findByText('Your cart is empty')).toBeTruthy()
-    expect(mockToast).toHaveBeenCalledWith('Cart cleared', undefined) // the bar is gone with the last item, so no lift
-    expect(mockToast).toHaveBeenCalledWith(soft, undefined)
+    expect(mockToast).toHaveBeenCalledWith('Cart cleared')
+    expect(mockToast).toHaveBeenCalledWith(soft)
   })
 
   it('opens one Alert on a double tap; the lock is released after Cancel and after a failed action', async () => {
@@ -448,17 +429,17 @@ describe('removing and clearing', () => {
     api.setCartItemQuantity.mockRejectedValue(new ApiError('forbidden', undefined, 401))
     await fireEvent.press(screen.getByTestId('cart-inc-a'))
     await waitFor(() => expect(mockSignOut).toHaveBeenCalledTimes(1))
-    expect(mockToast).toHaveBeenCalledWith('Your session has expired. Sign in again.', undefined)
+    expect(mockToast).toHaveBeenCalledWith('Your session has expired. Sign in again.')
     expect(screen.queryByTestId('cart-row-error-a')).toBeNull()
   })
 
-  it('does not lift the toast when a 404 removes the last item', async () => {
+  it('says so when a 404 removes the last item', async () => {
     api.fetchCart.mockResolvedValue(cartOf([line('a')]))
     await act(async () => void mockFocus.current())
     await screen.findByTestId('cart-row-a')
     api.setCartItemQuantity.mockRejectedValue(new ApiError('not-found', undefined, 404))
     await fireEvent.press(screen.getByTestId('cart-inc-a'))
-    await waitFor(() => expect(mockToast).toHaveBeenCalledWith('That item is no longer in your cart.', undefined))
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith('That item is no longer in your cart.'))
   })
 
   it('reloads the cart after a validation failure and keeps the row error', async () => {

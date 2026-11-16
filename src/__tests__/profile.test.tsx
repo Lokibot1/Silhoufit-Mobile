@@ -167,8 +167,7 @@ describe('signed-in layout', () => {
     expect(screen.getByLabelText('Wishlist')).toBe(screen.getByTestId('profile-menu-wishlist'))
     await fireEvent.press(screen.getByTestId('profile-menu-wishlist'))
     await fireEvent.press(screen.getByTestId('profile-menu-wishlist'))
-    expect(mockPush).toHaveBeenCalledTimes(1)
-    expect(mockPush).toHaveBeenCalledWith('/wishlist')
+    expect(mockNavigate.mock.calls.filter(([target]: unknown[]) => target === '/wishlist')).toHaveLength(1)
   })
 
   it('opens Delivery Addresses from its row, once on a double tap', async () => {

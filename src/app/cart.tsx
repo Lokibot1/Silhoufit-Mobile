@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { router, useFocusEffect } from 'expo-router'
-import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react'
-import { ActivityIndicator, Alert, FlatList, LayoutAnimation, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ActivityIndicator, Alert, FlatList, LayoutAnimation, StyleSheet, Text, View } from 'react-native'
 
 import { clearCart, fetchCart, removeCartItem, setCartItemQuantity, type Cart, type CartItem } from '@/api/cart'
 import { useSession } from '@/auth/session'
@@ -162,13 +161,9 @@ export default function CartScreen() {
   const { cart, error, rowError } = mine
   const [busyId, setBusyId] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const insets = useSafeAreaInsets()
-  const { height: windowHeight } = useWindowDimensions()
   const reduceMotion = useReduceMotion()
-  const barRef = useRef<ComponentRef<typeof View>>(null)
-  const lift = useRef(0) // how far the toast must rise to clear the summary bar
   const smooth = useRef(false)
-  const notify = useRef<(message: string, above?: boolean) => void>(() => {})
+  const notify = useRef<(message: string) => void>(() => {})
   const toastRef = useRef(toast)
   const out = useRef(signOut)
   const userRef = useRef(userId)
@@ -180,7 +175,7 @@ export default function CartScreen() {
   const expired = useRef(false)
   useEffect(() => {
     toastRef.current = toast
-    notify.current = (message, above = true) => toastRef.current(message, above ? { bottom: lift.current } : undefined)
+    notify.current = (message) => toastRef.current(message)
     smooth.current = !reduceMotion
     out.current = signOut
     cartRef.current = cart
@@ -204,7 +199,7 @@ export default function CartScreen() {
   const expire = useCallback(() => {
     if (expired.current) return
     expired.current = true
-    notify.current('Your session has expired. Sign in again.', false) // signing out removes the bar
+    notify.current('Your session has expired. Sign in again.')
     void out.current()
   }, [])
 
@@ -222,7 +217,7 @@ export default function CartScreen() {
         (failure: unknown) => {
           if (!current()) return
           if (isExpired(failure)) expire()
-          else if (cartRef.current) notify.current(errorMessage(failure), cartRef.current.items.length > 0)
+          else if (cartRef.current) notify.current(errorMessage(failure))
           else write(uid, { error: failure })
         },
       )
@@ -261,13 +256,6 @@ export default function CartScreen() {
   const animate = () => {
     if (smooth.current) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
   }
-  // The bar's top edge in the window decides how high a toast must sit (the toast host sits at the window bottom, over the tab bar,
-  // so window coordinates are needed). Safe: measureInWindow and useWindowDimensions both include the system bars, and the bar's
-  // onLayout re-fires whenever the window resizes (its y moves), so this is re-measured then. The bar is gone once the bag is empty.
-  const measureBar = () =>
-    barRef.current?.measureInWindow((_x, y) => {
-      lift.current = Math.max(0, windowHeight - y + space.sm - insets.bottom - space.lg)
-    })
 
   // One mutation at a time for the whole bag: every answer is the whole cart, so two in flight could land out of order.
   // `run` returns true when the bag should be reloaded afterwards; that reload fails softly, outside the catch.
@@ -304,7 +292,7 @@ export default function CartScreen() {
       } catch (failure) {
         if (!isGone(failure)) throw failure
         apply(uid, (cur) => ({ cart: cur.cart && without(cur.cart, item.id) }))
-        notify.current('That item is no longer in your cart.', (cartRef.current?.items.length ?? 0) > 1)
+        notify.current('That item is no longer in your cart.')
         return true
       }
     })
@@ -333,10 +321,9 @@ export default function CartScreen() {
         } catch (failure) {
           if (!isGone(failure)) throw failure // already gone counts as removed
         }
-        const last = (cartRef.current?.items.length ?? 0) <= 1
         animate()
         apply(uid, (cur) => ({ cart: cur.cart && without(cur.cart, item.id) }))
-        notify.current('Item removed', !last)
+        notify.current('Item removed')
         return true
       }),
     )
@@ -346,7 +333,7 @@ export default function CartScreen() {
         await clearCart()
         animate()
         apply(uid, { cart: { items: [], totalItems: 0, subtotal: 0 } })
-        notify.current('Cart cleared', false)
+        notify.current('Cart cleared')
         return true
       }),
     )
@@ -425,7 +412,7 @@ export default function CartScreen() {
           />
         )}
       </PullToRefresh>
-      <View testID="cart-bar" ref={barRef} onLayout={measureBar} style={[styles.bar, { paddingBottom: space.sm }]}>
+      <View testID="cart-bar" style={[styles.bar, { paddingBottom: space.sm }]}>
         <View style={styles.subtotalRow}>
           <View style={styles.grow}>
             <Text style={styles.subtotalLabel}>Subtotal</Text>

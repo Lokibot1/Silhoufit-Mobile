@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
 import { ApiError } from '@/lib/api'
-import Wishlist from '../app/wishlist'
+import Wishlist from '../app/(tabs)/wishlist'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/api/wishlist', () => ({ fetchWishlist: jest.fn(), addWishlistItem: jest.fn(), removeWishlistItem: jest.fn() }))
