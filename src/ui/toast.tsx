@@ -5,27 +5,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { PressableScale } from './PressableScale'
 import { color, space, type } from './theme'
 
-const DISMISS_MS = 4500
+const DISMISS_MS = 2500
 // A toast with an action (Undo) stays longer so there is time to read it and reach the button.
-const ACTION_DISMISS_MS = 8000
+const ACTION_DISMISS_MS = 5000
 type Action = { label: string; onPress: () => void }
-type Show = (message: string, options?: { bottom?: number; action?: Action }) => void
+type Show = (message: string, options?: { action?: Action }) => void
 const ToastContext = createContext<Show | null>(null)
 
 // One toast at a time: a new message replaces the current one and restarts the timer.
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState<string | null>(null)
-  const [lift, setLift] = useState(0)
   const [action, setAction] = useState<Action | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const insets = useSafeAreaInsets()
 
   useEffect(() => () => clearTimeout(timer.current), [])
 
-  // `bottom` lifts the toast above a sticky bar the screen owns; later toasts without it drop back down. `action` adds one 44px button (Undo) that closes the toast first.
+  // `action` adds one 44px button (Undo) that closes the toast first. The toast sits at the top, clear of every bottom bar.
   const show: Show = (next, options) => {
     clearTimeout(timer.current)
-    setLift(options?.bottom ?? 0)
     setAction(options?.action ?? null)
     setMessage(next)
     // iOS VoiceOver ignores accessibilityLiveRegion, so the message is spoken explicitly.
@@ -36,7 +34,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext value={show}>
       {children}
-      <View testID="toast-host" pointerEvents="box-none" accessibilityLiveRegion="polite" style={[styles.host, { bottom: insets.bottom + space.lg + lift }]}>
+      <View testID="toast-host" pointerEvents="box-none" accessibilityLiveRegion="polite" style={[styles.host, { top: insets.top + space.sm }]}>
         {message && (
           <View style={styles.toast} testID="toast" pointerEvents={action ? 'auto' : 'none'}>
             <Text style={styles.text}>{message}</Text>

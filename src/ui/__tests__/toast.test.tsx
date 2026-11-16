@@ -3,23 +3,17 @@ import { AccessibilityInfo, Pressable, Text } from 'react-native'
 
 import { ToastProvider, useToast } from '../toast'
 
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 10 }) }))
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 30, bottom: 10 }) }))
 
-function Trigger({ bottom }: { bottom?: number }) {
+function Trigger() {
   const toast = useToast()
-  return <Pressable testID="go" onPress={() => toast('Hi', bottom === undefined ? undefined : { bottom })}><Text>go</Text></Pressable>
+  return <Pressable testID="go" onPress={() => toast('Hi')}><Text>go</Text></Pressable>
 }
 
-const hostBottom = () => screen.getByTestId('toast-host')
-
-it('sits above the safe area by default and lifts by the given offset', async () => {
+it('sits at the top, below the status bar', async () => {
   await render(<ToastProvider><Trigger /></ToastProvider>)
   await fireEvent.press(screen.getByTestId('go'))
-  expect(hostBottom()).toHaveStyle({ bottom: 26 })
-  await screen.unmount()
-  await render(<ToastProvider><Trigger bottom={100} /></ToastProvider>)
-  await fireEvent.press(screen.getByTestId('go'))
-  expect(hostBottom()).toHaveStyle({ bottom: 126 })
+  expect(screen.getByTestId('toast-host')).toHaveStyle({ top: 38 })
 })
 
 it('announces the message to screen readers, since VoiceOver ignores live regions', async () => {
@@ -65,10 +59,10 @@ it('keeps a toast with an action for 8 seconds and a plain one for 4.5', async (
   }
   await render(<ToastProvider><Both /></ToastProvider>)
   await fireEvent.press(screen.getByTestId('plain'))
-  await act(async () => jest.advanceTimersByTime(4500))
+  await act(async () => jest.advanceTimersByTime(2500))
   expect(screen.queryByTestId('toast')).toBeNull()
   await fireEvent.press(screen.getByTestId('acted'))
-  await act(async () => jest.advanceTimersByTime(7999))
+  await act(async () => jest.advanceTimersByTime(4999))
   expect(screen.getByTestId('toast')).toBeTruthy()
   await act(async () => jest.advanceTimersByTime(1))
   expect(screen.queryByTestId('toast')).toBeNull()

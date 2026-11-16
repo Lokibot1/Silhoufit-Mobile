@@ -107,7 +107,6 @@ function ProductView({ product }: { product: Product }) {
   const [pending, setPending] = useState(false)
   const [guideOpen, setGuideOpen] = useState(false)
   const [failure, setFailure] = useState<{ variantId: string; message: string } | null>(null)
-  const barHeight = useRef(0)
   const busy = useRef(false)
   const opening = useRef(false)
   // A fast double tap must not stack two sign-in screens; allow it again when this screen regains focus.
@@ -148,7 +147,7 @@ function ProductView({ product }: { product: Product }) {
   }
 
   // A toast above the sticky bar, like Added to cart.
-  const notify = (message: string) => toast(message, { bottom: Math.max(0, barHeight.current - insets.bottom) })
+  const notify = (message: string) => toast(message)
 
   const prices = variants.map((v) => v.price)
   const price = variant ? peso(variant.price) : prices.length ? (Math.min(...prices) === Math.max(...prices) ? peso(prices[0]) : `From ${peso(Math.min(...prices))}`) : null
@@ -166,7 +165,7 @@ function ProductView({ product }: { product: Product }) {
     setFailure(null)
     try {
       await addCartItem(variant.id, 1)
-      toast('Added to cart', { bottom: Math.max(0, barHeight.current - insets.bottom) })
+      toast('Added to cart')
       refresh()
     } catch (error) {
       if (error instanceof ApiError && error.kind === 'forbidden') signIn()
@@ -261,7 +260,7 @@ function ProductView({ product }: { product: Product }) {
       </ScrollView>
       <SizeGuideSheet visible={guideOpen} onClose={() => setGuideOpen(false)} category={product.category} variants={variants} selected={chosenSize === NONE ? null : chosenSize} />
 
-      <View testID="product-bar" onLayout={(event) => { barHeight.current = event.nativeEvent.layout.height }} style={[styles.bar, { paddingBottom: insets.bottom + space.sm }]}>
+      <View testID="product-bar" style={[styles.bar, { paddingBottom: insets.bottom + space.sm }]}>
         {variants.length === 0 && <Text testID="product-unavailable" style={styles.hint}>Not available to buy yet</Text>}
         {variants.length > 0 && !variant && !allSoldOut && <Text style={styles.hint}>{`Choose ${missing || 'an option'}.`}</Text>}
         {failure && failure.variantId === variant?.id && (
