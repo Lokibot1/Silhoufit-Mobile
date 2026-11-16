@@ -41,6 +41,18 @@ export function dateTime(value: string | null | undefined): string {
   return `${day(d)}, ${hour % 12 || 12}:${String(d.getUTCMinutes()).padStart(2, '0')} ${hour < 12 ? 'AM' : 'PM'}`
 }
 
+/** "Just now", "5 min ago", "3 hr ago", "Yesterday", then the Manila date and 12-hour time: "Nov 14, 2026, 1:49 PM". */
+export function relativeTime(value: string, now = new Date()): string {
+  const then = manila(value)
+  const today = manila(now.toISOString())
+  if (!then || !today) return dateTime(value)
+  const minutes = Math.floor((now.getTime() - new Date(value).getTime()) / 60_000)
+  if (minutes < 1) return 'Just now'
+  if (day(then) === day(today)) return minutes < 60 ? `${minutes} min ago` : `${Math.floor(minutes / 60)} hr ago`
+  if (day(then) === day(new Date(today.getTime() - 86_400_000))) return 'Yesterday'
+  return dateTime(value)
+}
+
 /** Zero-padded loader counter: 7 -> "007%". */
 export function percentLabel(percent: number): string {
   return `${String(Math.round(percent)).padStart(3, '0')}%`

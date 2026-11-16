@@ -1,257 +1,182 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FlatList, StyleSheet, Text, View } from 'react-native'
 
-import { fetchOrdersPage, orderUpdates, STAGE_KINDS, type NotificationEvent } from '@/api/orders'
+import { notificationOrderId, type NotificationItem } from '@/api/notifications'
+import { useNotifications } from '@/api/useNotifications'
 import { useSession } from '@/auth/session'
-import { ApiError, errorMessage } from '@/lib/api'
-import { dateTime } from '@/lib/format'
-import { useLivePoll } from '@/lib/useLivePoll'
+import type { ApiError } from '@/lib/api'
+import { relativeTime } from '@/lib/format'
+import { Button } from '@/ui/Button'
+import { Chip } from '@/ui/Chip'
 import { PressableScale } from '@/ui/PressableScale'
 import { PullToRefresh } from '@/ui/PullToRefresh'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, space, type } from '@/ui/theme'
-import { useToast } from '@/ui/toast'
+import { color, font, space, type } from '@/ui/theme'
 
-const seenKey = (uid: string) => `kral:notifications-seen:${uid}`
-const eventsKey = (events: NotificationEvent[]) => events.map((e) => `${e.id}|${e.at}|${e.note ?? ''}`).join('\n')
-const isNew = (event: NotificationEvent, seen: string | null) => seen !== null && Date.parse(event.at) > Date.parse(seen)
+const UNREAD_DOT = 8
 
-function UpdateRow({ event, fresh, onPress }: { event: NotificationEvent; fresh: boolean; onPress: () => void }) {
-  const time = `${STAGE_KINDS.includes(event.kind) ? 'Updated ' : ''}${dateTime(event.at)}`
+function NotificationRow({ item, onPress }: { item: NotificationItem; onPress: () => void }) {
+  const unread = !item.readAt
+  const time = relativeTime(item.createdAt)
   return (
     <PressableScale
-      testID={`notification-row-${event.orderId}-${event.kind}`}
+      testID={`notification-row-${item.id}`}
       accessibilityRole="button"
-      accessibilityLabel={`${event.label}, order ${event.orderNumber}, ${time}${fresh ? ', new' : ''}`}
+      accessibilityLabel={`${unread ? 'Unread, ' : ''}${item.title}${item.body ? `, ${item.body}` : ''}, ${time}`}
+      disabled={!unread && !notificationOrderId(item)}
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
       <View style={styles.line}>
-        <Text style={[type.h2, styles.grow]}>{event.label}</Text>
-        {fresh && <Text testID="notification-new" style={[type.label, { color: color.red }]}>New</Text>}
+        {unread && <View testID="notification-unread" style={styles.dot} />}
+        <Text style={[type.h2, styles.grow, !unread && styles.read]}>{item.title}</Text>
       </View>
-      <Text style={[type.small, type.numeric, { color: color.graphite }]}>{`Order ${event.orderNumber}`}</Text>
+      {item.body ? <Text style={[type.small, { color: color.graphite }]}>{item.body}</Text> : null}
       <Text style={[type.small, type.numeric, { color: color.graphite }]}>{time}</Text>
-      {event.note ? <Text style={[type.small, { color: color.graphite }]}>{event.note}</Text> : null}
     </PressableScale>
   )
 }
 
-// Same row chrome as UpdateRow (title, order, time); a row with a cancel note is taller, so that swap can shift a little.
-function UpdatesSkeleton() {
+// Same row chrome as NotificationRow (title, body, time); the body can wrap, so a long one shifts a little.
+function NotificationsSkeleton() {
   return (
     <View accessible accessibilityLabel="Loading" accessibilityRole="progressbar">
       {[0, 1, 2, 3].map((key) => (
         <View key={key} style={styles.row}>
           <Skeleton height={24} />
-          <Skeleton width="40%" height={20} />
           <Skeleton width="60%" height={20} />
+          <Skeleton width="40%" height={20} />
         </View>
       ))}
     </View>
   )
 }
 
-type Store = { owner: string | null; events: NotificationEvent[] | null; seen: string | null; error: unknown }
-const EMPTY: Store = { owner: null, events: null, seen: null, error: null }
-// Everything fetched is tagged with its account, so another account never sees it (not even for one render).
-const own = (s: Store, uid: string, change: Partial<Store>): Store => ({ ...(s.owner === uid ? s : { ...EMPTY, owner: uid }), ...change })
-const isExpired = (failure: unknown) => failure instanceof ApiError && failure.status === 401
+// What went wrong and what to do about it, for a failed read.
+function failureCopy(error: ApiError | null) {
+  if (error?.kind === 'forbidden') return 'Your session has ended, so we could not read your notifications. Sign in again, then come back.'
+  if (error?.kind === 'rate-limit') return 'Too many requests were sent just now, so the notifications did not load. Wait for the countdown, then try again.'
+  if (error?.kind === 'network') return 'The connection dropped before the notifications loaded. Check your connection, then try again.'
+  return 'The server had a problem loading your notifications. Try again in a moment.'
+}
 
-// Order updates built on the device from the customer's orders; the API has no notifications feed yet.
+// Try again; after a 429 it waits out the server's Retry-After first, since asking sooner only spends the budget that ran out.
+function LoadError({ error, onRetry }: { error: ApiError | null; onRetry: () => void }) {
+  const [wait, setWait] = useState(error?.kind === 'rate-limit' ? Math.ceil((error.retryAfterMs ?? 15_000) / 1000) : 0)
+  useEffect(() => {
+    if (wait <= 0) return
+    const timer = setTimeout(() => setWait((n) => n - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [wait])
+  return (
+    <View accessibilityRole="alert" style={styles.box}>
+      <Text accessibilityRole="header" style={type.h2}>{"Couldn't load your notifications"}</Text>
+      <Text style={[type.body, { color: color.graphite }]}>{failureCopy(error)}</Text>
+      <Button testID="notifications-retry" label={wait > 0 ? `Try again in ${wait}s` : 'Try again'} disabled={wait > 0} onPress={onRetry} labelStyle={type.numeric} />
+    </View>
+  )
+}
+
 export default function NotificationsScreen() {
-  const { session, loading, signOut } = useSession()
-  const userId = session?.user.id ?? null
-  const signedIn = userId !== null
-  const toast = useToast()
-  const [store, setStore] = useState<Store>(EMPTY)
-  const mine = store.owner === userId ? store : EMPTY
-  const { events, seen, error } = mine
+  const { session, loading } = useSession()
+  const signedIn = !!session
+  const { count, items, hasNextPage, status, error, loadingMore, unreadOnly, setUnreadOnly, markRead, markAllRead, loadMore, refresh, retry } = useNotifications()
   const [refreshing, setRefreshing] = useState(false)
-  const notify = useRef(toast)
-  const out = useRef(signOut)
-  const userRef = useRef(userId)
-  const eventsRef = useRef<NotificationEvent[] | null>(null)
   const opening = useRef(false)
-  const shown = useRef<{ uid: string; at: string } | null>(null) // newest event the list has been rendered with since focus
-  const seq = useRef(0) // the newest load wins: an earlier one is dropped when it lands
-  const expired = useRef(false)
-  const flight = useRef<{ uid: string; signal: AbortSignal; promise: Promise<boolean>; quiet: boolean } | null>(null)
-  useEffect(() => {
-    notify.current = toast
-    out.current = signOut
-    eventsRef.current = events
-  })
-  useEffect(() => {
-    userRef.current = userId
-    seq.current++
-    expired.current = false
-  }, [userId])
+  // A fast double tap must not stack two screens; allow it again when this tab regains focus.
+  useFocusEffect(useCallback(() => { opening.current = false }, []))
 
-  const write = useCallback((uid: string, change: Partial<Store>) => {
-    if (userRef.current === uid) setStore((s) => own(s, uid, change))
-  }, [])
-
-  // The backend can reject a token Supabase still holds: sign out once so the prompt is truthful.
-  const expire = useCallback(() => {
-    if (expired.current) return
-    expired.current = true
-    notify.current('Your session has expired. Sign in again.')
-    void out.current()
-  }, [])
-
-  // shortcut: only the 20 newest orders, page further if customers have more
-  // Resolves false on a real failure (a poll, `quiet`, backs off instead of toasting). A read already in flight is shared, and an
-  // unchanged list is not written, so nothing re-renders; the newest event still counts as shown.
-  const load = useCallback(
-    (signal: AbortSignal, quiet = false) => {
-      const uid = userId
-      if (!uid) return Promise.resolve(true)
-      const joined = flight.current
-      // Only a poll joins a read in flight; a user's own load replaces a poll's (its result is dropped by `seq`).
-      if (joined && joined.uid === uid && !joined.signal.aborted && (quiet || !joined.quiet)) return joined.promise
-      const started = ++seq.current
-      const current = () => !signal.aborted && started === seq.current
-      const promise: Promise<boolean> = fetchOrdersPage({ page: 1, limit: 20 }, signal)
-        .then(
-          (page) => {
-            if (!current()) return true
-            const list = orderUpdates(page.items)
-            if (!eventsRef.current || eventsKey(eventsRef.current) !== eventsKey(list)) write(uid, { events: list, error: null })
-            if (list[0]) shown.current = { uid, at: list[0].at }
-            return true
-          },
-          (failure: unknown) => {
-            if (!current()) return true
-            if (isExpired(failure)) expire()
-            else if (eventsRef.current) {
-              if (!quiet) notify.current(errorMessage(failure))
-            } else write(uid, { error: failure })
-            return false
-          },
-        )
-        .finally(() => {
-          if (flight.current?.promise === promise) flight.current = null
-        })
-      flight.current = { uid, signal, promise, quiet }
-      return promise
-    },
-    [userId, write, expire],
-  )
-
-  // "New" is judged against the last-seen time read at focus. It advances only when the user leaves a tab that showed the list
-  // (blur, including opening an order), so a quick tab switch before the list renders keeps the markers.
-  useFocusEffect(
-    useCallback(() => {
-      opening.current = false // a fast double tap must not stack two screens
-      if (!userId) return
-      const controller = new AbortController()
-      void AsyncStorage.getItem(seenKey(userId))
-        .catch(() => null)
-        .then((stored) => {
-          if (controller.signal.aborted) return
-          write(userId, { seen: stored })
-          return load(controller.signal)
-        })
-      return () => {
-        controller.abort()
-        const left = shown.current
-        shown.current = null
-        if (left?.uid !== userId) return
-        write(userId, { seen: left.at })
-        void AsyncStorage.setItem(seenKey(userId), left.at).catch(() => {})
-      }
-    }, [userId, load, write]),
-  )
-
-  // The focus effect above already reads when the tab is shown, so a poll only keeps it fresh while it stays open. It never touches
-  // the last-seen time: that only advances on blur, from what the list showed.
-  useLivePoll(
-    async (signal) => {
-      if (!(await load(signal, true))) throw new Error('poll failed')
-    },
-    { enabled: signedIn, readOnFocus: false, resetKey: userId },
-  )
-
-  const retry = () => {
-    if (userId) write(userId, { error: null })
-    void load(new AbortController().signal)
-  }
-  const refresh = () => {
+  const doRefresh = () => {
     setRefreshing(true)
-    void load(new AbortController().signal).finally(() => setRefreshing(false))
+    void refresh().finally(() => setRefreshing(false))
   }
   const signIn = () => {
     if (opening.current) return
     opening.current = true
     router.push('/sign-in')
   }
-  const open = (id: string) => {
-    if (opening.current) return
+  const open = (item: NotificationItem) => {
+    void markRead(item.id)
+    const orderId = notificationOrderId(item)
+    if (!orderId || opening.current) return
     opening.current = true
-    router.push({ pathname: '/orders/[id]', params: { id } })
+    router.push({ pathname: '/orders/[id]', params: { id: orderId } })
   }
 
-  const header = (
-    <View style={styles.header} />
-  )
-
-  if (loading || (signedIn && !events && !error)) {
+  if (loading) {
     return (
       <View style={styles.screen}>
-        {header}
-        <UpdatesSkeleton />
+        <NotificationsSkeleton />
       </View>
     )
   }
   if (!signedIn) {
     return (
       <View style={styles.screen}>
-        {header}
         <View style={styles.message}>
           <StateMessage title="Sign in to see your order updates" message="Payment, shipping and delivery updates for your orders show up here once you sign in." actionLabel="Sign In" onAction={signIn} testID="notifications-sign-in" />
         </View>
       </View>
     )
   }
-  if (!events) {
-    return (
-      <View style={styles.screen}>
-        {header}
-        <View style={styles.message}>
-          <StateMessage alert title="Couldn't load your updates" message={errorMessage(error)} actionLabel="Retry" onAction={retry} testID="notifications-retry" />
-        </View>
+
+  const unreadLabel = count ? `Unread (${count})` : 'Unread'
+  const toolbar = (
+    <View style={styles.toolbar}>
+      <View style={styles.chips}>
+        <Chip tall testID="notifications-filter-all" label="All" selected={!unreadOnly} onPress={() => setUnreadOnly(false)} />
+        <Chip tall testID="notifications-filter-unread" label={unreadLabel} accessibilityLabel={count ? `Unread, ${count} ${count === 1 ? 'notification' : 'notifications'}` : 'Unread'} selected={unreadOnly} onPress={() => setUnreadOnly(true)} />
       </View>
-    )
-  }
-  if (events.length === 0) {
+      {count ? (
+        <PressableScale testID="notifications-mark-all" accessibilityRole="button" accessibilityLabel="Mark all read" onPress={() => void markAllRead()} style={styles.markAll}>
+          <Text style={[type.small, styles.markAllText]}>Mark all read</Text>
+        </PressableScale>
+      ) : null}
+    </View>
+  )
+
+  if (status !== 'ready') {
     return (
       <View style={styles.screen}>
-        {header}
-        <View style={styles.message}>
-          <StateMessage title="No updates yet" message="Updates on your orders show up here once you place one." actionLabel="Browse the Shop" onAction={() => router.navigate('/')} testID="notifications-empty-action" />
-        </View>
+        {toolbar}
+        {status === 'loading' ? (
+          <NotificationsSkeleton />
+        ) : (
+          <View style={styles.message}>
+            <LoadError error={error} onRetry={retry} />
+          </View>
+        )}
       </View>
     )
   }
 
   return (
-    <PullToRefresh refreshing={refreshing} onRefresh={refresh}>
-      {(scroll) => (
-        <FlatList
-          {...scroll}
-          testID="notifications-list"
-          style={styles.screen}
-          contentContainerStyle={styles.listContent}
-          data={events}
-          keyExtractor={(event) => event.id}
-          ListHeaderComponent={header}
-          renderItem={({ item }) => <UpdateRow event={item} fresh={isNew(item, seen)} onPress={() => open(item.orderId)} />}
-        />
-      )}
-    </PullToRefresh>
+    <View style={styles.screen}>
+      {toolbar}
+      <PullToRefresh refreshing={refreshing} onRefresh={doRefresh}>
+        {(scroll) => (
+          <FlatList
+            {...scroll}
+            testID="notifications-list"
+            contentContainerStyle={styles.listContent}
+            data={items}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => <NotificationRow item={item} onPress={() => open(item)} />}
+            ListEmptyComponent={
+              <View style={styles.message}>
+                {unreadOnly ? (
+                  <StateMessage title="You're all caught up" message="You have no unread notifications." actionLabel="Show All" onAction={() => setUnreadOnly(false)} testID="notifications-show-all" />
+                ) : (
+                  <StateMessage title="No notifications yet" message="Updates on your orders and replies to your reviews show up here." actionLabel="Browse the Shop" onAction={() => router.navigate('/')} testID="notifications-empty-action" />
+                )}
+              </View>
+            }
+            ListFooterComponent={hasNextPage ? <View style={styles.message}><Button testID="notifications-more" variant="secondary" label="Show More" pending={loadingMore} onPress={loadMore} /></View> : undefined}
+          />
+        )}
+      </PullToRefresh>
+    </View>
   )
 }
 
@@ -259,9 +184,16 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   listContent: { paddingBottom: space.xxl },
   message: { padding: space.lg },
-  header: { paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.md, gap: space.md },
+  box: { gap: space.md },
+  toolbar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.md },
+  chips: { flexDirection: 'row', gap: space.sm },
+  markAll: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
+  markAllText: { fontFamily: font.semibold, color: color.red, textDecorationLine: 'underline' },
   grow: { flex: 1 },
   row: { gap: space.xs, paddingVertical: space.lg, paddingHorizontal: space.lg, borderBottomWidth: 1, borderBottomColor: color.porcelain },
   pressed: { backgroundColor: color.porcelain },
   line: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  // Unread is a square dot and the bold title, so it never rests on colour alone.
+  dot: { width: UNREAD_DOT, height: UNREAD_DOT, backgroundColor: color.red },
+  read: { fontFamily: font.regular },
 })

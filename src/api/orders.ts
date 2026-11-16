@@ -237,30 +237,6 @@ export const orderSignature = (o: Order) =>
   [o.id, o.status, o.paymentStatus, o.total, o.updatedAt, o.paidAt, o.cancelledAt, o.cancellationReason, o.shipment?.status, o.shipment?.pickupTime, o.shipment?.deliveredAt, o.shipment?.trackingUrl].join('|')
 export const ordersSignature = (orders: Order[]) => orders.map(orderSignature).join('\n')
 
-export type NotificationEvent = { id: string; orderId: string; orderNumber: string; kind: string; label: string; at: string; note?: string }
-/** Stages the API keeps no time for: their event is dated with the order's last update instead. */
-export const STAGE_KINDS = ['PROCESSING', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'PAYMENT_FAILED', 'REFUNDED']
-
-/** Order updates built on the device from real timestamps, newest first; an order with none yields nothing.
- *  An event dated in the future (a scheduled courier pickup) or with an unparseable time is left out until it is real. */
-export function orderUpdates(orders: Order[]): NotificationEvent[] {
-  return orders
-    .flatMap((order) => {
-      const times: { kind: string; label: string; at: string | null; note?: string }[] = [
-        { kind: 'paid', label: 'Payment received', at: order.paidAt },
-        { kind: 'courier', label: 'Handed to courier', at: order.shipment?.pickupTime ?? null },
-        { kind: 'delivered', label: 'Delivered', at: order.shipment?.deliveredAt ?? null },
-        { kind: 'cancelled', label: 'Cancelled', at: order.cancelledAt, note: order.cancellationReason ?? undefined },
-      ]
-      if (STAGE_KINDS.includes(order.status)) times.push({ kind: order.status, label: statusLabel(order.status), at: order.updatedAt })
-      const now = Date.now()
-      return times
-        .filter((t): t is typeof t & { at: string } => t.at !== null && Date.parse(t.at) <= now)
-        .map(({ kind, label, at, note }) => ({ id: `${order.id}-${kind}`, orderId: order.id, orderNumber: order.orderNumber, kind, label, at, ...(note ? { note } : {}) }))
-    })
-    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
-}
-
 export type ShippingQuote = { quotationId: string; courier: string; shippingFee: number; expiresAt: string }
 
 /** POST /orders/quote-shipping. Throws ApiError('server') when the answer lacks an id, a fee or a valid expiry. */

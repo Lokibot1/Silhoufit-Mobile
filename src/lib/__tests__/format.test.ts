@@ -1,4 +1,4 @@
-import { dateOnly, dateTime, deliveryLabel, percentLabel, soldLabel } from '../format'
+import { dateOnly, dateTime, deliveryLabel, percentLabel, relativeTime, soldLabel } from '../format'
 
 it('formats units sold', () => {
   expect([1, 371, 999, 1000, 1250, 1999, 9999, 10_000, 12_400].map(soldLabel)).toEqual(['1 sold', '371 sold', '999 sold', '1k sold', '1.2k sold', '1.9k sold', '9.9k sold', '10k sold', '12k sold'])
@@ -31,4 +31,16 @@ describe('dateTime and dateOnly (Manila time, 12-hour)', () => {
       expect(dateOnly(bad)).toBe('—')
     }
   })
+})
+
+it('says how long ago, by Manila day, then falls back to the 12-hour date', () => {
+  const now = new Date('2026-11-14T06:00:00Z') // 2:00 PM Manila
+  expect(['2026-11-14T05:59:40Z', '2026-11-14T05:55:00Z', '2026-11-14T03:00:00Z', '2026-11-13T10:00:00Z', '2026-11-10T05:49:00Z', 'nope'].map((at) => relativeTime(at, now))).toEqual([
+    'Just now',
+    '5 min ago',
+    '3 hr ago',
+    'Yesterday',
+    'Nov 10, 2026, 1:49 PM',
+    '—',
+  ])
 })

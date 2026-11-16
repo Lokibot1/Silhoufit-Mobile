@@ -5,11 +5,12 @@ import { useCallback, useRef } from 'react'
 import { StyleSheet, Text, View, type ColorValue } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { useNotifications } from '@/api/useNotifications'
 import { useChatUnread } from '@/chat/useChatUnread'
 import { useCartCount } from '@/lib/useCartCount'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
-import { color, font, space, type } from '@/ui/theme'
+import { color, font, radius, space, type } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
 // Outline when idle, solid when active, so the current tab reads at a glance.
@@ -68,19 +69,28 @@ function TabsHeader() {
 
 // Bottom bar drawn by hand so it keeps the old look, roles and testIDs on top of the swipeable pager.
 function TabBar({ state, descriptors, emitter, navigateToTab, insets }: MaterialTopTabBarProps) {
+  const { count } = useNotifications({ list: false })
   return (
     <View style={[styles.bar, { paddingBottom: insets.bottom }]}>
       {state.routes.map((route, i) => {
         const { options } = descriptors[route.key]
         const focused = state.index === i
         const tint = focused ? color.red : color.graphite
+        const unread = route.name === 'notifications' && count ? count : 0
         const onPress = () => {
           const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true })
           if (!event.defaultPrevented) navigateToTab(route.key)
         }
         return (
-          <PressableScale key={route.key} testID={options.tabBarButtonTestID} accessibilityRole="tab" accessibilityLabel={options.title} accessibilityState={{ selected: focused }} onPress={onPress} style={styles.item}>
-            {options.tabBarIcon?.({ focused, color: tint })}
+          <PressableScale key={route.key} testID={options.tabBarButtonTestID} accessibilityRole="tab" accessibilityLabel={unread ? `${options.title}, ${unread} unread` : options.title} accessibilityState={{ selected: focused }} onPress={onPress} style={styles.item}>
+            <View>
+              {options.tabBarIcon?.({ focused, color: tint })}
+              {unread > 0 && (
+                <View testID={`${options.tabBarButtonTestID}-badge`} style={styles.badge}>
+                  <Text maxFontSizeMultiplier={1} style={styles.badgeText}>{unread > 9 ? '9+' : unread}</Text>
+                </View>
+              )}
+            </View>
             <TabLabel color={tint}>{options.title ?? route.name}</TabLabel>
           </PressableScale>
         )
@@ -110,5 +120,7 @@ const styles = StyleSheet.create({
   header: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg, backgroundColor: color.paper, borderBottomWidth: 1, borderBottomColor: color.porcelain },
   actions: { flexDirection: 'row', alignItems: 'center' },
   bar: { flexDirection: 'row', backgroundColor: color.paper, borderTopWidth: 1, borderTopColor: color.porcelain },
+  badge: { position: 'absolute', top: -space.xs, right: -space.md, minWidth: 20, height: 20, paddingHorizontal: space.xs, borderRadius: radius.pill, backgroundColor: color.red, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { fontFamily: font.semibold, fontSize: 14, lineHeight: 20, color: color.paper, ...type.numeric },
   item: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', paddingVertical: space.xs },
 })

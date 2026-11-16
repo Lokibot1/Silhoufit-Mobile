@@ -1,277 +1,222 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 
 import { ApiError } from '@/lib/api'
 import NotificationsScreen from '../app/(tabs)/notifications'
 
-jest.mock('@react-native-async-storage/async-storage', () => jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'))
-jest.mock('@/api/orders', () => ({ ...jest.requireActual('@/api/orders'), fetchOrdersPage: jest.fn() }))
+jest.mock('@/api/notifications', () => ({
+  ...jest.requireActual('@/api/notifications'),
+  fetchNotifications: jest.fn(),
+  fetchUnreadCount: jest.fn(),
+  markNotificationRead: jest.fn(),
+  markAllNotificationsRead: jest.fn(),
+}))
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('expo-router', () => ({
-  useIsFocused: () => jest.requireActual('react').useSyncExternalStore((sub: () => void) => (mockFocus.subs.add(sub), () => mockFocus.subs.delete(sub)), () => mockFocus.on),
+  useIsFocused: () => true,
   router: { push: jest.fn(), navigate: jest.fn() },
-  // Models focus and blur: the effect runs while focused and its cleanup runs on blur.
-  useFocusEffect: (effect: () => void | (() => void)) => {
-    const react = jest.requireActual('react')
-    const on = react.useSyncExternalStore(
-      (sub: () => void) => (mockFocus.subs.add(sub), () => mockFocus.subs.delete(sub)),
-      () => mockFocus.on,
-    )
-    react.useEffect(() => (on ? effect() : undefined), [effect, on])
-  },
+  useFocusEffect: (effect: () => void | (() => void)) => jest.requireActual('react').useEffect(() => effect(), [effect]),
 }))
-const mockFocus = { on: true, subs: new Set<() => void>() }
-const setFocus = (on: boolean) =>
-  act(async () => {
-    mockFocus.on = on
-    mockFocus.subs.forEach((sub) => sub())
-  })
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
 const mockToast = jest.fn()
-const api = jest.requireMock('@/api/orders')
+const api = jest.requireMock('@/api/notifications')
 const mockUseSession = jest.requireMock('@/auth/session').useSession
 const { push: mockPush, navigate: mockNavigate } = jest.requireMock('expo-router').router
 
 const signedIn = { session: { user: { id: 'u1' } }, loading: false, signOut: jest.fn() }
-const order = (id: string, over: Record<string, unknown> = {}) => ({
+const note = (id: string, over: Record<string, unknown> = {}) => ({
   id,
-  orderNumber: `SHF-${id}`,
-  status: 'PAID',
-  paymentStatus: 'PAID',
-  subtotal: 1100,
-  shipping: 150,
-  discount: 0,
-  total: 1250,
-  createdAt: '2026-11-14T05:00:00.000Z',
-  updatedAt: '2026-11-14T05:00:00.000Z',
-  paidAt: '2026-11-14T05:49:00.000Z',
-  cancelledAt: null,
-  cancellationReason: null,
-  address: null,
-  items: [],
-  shipment: null,
+  type: 'ORDER_PAID',
+  title: `Title ${id}`,
+  body: `Body ${id}`,
+  data: { orderId: `order-${id}` },
+  readAt: null,
+  createdAt: '2026-11-14T05:49:00.000Z',
   ...over,
 })
-const pageOf = (items: ReturnType<typeof order>[]) => ({ items, total: items.length, page: 1, hasNextPage: false })
-const KEY = 'kral:notifications-seen:u1'
+const pageOf = (items: ReturnType<typeof note>[], hasNextPage = false) => ({ items, total: items.length, page: 1, hasNextPage })
 
-beforeEach(async () => {
-  jest.clearAllMocks() // not reset: that would wipe the async-storage mock's implementations
-  await AsyncStorage.clear()
-  mockFocus.on = true
+beforeEach(() => {
+  jest.clearAllMocks() // not reset: that would wipe the AppState mock the live poll subscribes through
+  for (const fn of [api.fetchNotifications, api.fetchUnreadCount, api.markNotificationRead, api.markAllNotificationsRead]) fn.mockReset()
   mockUseSession.mockReturnValue(signedIn)
+  api.fetchUnreadCount.mockResolvedValue(1)
+  api.markNotificationRead.mockResolvedValue(undefined)
+  api.markAllNotificationsRead.mockResolvedValue(undefined)
 })
 
-it('shows the skeleton, then the update with label, order number and 12-hour time, loading 20 orders', async () => {
+it('shows the skeleton, then the rows with title, body and time, loading page 1 of all notifications', async () => {
   let resolve: (page: unknown) => void = () => {}
-  api.fetchOrdersPage.mockReturnValue(new Promise((r) => (resolve = r)))
+  api.fetchNotifications.mockReturnValue(new Promise((r) => (resolve = r)))
   await render(<NotificationsScreen />)
   expect(screen.getByRole('progressbar')).toBeTruthy()
-  await act(async () => resolve(pageOf([order('a')])))
+  await act(async () => resolve(pageOf([note('a')])))
   expect(screen.queryByRole('progressbar')).toBeNull()
-  expect(screen.queryByText('(Order Updates)')).toBeNull()
-  expect(screen.getByText('Payment received')).toBeTruthy()
-  expect(screen.getByText('Order SHF-a')).toBeTruthy()
+  expect(screen.getByText('Title a')).toBeTruthy()
+  expect(screen.getByText('Body a')).toBeTruthy()
   expect(screen.getByText('Nov 14, 2026, 1:49 PM')).toBeTruthy()
-  expect(api.fetchOrdersPage).toHaveBeenCalledWith({ page: 1, limit: 20 }, expect.any(AbortSignal))
+  expect(api.fetchNotifications).toHaveBeenCalledWith({ page: 1, unreadOnly: false }, expect.any(AbortSignal))
 })
 
-it('shows the sign-in prompt when signed out', async () => {
+it('shows the sign-in prompt when signed out, and reads nothing', async () => {
   mockUseSession.mockReturnValue({ ...signedIn, session: null })
   await render(<NotificationsScreen />)
   expect(screen.getByText('Sign in to see your order updates')).toBeTruthy()
   await fireEvent.press(screen.getByTestId('notifications-sign-in'))
   expect(mockPush).toHaveBeenCalledWith('/sign-in')
-  expect(api.fetchOrdersPage).not.toHaveBeenCalled()
+  expect(api.fetchNotifications).not.toHaveBeenCalled()
+  expect(api.fetchUnreadCount).not.toHaveBeenCalled()
 })
 
-it('shows the error with Retry, and retrying loads the updates', async () => {
-  api.fetchOrdersPage.mockRejectedValueOnce(new ApiError('network')).mockResolvedValueOnce(pageOf([order('a')]))
+it('marks unread rows with a dot and an Unread label, not read ones', async () => {
+  api.fetchNotifications.mockResolvedValue(pageOf([note('a'), note('b', { readAt: '2026-11-14T06:00:00.000Z' })]))
   await render(<NotificationsScreen />)
-  expect(await screen.findByTestId('notifications-retry')).toBeTruthy()
-  await fireEvent.press(screen.getByTestId('notifications-retry'))
-  expect(await screen.findByTestId('notifications-list')).toBeTruthy()
+  expect((await screen.findByTestId('notification-row-a')).props.accessibilityLabel).toMatch(/^Unread, Title a, Body a, /)
+  expect(screen.getByTestId('notification-row-b').props.accessibilityLabel).not.toMatch(/Unread/)
+  expect(screen.getAllByTestId('notification-unread')).toHaveLength(1)
+})
+
+it('opens the order and marks the row read when it is tapped, once even on a double tap', async () => {
+  api.fetchNotifications.mockResolvedValue(pageOf([note('a')]))
+  await render(<NotificationsScreen />)
+  const row = await screen.findByTestId('notification-row-a')
+  await fireEvent.press(row)
+  await fireEvent.press(row)
+  expect(mockPush).toHaveBeenCalledTimes(1)
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/orders/[id]', params: { id: 'order-a' } })
+  expect(api.markNotificationRead).toHaveBeenCalledWith('a')
+  expect(screen.queryByTestId('notification-unread')).toBeNull()
+})
+
+it('rolls the row back and toasts when marking read fails', async () => {
+  api.fetchNotifications.mockResolvedValue(pageOf([note('a')]))
+  api.markNotificationRead.mockRejectedValue(new ApiError('network'))
+  await render(<NotificationsScreen />)
+  await fireEvent.press(await screen.findByTestId('notification-row-a'))
+  expect(mockToast).toHaveBeenCalledWith("We couldn't mark that notification as read. Check your connection, then open it again.")
+  expect(screen.getByTestId('notification-unread')).toBeTruthy()
+  expect(screen.getByTestId('notifications-filter-unread').props.accessibilityLabel).toBe('Unread, 1 notification')
+})
+
+it('a row without an order only marks it read', async () => {
+  api.fetchNotifications.mockResolvedValue(pageOf([note('a', { data: null })]))
+  await render(<NotificationsScreen />)
+  await fireEvent.press(await screen.findByTestId('notification-row-a'))
+  expect(api.markNotificationRead).toHaveBeenCalledWith('a')
+  expect(mockPush).not.toHaveBeenCalled()
+})
+
+it('shows the unread count on the filter chip, and the unread filter asks for unreadOnly=true', async () => {
+  api.fetchNotifications.mockResolvedValue(pageOf([note('a')]))
+  await render(<NotificationsScreen />)
+  await screen.findByTestId('notification-row-a')
+  expect(screen.getByText('Unread (1)')).toBeTruthy()
+  await fireEvent.press(screen.getByTestId('notifications-filter-unread'))
+  await screen.findByTestId('notification-row-a')
+  expect(api.fetchNotifications).toHaveBeenLastCalledWith({ page: 1, unreadOnly: true }, expect.any(AbortSignal))
+  expect(screen.getByTestId('notifications-filter-unread').props.accessibilityState).toMatchObject({ selected: true })
+})
+
+it('marks all read with a toast, and rolls back with a toast on failure', async () => {
+  api.fetchNotifications.mockResolvedValue(pageOf([note('a')]))
+  api.markAllNotificationsRead.mockRejectedValueOnce(new ApiError('network'))
+  await render(<NotificationsScreen />)
+  await fireEvent.press(await screen.findByTestId('notifications-mark-all'))
+  expect(mockToast).toHaveBeenCalledWith("We couldn't mark your notifications as read. Check your connection, then try again.")
+  expect(screen.getByTestId('notification-unread')).toBeTruthy()
+  await fireEvent.press(screen.getByTestId('notifications-mark-all'))
+  expect(mockToast).toHaveBeenLastCalledWith('All notifications marked as read.')
+  expect(screen.queryByTestId('notification-unread')).toBeNull()
+  expect(screen.queryByTestId('notifications-mark-all')).toBeNull()
 })
 
 it('shows the empty state, whose action goes to the Shop', async () => {
-  api.fetchOrdersPage.mockResolvedValue(pageOf([order('a', { paidAt: null })]))
+  api.fetchUnreadCount.mockResolvedValue(0)
+  api.fetchNotifications.mockResolvedValue(pageOf([]))
   await render(<NotificationsScreen />)
-  expect(await screen.findByText('No updates yet')).toBeTruthy()
+  expect(await screen.findByText('No notifications yet')).toBeTruthy()
   await fireEvent.press(screen.getByTestId('notifications-empty-action'))
   expect(mockNavigate).toHaveBeenCalledWith('/')
 })
 
-it('opens the order when a row is tapped, once even on a double tap', async () => {
-  api.fetchOrdersPage.mockResolvedValue(pageOf([order('a')]))
+it('shows "You\'re all caught up" for an empty unread filter, and Show All goes back', async () => {
+  api.fetchUnreadCount.mockResolvedValue(0)
+  api.fetchNotifications.mockResolvedValueOnce(pageOf([note('a', { readAt: '2026-11-14T06:00:00.000Z' })])).mockResolvedValueOnce(pageOf([])).mockResolvedValue(pageOf([note('a')]))
   await render(<NotificationsScreen />)
-  const row = await screen.findByTestId('notification-row-a-paid')
-  await fireEvent.press(row)
-  await fireEvent.press(row)
-  expect(mockPush).toHaveBeenCalledTimes(1)
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/orders/[id]', params: { id: 'a' } })
+  await screen.findByTestId('notification-row-a')
+  await fireEvent.press(screen.getByTestId('notifications-filter-unread'))
+  expect(await screen.findByText("You're all caught up")).toBeTruthy()
+  await fireEvent.press(screen.getByTestId('notifications-show-all'))
+  expect(await screen.findByTestId('notification-row-a')).toBeTruthy()
 })
 
-it('marks only events newer than the stored time as New, and stores the latest time only on leaving', async () => {
-  await AsyncStorage.setItem(KEY, '2026-11-14T06:00:00.000Z')
-  api.fetchOrdersPage.mockResolvedValue(pageOf([order('old'), order('fresh', { paidAt: '2026-11-14T08:00:00.000Z' })]))
+it('shows the error with Try again, and retrying loads the notifications', async () => {
+  api.fetchNotifications.mockRejectedValueOnce(new ApiError('network')).mockResolvedValueOnce(pageOf([note('a')]))
   await render(<NotificationsScreen />)
-  const fresh = await screen.findByTestId('notification-row-fresh-paid')
-  expect(fresh.props.accessibilityLabel).toBe('Payment received, order SHF-fresh, Nov 14, 2026, 4:00 PM, new')
-  expect(screen.getAllByTestId('notification-new')).toHaveLength(1)
-  expect(screen.getByTestId('notification-row-old-paid').props.accessibilityLabel).not.toMatch(/new$/)
-  expect(await AsyncStorage.getItem(KEY)).toBe('2026-11-14T06:00:00.000Z')
-  await setFocus(false)
-  expect(await AsyncStorage.getItem(KEY)).toBe('2026-11-14T08:00:00.000Z')
+  expect(await screen.findByText('The connection dropped before the notifications loaded. Check your connection, then try again.')).toBeTruthy()
+  await fireEvent.press(screen.getByTestId('notifications-retry'))
+  expect(await screen.findByTestId('notifications-list')).toBeTruthy()
 })
 
-it('marks nothing New on the first visit, but stores the latest time', async () => {
-  api.fetchOrdersPage.mockResolvedValue(pageOf([order('a')]))
+it('tells a 401 to sign in again', async () => {
+  api.fetchNotifications.mockRejectedValue(new ApiError('forbidden', undefined, 401))
   await render(<NotificationsScreen />)
-  await screen.findByTestId('notification-row-a-paid')
-  expect(screen.queryByTestId('notification-new')).toBeNull()
-  expect(await AsyncStorage.getItem(KEY)).toBeNull()
-  await setFocus(false)
-  expect(await AsyncStorage.getItem(KEY)).toBe('2026-11-14T05:49:00.000Z')
+  expect(await screen.findByText(/Sign in again, then come back/)).toBeTruthy()
 })
 
-const fresh = () => api.fetchOrdersPage.mockResolvedValue(pageOf([order('old'), order('fresh', { paidAt: '2026-11-14T08:00:00.000Z' })]))
-
-it('keeps the markers when the user tabs away and back before the list rendered', async () => {
-  await AsyncStorage.setItem(KEY, '2026-11-14T06:00:00.000Z')
-  api.fetchOrdersPage.mockReturnValue(new Promise(() => {})) // still loading when they leave
-  await render(<NotificationsScreen />)
-  await setFocus(false)
-  fresh()
-  await setFocus(true)
-  await screen.findByTestId('notification-row-fresh-paid')
-  expect(screen.getAllByTestId('notification-new')).toHaveLength(1)
-  expect(await AsyncStorage.getItem(KEY)).toBe('2026-11-14T06:00:00.000Z')
-})
-
-it('clears the markers after a real leave and return, and keeps them through a pull-to-refresh', async () => {
-  await AsyncStorage.setItem(KEY, '2026-11-14T06:00:00.000Z')
-  fresh()
-  await render(<NotificationsScreen />)
-  await screen.findByTestId('notification-row-fresh-paid')
-  await act(async () => screen.getByTestId('notifications-list').props.onRefresh())
-  expect(screen.getAllByTestId('notification-new')).toHaveLength(1)
-  await setFocus(false)
-  await setFocus(true)
-  await screen.findByTestId('notification-row-fresh-paid')
-  expect(screen.queryByTestId('notification-new')).toBeNull()
-})
-
-it('does not show or store the seen time of one account for another', async () => {
-  await AsyncStorage.setItem(KEY, '2026-11-14T06:00:00.000Z')
-  fresh()
-  const view = await render(<NotificationsScreen />)
-  await screen.findByTestId('notification-row-fresh-paid')
-  mockUseSession.mockReturnValue({ ...signedIn, session: { user: { id: 'u2' } } })
-  await view.rerender(<NotificationsScreen />)
-  await screen.findByTestId('notification-row-fresh-paid')
-  expect(screen.queryByTestId('notification-new')).toBeNull() // u2 has no stored time: first visit
-  expect(await AsyncStorage.getItem('kral:notifications-seen:u2')).toBeNull()
-  expect(await AsyncStorage.getItem(KEY)).toBe('2026-11-14T08:00:00.000Z') // u1 was left, so u1 is stored
-})
-
-describe('live polling', () => {
-  const POLL = 20_000
-  const tick = (ms: number) => act(async () => void (await jest.advanceTimersByTimeAsync(ms)))
-  beforeEach(() => {
-    jest.useFakeTimers()
-    jest.spyOn(Math, 'random').mockReturnValue(0.5)
-  })
-  afterEach(() => {
+it('after a 429 the retry counts down the Retry-After before it can be pressed', async () => {
+  jest.useFakeTimers()
+  try {
+    api.fetchNotifications.mockRejectedValueOnce(new ApiError('rate-limit', undefined, 429, undefined, 3000)).mockResolvedValue(pageOf([note('a')]))
+    await render(<NotificationsScreen />)
+    await act(async () => {})
+    expect(screen.getByText('Try again in 3s')).toBeTruthy()
+    expect(screen.getByTestId('notifications-retry').props.accessibilityState).toMatchObject({ disabled: true })
+    for (let i = 0; i < 3; i++) await act(async () => void (await jest.advanceTimersByTimeAsync(1000)))
+    expect(screen.getByText('Try again')).toBeTruthy()
+    await fireEvent.press(screen.getByTestId('notifications-retry'))
+    await act(async () => {})
+    expect(screen.getByTestId('notifications-list')).toBeTruthy()
+  } finally {
     jest.useRealTimers()
-    jest.restoreAllMocks()
-  })
-
-  it('a poll adds a new update in place without the skeleton, and does not mark it seen', async () => {
-    await AsyncStorage.setItem(KEY, '2026-11-14T06:00:00.000Z')
-    api.fetchOrdersPage.mockResolvedValueOnce(pageOf([order('old')])).mockResolvedValue(pageOf([order('old'), order('fresh', { paidAt: '2026-11-14T08:00:00.000Z' })]))
-    await render(<NotificationsScreen />)
-    await act(async () => {})
-    expect(screen.queryByTestId('notification-row-fresh-paid')).toBeNull()
-    await tick(POLL)
-    expect(screen.queryByRole('progressbar')).toBeNull()
-    expect(screen.getByTestId('notification-row-fresh-paid')).toBeTruthy()
-    expect(screen.getAllByTestId('notification-new')).toHaveLength(1)
-    expect(await AsyncStorage.getItem(KEY)).toBe('2026-11-14T06:00:00.000Z') // only leaving the tab marks it seen
-  })
-
-  it('a failed poll keeps the list with no toast, and an unchanged one changes nothing', async () => {
-    api.fetchOrdersPage.mockResolvedValueOnce(pageOf([order('a')])).mockRejectedValueOnce(new ApiError('network')).mockResolvedValue(pageOf([order('a')]))
-    await render(<NotificationsScreen />)
-    await act(async () => {})
-    await tick(POLL)
-    expect(screen.getByTestId('notification-row-a-paid')).toBeTruthy()
-    expect(mockToast).not.toHaveBeenCalled()
-    await tick(2 * POLL) // backed off to 40 s
-    expect(api.fetchOrdersPage).toHaveBeenCalledTimes(3)
-    expect(screen.getByTestId('notification-row-a-paid')).toBeTruthy()
-  })
-
-  it('shares one request with a read in flight, and pauses while the tab is unfocused', async () => {
-    let resolve: (page: unknown) => void = () => {}
-    api.fetchOrdersPage.mockReturnValue(new Promise((r) => (resolve = r)))
-    await render(<NotificationsScreen />)
-    await tick(5 * POLL)
-    expect(api.fetchOrdersPage).toHaveBeenCalledTimes(1)
-    await act(async () => resolve(pageOf([order('a')])))
-    await setFocus(false)
-    await tick(5 * POLL)
-    expect(api.fetchOrdersPage).toHaveBeenCalledTimes(1)
-  })
-
-  it('a pull-to-refresh started during a quiet poll is not swallowed when the poll is aborted', async () => {
-    let finish: (page: unknown) => void = () => {}
-    api.fetchOrdersPage
-      .mockResolvedValueOnce(pageOf([order('old')]))
-      .mockReturnValueOnce(new Promise(() => {})) // the poll
-      .mockReturnValueOnce(new Promise((r) => (finish = r))) // the refresh
-    await render(<NotificationsScreen />)
-    await act(async () => {})
-    await tick(POLL)
-    await act(async () => screen.getByTestId('notifications-list').props.onRefresh())
-    expect(api.fetchOrdersPage).toHaveBeenCalledTimes(3)
-    await setFocus(false) // aborts the poll
-    await act(async () => finish(pageOf([order('old'), order('fresh', { paidAt: '2026-11-14T08:00:00.000Z' })])))
-    expect(screen.getByTestId('notification-row-fresh-paid')).toBeTruthy()
-    expect(screen.getByTestId('notifications-list').props.refreshing).toBe(false)
-  })
-
-  it('a failed refresh that replaced a poll still toasts', async () => {
-    let fail: (reason: unknown) => void = () => {}
-    api.fetchOrdersPage
-      .mockResolvedValueOnce(pageOf([order('old')]))
-      .mockReturnValueOnce(new Promise(() => {}))
-      .mockReturnValueOnce(new Promise((_, r) => (fail = r)))
-    await render(<NotificationsScreen />)
-    await act(async () => {})
-    await tick(POLL)
-    await act(async () => screen.getByTestId('notifications-list').props.onRefresh())
-    await act(async () => fail(new ApiError('network')))
-    expect(mockToast).toHaveBeenCalledWith("Can't reach the server. Check your connection and try again.")
-    expect(screen.getByTestId('notifications-list').props.refreshing).toBe(false)
-  })
-
-  it('does not poll while signed out', async () => {
-    mockUseSession.mockReturnValue({ session: null, loading: false, signOut: jest.fn() })
-    await render(<NotificationsScreen />)
-    await tick(5 * POLL)
-    expect(api.fetchOrdersPage).not.toHaveBeenCalled()
-  })
+  }
 })
 
-it('marks nothing New and does not crash when storage fails', async () => {
-  jest.spyOn(AsyncStorage, 'getItem').mockRejectedValue(new Error('disk'))
-  jest.spyOn(AsyncStorage, 'setItem').mockRejectedValue(new Error('disk'))
-  fresh()
+it('Show More loads the next page and appends it', async () => {
+  api.fetchNotifications.mockResolvedValueOnce(pageOf([note('a')], true)).mockResolvedValueOnce(pageOf([note('b')]))
   await render(<NotificationsScreen />)
-  await screen.findByTestId('notification-row-fresh-paid')
-  expect(screen.queryByTestId('notification-new')).toBeNull()
-  await setFocus(false)
-  jest.restoreAllMocks()
+  await fireEvent.press(await screen.findByTestId('notifications-more'))
+  expect(await screen.findByTestId('notification-row-b')).toBeTruthy()
+  expect(screen.getByTestId('notification-row-a')).toBeTruthy()
+  expect(api.fetchNotifications).toHaveBeenLastCalledWith({ page: 2, unreadOnly: false }, expect.any(AbortSignal))
+  expect(screen.queryByTestId('notifications-more')).toBeNull()
+})
+
+it('a failed pull to refresh keeps the rows and toasts', async () => {
+  api.fetchNotifications.mockResolvedValueOnce(pageOf([note('a')])).mockRejectedValueOnce(new ApiError('network'))
+  await render(<NotificationsScreen />)
+  await screen.findByTestId('notification-row-a')
+  await act(async () => screen.getByTestId('notifications-list').props.onRefresh())
+  expect(mockToast).toHaveBeenCalledWith("Can't reach the server. Check your connection and try again.")
+  expect(screen.getByTestId('notification-row-a')).toBeTruthy()
+  expect(screen.getByTestId('notifications-list').props.refreshing).toBe(false)
+})
+
+it('reads the first page again when the polled count changes', async () => {
+  jest.useFakeTimers()
+  jest.spyOn(Math, 'random').mockReturnValue(0.5)
+  try {
+    api.fetchUnreadCount.mockResolvedValueOnce(1).mockResolvedValue(2)
+    api.fetchNotifications.mockResolvedValueOnce(pageOf([note('a')])).mockResolvedValue(pageOf([note('b'), note('a')]))
+    await render(<NotificationsScreen />)
+    await act(async () => {})
+    expect(screen.queryByTestId('notification-row-b')).toBeNull()
+    await act(async () => void (await jest.advanceTimersByTimeAsync(20_000)))
+    expect(screen.getByTestId('notification-row-b')).toBeTruthy()
+    expect(screen.getByText('Unread (2)')).toBeTruthy()
+  } finally {
+    jest.restoreAllMocks()
+    jest.useRealTimers()
+  }
 })

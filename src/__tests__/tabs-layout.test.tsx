@@ -24,6 +24,8 @@ jest.mock('expo-router/js-top-tabs', () => {
   TopTabs.Screen = Screen
   return { TopTabs }
 })
+let mockUnread: number | null = null
+jest.mock('@/api/useNotifications', () => ({ useNotifications: () => ({ count: mockUnread }) }))
 jest.mock('@/lib/useCartCount', () => ({ useCartCount: () => ({ count: 2 }) }))
 jest.mock('@/chat/useChatUnread', () => ({ useChatUnread: () => false }))
 jest.mock('@/ui/useReduceMotion', () => ({ useReduceMotion: () => false }))
@@ -34,6 +36,7 @@ beforeEach(() => {
   mockOptions = {}
   mockPath = '/'
   mockIndex = 0
+  mockUnread = null
   jest.clearAllMocks()
 })
 
@@ -82,4 +85,25 @@ it('has no Cart button in the other headers', async () => {
   mockPath = '/orders'
   await render(<TabsLayout />)
   expect(screen.queryByTestId('header-cart')).toBeNull()
+})
+
+it('shows no Alerts badge until the unread count is known or while it is 0', async () => {
+  await render(<TabsLayout />)
+  expect(screen.queryByTestId('tab-notifications-badge')).toBeNull()
+  mockUnread = 0
+  await render(<TabsLayout />)
+  expect(screen.queryByTestId('tab-notifications-badge')).toBeNull()
+  expect(screen.getByTestId('tab-notifications').props.accessibilityLabel).toBe('Alerts')
+})
+
+it('shows the unread count on the Alerts tab only, capped at 9+, and says it in the label', async () => {
+  mockUnread = 3
+  await render(<TabsLayout />)
+  expect(screen.getByTestId('tab-notifications-badge')).toHaveTextContent('3')
+  expect(screen.getByTestId('tab-notifications').props.accessibilityLabel).toBe('Alerts, 3 unread')
+  expect(screen.queryByTestId('tab-orders-badge')).toBeNull()
+  mockUnread = 12
+  await render(<TabsLayout />)
+  expect(screen.getByText('9+')).toBeTruthy()
+  expect(screen.getByTestId('tab-notifications').props.accessibilityLabel).toBe('Alerts, 12 unread')
 })

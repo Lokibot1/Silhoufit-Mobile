@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { awaitsPayment, cancelOrder, isClosed, orderSignature, ordersSignature, createCheckoutSession, createOrder, quoteShipping, fetchAllOrders, fetchOrder, fetchOrdersPage, matchesTab, ORDER_TABS, buildTimeline, tabCounts, trackingLink, orderUpdates, paymentLabel, shipmentLabel, statusLabel, toOrder, toOrdersPage } from '../orders'
+import { awaitsPayment, cancelOrder, isClosed, orderSignature, ordersSignature, createCheckoutSession, createOrder, quoteShipping, fetchAllOrders, fetchOrder, fetchOrdersPage, matchesTab, ORDER_TABS, buildTimeline, tabCounts, trackingLink, paymentLabel, shipmentLabel, statusLabel, toOrder, toOrdersPage } from '../orders'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -165,47 +165,8 @@ describe('order tabs', () => {
   })
 })
 
-describe('orderUpdates', () => {
-  beforeEach(() => jest.useFakeTimers({ now: new Date('2026-12-01T00:00:00Z') }))
-  afterEach(() => jest.useRealTimers())
-  it('turns each real timestamp into an event, newest first, with the cancel reason as a note', () => {
-    const full = toOrder(raw({ id: 'a', status: 'DELIVERED', paidAt: '2026-11-14T06:00:00Z', shipment: { status: 'COMPLETED', pickupTime: '2026-11-15T01:00:00Z', deliveredAt: '2026-11-15T03:00:00Z' } }))
-    const cancelled = toOrder(raw({ id: 'b', status: 'CANCELLED', cancelledAt: '2026-11-16T07:00:00Z', cancellationReason: 'Cancelled by customer' }))
-    const events = orderUpdates([full, cancelled])
-    expect(events.map((e) => e.id)).toEqual(['b-cancelled', 'a-delivered', 'a-courier', 'a-paid'])
-    expect(events.map((e) => e.label)).toEqual(['Cancelled', 'Delivered', 'Handed to courier', 'Payment received'])
-    expect(events[0]).toMatchObject({ orderId: 'b', orderNumber: 'SHF-20261114-ABC123', note: 'Cancelled by customer' })
-    expect(events[1]).not.toHaveProperty('note')
-  })
-  it('adds a current-status event, dated by updatedAt, only for preparing, shipped and out for delivery', () => {
-    for (const [status, label] of [['PROCESSING', 'Preparing'], ['DISPATCHED', 'Shipped'], ['OUT_FOR_DELIVERY', 'Out for delivery']]) {
-      expect(orderUpdates([toOrder(raw({ id: 'a', status, updatedAt: '2026-11-15T00:00:00Z' }))])).toEqual([
-        { id: `a-${status}`, orderId: 'a', orderNumber: 'SHF-20261114-ABC123', kind: status, label, at: '2026-11-15T00:00:00Z' },
-      ])
-    }
-    expect(orderUpdates([toOrder(raw({ status: 'PAID' })), toOrder(raw({ status: 'PENDING_PAYMENT' }))])).toEqual([])
-  })
-  it('falls back to createdAt when the API sends no updatedAt', () => {
-    expect(toOrder(raw()).updatedAt).toBe('2026-11-14T05:49:00.000Z')
-    expect(orderUpdates([toOrder(raw({ status: 'PROCESSING' }))])[0].at).toBe('2026-11-14T05:49:00.000Z')
-  })
-})
-
-describe('orderUpdates guards and extra stages', () => {
-  beforeEach(() => jest.useFakeTimers({ now: new Date('2026-12-01T00:00:00Z') }))
-  afterEach(() => jest.useRealTimers())
-  it('leaves out a future-dated pickup and an unparseable time, so neither sorts above real events', () => {
-    const future = new Date(Date.now() + 86_400_000).toISOString()
-    const events = orderUpdates([toOrder(raw({ id: 'a', paidAt: '2026-11-14T06:00:00Z', shipment: { status: 'PENDING_DISPATCH', pickupTime: future } })), toOrder(raw({ id: 'b', paidAt: 'not a date' }))])
-    expect(events.map((e) => e.id)).toEqual(['a-paid'])
-  })
-  it('adds Refunded and Payment failed events dated by updatedAt', () => {
-    for (const [status, label] of [['REFUNDED', 'Refunded'], ['PAYMENT_FAILED', 'Payment failed']]) {
-      expect(orderUpdates([toOrder(raw({ id: 'a', status, updatedAt: '2026-11-15T00:00:00Z' }))])).toEqual([
-        { id: `a-${status}`, orderId: 'a', orderNumber: 'SHF-20261114-ABC123', kind: status, label, at: '2026-11-15T00:00:00Z' },
-      ])
-    }
-  })
+it('toOrder falls back to createdAt when the API sends no updatedAt', () => {
+  expect(toOrder(raw()).updatedAt).toBe('2026-11-14T05:49:00.000Z')
 })
 
 describe('requests', () => {

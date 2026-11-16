@@ -140,16 +140,16 @@ Maestro cannot change an order status, so these are manual. Needs a second actor
 - [ ] Reduce Motion on: a poll update shows no animation beyond the normal state change.
 
 ## Notifications (Alerts tab)
-Updates are built on the device from the customer's 20 newest orders (no API feed). The "last seen" time is stored per account on the device.
+Notifications come from the backend notifications API (the account's own, newest first, 20 per page). Read state is stored on the server, not on the device.
 - [ ] Tab bar shows five labels in order Shop, Cart, Orders, Alerts, Profile; at 320px-wide (and with large font) none is clipped, wrapped or overlapping, and each touch target is at least 44px. Labels are 12px uppercase on purpose (an exception to the 14px minimum so five fit): check PROFILE, ORDERS and ALERTS at 320px and at the largest font scale (capped at 1.2x, so the bar must not grow or wrap).
 - [ ] Tab switches shift smoothly across all five tabs (including to and from Alerts); with Reduce Motion / "Remove animations" on they are instant.
-- [ ] Signed-in empty state: an account with no orders shows "No updates yet"; "Browse the Shop" (`notifications-empty-action`) lands on the Shop tab. Needs an account with no orders, so not in Maestro.
-- [ ] "New" marker, first visit: sign in as an account with updates, open Alerts: no row shows "New" (flow 34 asserts this).
-- [ ] "New" marker, after a change: with Alerts already opened once, change an order in the backend (pay, dispatch, deliver or cancel it), then open Alerts: only the new event shows "New" (`notification-new`, read as ", new" in TalkBack/VoiceOver); older rows do not.
-- [ ] "New" marker across tab switches: after that visit, go to another tab and back to Alerts: the marker is gone (leaving after the list showed marked everything seen). A quick switch away and back before the list loaded (throttled network) keeps the marker. Opening an order and coming back also clears it. Killing and reopening the app keeps that state; another account never inherits it.
-- [ ] Opening a row opens that order; Back returns to Alerts. Pull down refreshes; with airplane mode on a toast explains and the rows stay; on a cold start "Couldn't load your updates" shows Retry (`notifications-retry`).
-- [ ] Sign out then sign in as another account: the previous account's updates never show, not even for a moment.
-- [ ] 320px-wide: rows (including a long cancellation reason) wrap with no horizontal scroll; the skeleton matches the rows with no jump. TalkBack/VoiceOver read "<label>, order <number>, <time>".
+- [ ] Signed-in empty state: an account with no notifications shows "No notifications yet"; "Browse the Shop" (`notifications-empty-action`) lands on the Shop tab. Needs an account with no notifications, so not in Maestro.
+- [ ] Unread marker: with an unread notification, its row shows a square red dot and a bold title (`notification-unread`) and TalkBack/VoiceOver read "Unread, <title>, <body>, <time>"; a read row has none. Times read "Just now", "5 min ago", "3 hr ago", "Yesterday", then a 12-hour date.
+- [ ] Tab badge: with unread notifications the Alerts tab shows the count (9+ above nine; `tab-notifications-badge`) and TalkBack/VoiceOver read "Alerts, <n> unread"; it is hidden at 0 and while signed out. Create a notification in the backend (e.g. place and pay an order): within about 20 s the badge and the open list update without a pull.
+- [ ] Reading: tap an unread row: it opens its order, and back on Alerts the row is read and the badge drops by one. With airplane mode on, the row returns to unread and a toast explains. "Mark all read" (`notifications-mark-all`, hidden at 0 unread) clears every dot and the badge and toasts; with airplane mode on it rolls back with a toast. The "Unread" chip (`notifications-filter-unread`) lists only unread rows; with none it shows "You're all caught up" and Show All returns to the full list. "Show More" (`notifications-more`) appends the next 20.
+- [ ] Pull down refreshes; with airplane mode on a toast explains and the rows stay; on a cold start "Couldn't load your notifications" shows Try again (`notifications-retry`). A 429 (too many requests) shows "Try again in <n>s" counting down, disabled until it reaches 0. An expired session says to sign in again.
+- [ ] Sign out then sign in as another account: the previous account's notifications and badge never show, not even for a moment.
+- [ ] 320px-wide: rows (including a long body) wrap with no horizontal scroll; the All / Unread chips and Mark all read wrap onto a second line instead of clipping; the skeleton matches the rows with no big jump.
 
 ## Messages (chat with the store)
 Needs a customer test account and a staff account on the dev backend (web inbox open as staff). Realtime on React Native has never run in this app, so this section is the first real test of it.

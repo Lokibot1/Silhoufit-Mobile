@@ -1,8 +1,7 @@
 appId: ${APP_ID}
 ---
-# Read-only. Needs TEST_EMAIL/TEST_PASSWORD. The account should have an order with a payment, courier, delivery,
-# cancellation or in-progress stage update (otherwise the empty state shows and the flow only asserts that).
-# launch.yaml clears state, so the "last seen" time is empty and the FIRST visit must show no "New" marker.
+# Needs TEST_EMAIL/TEST_PASSWORD. The account should have a server notification that names an order (otherwise the empty
+# state shows and the flow only asserts that). Opening a row marks that notification read on the server (one unread -> read).
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/sign-in.yaml
 - tapOn:
@@ -13,20 +12,19 @@ appId: ${APP_ID}
     timeout: 20000
 - assertNotVisible:
     id: notifications-sign-in
-- assertNotVisible:
-    id: notification-new
 - runFlow:
     when:
       visible:
         id: notifications-empty-action
     commands:
-      - assertVisible: No updates yet
+      # The empty state renders inside the list, so only the rows prove there is none.
+      - assertVisible: No notifications yet
       - assertNotVisible:
-          id: notifications-list
+          id: 'notification-row-.+'
 - runFlow:
     when:
       visible:
-        id: notifications-list
+        id: 'notification-row-.+'
     commands:
       - assertVisible:
           id: 'notification-row-.+'
@@ -57,6 +55,3 @@ appId: ${APP_ID}
           timeout: 10000
       - assertNotVisible:
           id: order-detail
-      # Nothing changed since the first visit, so coming back still shows no "New".
-      - assertNotVisible:
-          id: notification-new

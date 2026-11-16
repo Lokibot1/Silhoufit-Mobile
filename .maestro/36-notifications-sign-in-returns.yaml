@@ -1,7 +1,7 @@
 appId: ${APP_ID}
 ---
 # Signed out: the Alerts prompt opens Sign In; signing in closes the modal (router.back()) and lands on the Alerts tab,
-# not Profile or Shop. Read-only. Needs TEST_EMAIL/TEST_PASSWORD; with no updates the empty state also counts.
+# not Profile or Shop. Read-only. Needs TEST_EMAIL/TEST_PASSWORD; with no notifications the empty state also counts.
 - runFlow: subflows/launch.yaml
 - tapOn:
     id: tab-notifications
