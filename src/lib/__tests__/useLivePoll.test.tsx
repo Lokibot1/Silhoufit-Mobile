@@ -1,7 +1,10 @@
 import { act, renderHook } from '@testing-library/react-native'
 import { AppState } from 'react-native'
 
+import { ApiError } from '../api'
 import { MAX_POLL_MS, POLL_MS, useLivePoll } from '../useLivePoll'
+
+jest.mock('../supabase', () => ({ supabase: {} }))
 
 jest.mock('expo-router', () => ({ useIsFocused: () => jest.requireActual('react').useSyncExternalStore(mockFocus.subscribe, () => mockFocus.on) }))
 const mockFocus = {
@@ -248,5 +251,25 @@ it('reads once for a burst of active events (iOS inactive/active flicker)', asyn
   await tick(3001)
   await setApp('inactive')
   await setApp('active')
+  expect(refresh).toHaveBeenCalledTimes(2)
+})
+
+it('waits at least the Retry-After of a 429 before the next read', async () => {
+  const refresh = jest.fn().mockRejectedValue(new ApiError('rate-limit', undefined, 429, undefined, 90_000))
+  await renderHook(() => useLivePoll(refresh, { intervalMs: 1000 }))
+  await tick(1000)
+  await tick(89_999)
+  expect(refresh).toHaveBeenCalledTimes(1)
+  await tick(1)
+  expect(refresh).toHaveBeenCalledTimes(2)
+})
+
+it('a short Retry-After still waits the normal backoff', async () => {
+  const refresh = jest.fn().mockRejectedValue(new ApiError('rate-limit', undefined, 429, undefined, 5000))
+  await renderHook(() => useLivePoll(refresh, { intervalMs: 20_000 }))
+  await tick(20_000) // failed: normal wait 40 s beats 5 s
+  await tick(39_999)
+  expect(refresh).toHaveBeenCalledTimes(1)
+  await tick(1)
   expect(refresh).toHaveBeenCalledTimes(2)
 })

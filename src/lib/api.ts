@@ -10,12 +10,20 @@ export class ApiError extends Error {
     readonly detail?: string,
     readonly status?: number,
     readonly code?: string,
+    readonly retryAfterMs?: number,
   ) {
     super(`Request failed (${kind}).`)
   }
 }
 
 const STATUS_KIND: Record<number, ApiErrorKind> = { 400: 'validation', 401: 'forbidden', 403: 'forbidden', 404: 'not-found', 409: 'conflict', 429: 'rate-limit' }
+
+// A 429's wait from the Retry-After header (whole seconds): 15 s when it is missing or unusable, never more than 120 s.
+const retryAfterMs = (r: Response) => {
+  if (r.status !== 429) return undefined
+  const s = Number(r.headers?.get('Retry-After'))
+  return Math.min(s > 0 ? s : 15, 120) * 1000
+}
 
 async function errorBody(response: Response): Promise<{ detail?: string; code?: string }> {
   try {
@@ -64,7 +72,7 @@ export async function request(method: 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE
   }
   if (!response.ok) {
     const { detail, code } = await errorBody(response)
-    throw new ApiError(STATUS_KIND[response.status] ?? 'server', detail, response.status, code)
+    throw new ApiError(STATUS_KIND[response.status] ?? 'server', detail, response.status, code, retryAfterMs(response))
   }
   try {
     return await response.json()

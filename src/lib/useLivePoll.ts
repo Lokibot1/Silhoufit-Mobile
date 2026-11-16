@@ -2,6 +2,8 @@ import { useIsFocused } from 'expo-router'
 import { useEffect, useRef } from 'react'
 import { AppState } from 'react-native'
 
+import { ApiError } from './api'
+
 export const POLL_MS = 20_000
 /** After each failed read the wait doubles, up to this, so an outage does not spend the API's request budget. */
 export const MAX_POLL_MS = 120_000
@@ -69,13 +71,14 @@ export function useLivePoll(
     if (!enabled || done) return
     let timer: ReturnType<typeof setTimeout> | undefined
     let failures = 0
+    let retryAfterMs = 0 // a 429's Retry-After from the last read
     let flight: AbortController | null = null
     const canRun = () => AppState.currentState !== 'background' && AppState.currentState !== 'inactive' && focusRef.current // 'unknown' counts as active
 
     const schedule = () => {
       clearTimeout(timer)
       const wait = intervalMs * 2 ** failures * (1 - JITTER + 2 * JITTER * Math.random())
-      timer = setTimeout(run, Math.min(wait, MAX_POLL_MS))
+      timer = setTimeout(run, Math.min(Math.max(wait, retryAfterMs), MAX_POLL_MS))
     }
     async function run() {
       clearTimeout(timer)
@@ -84,9 +87,12 @@ export function useLivePoll(
       const mine = (flight = new AbortController())
       try {
         await latest.current(mine.signal)
-        if (!mine.signal.aborted) failures = 0
-      } catch {
-        if (!mine.signal.aborted) failures += 1
+        if (!mine.signal.aborted) failures = retryAfterMs = 0
+      } catch (failure) {
+        if (!mine.signal.aborted) {
+          failures += 1
+          retryAfterMs = failure instanceof ApiError ? (failure.retryAfterMs ?? 0) : 0
+        }
       }
       if (mine.signal.aborted) return
       flight = null
