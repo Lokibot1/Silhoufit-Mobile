@@ -6,9 +6,11 @@ import { HeaderIcon } from './HeaderIcon'
 import { Skeleton } from './Skeleton'
 import { color, hairline, space, type } from './theme'
 
-export const MAP_HEIGHT = 360
+export const MAP_HEIGHT = 460
 const TIMEOUT_MS = 20_000
 const isHttps = (url: string) => /^https:\/\//i.test(url)
+// The courier's page fits its map to the route from the size it has at load, which is often wrong inside a scrolling screen. A resize a moment later makes it fit again.
+const REFIT = `[800, 2500, 5000].forEach(function (ms) { setTimeout(function () { window.dispatchEvent(new Event('resize')) }, ms) }); true;`
 
 // The courier's live map inline. The height is reserved up front so loading, error and loaded do not shift the page.
 // Touches inside the map pan the map; the page scrolls by dragging anywhere outside it (the page padding and the text around it).
@@ -38,6 +40,7 @@ export function TrackingMap({ url }: { url: string }) {
         accessibilityLabel="Live delivery map"
         originWhitelist={['https://*']}
         onShouldStartLoadWithRequest={(request) => isHttps(request.url)}
+        injectedJavaScript={REFIT}
         javaScriptEnabled
         domStorageEnabled
         allowFileAccess={false}
