@@ -62,7 +62,14 @@ function AmountRow({ label, value, testID, strong }: { label: string; value: str
 const FADE_STEP = 0.18
 const MIN_OPACITY = 0.3
 
-// One stage: marker + connecting line on the left, label / time / note on the right. Done is a filled Obsidian square, current a larger Red one, upcoming an outline, cancelled a Red cross.
+// "Nov 14, 2026, 1:49 PM" as ["Nov 14, 2026", "1:49 PM"] for the time column; a missing time stays one dash.
+const stamp = (value: string) => {
+  const text = dateTime(value)
+  const cut = text.lastIndexOf(', ')
+  return cut < 0 ? [text] : [text.slice(0, cut), text.slice(cut + 2)]
+}
+
+// One stage: time on the far left, then marker + connecting line, then label / note on the right. Done is a filled Obsidian square, current a larger Red one, upcoming an outline, cancelled a Red cross.
 // The marker is centred on a zero-width body-style line, so it follows the first text line at any font scale. `next` is the older stage drawn below this one.
 function TimelineRow({ step, next, opacity = 1 }: { step: TimelineStep; next?: TimelineStep; opacity?: number }) {
   const { state } = step
@@ -70,6 +77,9 @@ function TimelineRow({ step, next, opacity = 1 }: { step: TimelineStep; next?: T
   const label = [step.label, stateWord, step.at && dateTime(step.at), step.note].filter(Boolean).join(', ')
   return (
     <View accessible accessibilityLabel={label} testID={`timeline-${step.key}`} style={[styles.step, { opacity }]}>
+      <View style={styles.time}>
+        {step.at && stamp(step.at).map((part, i) => <Text key={i} style={[styles.variant, type.numeric]}>{part}</Text>)}
+      </View>
       <View style={styles.rail}>
         <View style={styles.markCell}>
           <Text style={type.body}>{'​'}</Text>
@@ -86,7 +96,6 @@ function TimelineRow({ step, next, opacity = 1 }: { step: TimelineStep; next?: T
       </View>
       <View style={[styles.info, next && styles.stepGap]}>
         <Text style={state === 'current' ? styles.recipient : state === 'upcoming' ? styles.body : type.body}>{step.label}</Text>
-        {step.at && <Text style={[styles.variant, type.numeric]}>{dateTime(step.at)}</Text>}
         {step.note && <Text style={styles.variant}>{step.note}</Text>}
       </View>
     </View>
@@ -103,8 +112,35 @@ function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props
   const steps = buildTimeline(order).reverse()
   const latest = steps.findIndex((step) => step.state !== 'upcoming') // the newest stage the order has reached
   const delivered = order.status === 'DELIVERED' || order.status === 'COMPLETED'
+  // With a live map the page opens like a courier's track screen: the map edge to edge, the delivery status under it, then the timeline. Otherwise the order summary leads.
+  const mapShown = onTheWay && tracking !== null
+  const timeline = (
+    <View style={styles.section}>
+      <Text style={type.label}>(Timeline)</Text>
+      <View accessibilityRole="list" testID="order-timeline">
+        {steps.map((step, i) => (
+          <TimelineRow key={step.key} step={step} next={steps[i + 1]} opacity={i > latest ? Math.max(MIN_OPACITY, 1 - FADE_STEP * (i - latest)) : 1} />
+        ))}
+      </View>
+    </View>
+  )
   return (
     <View testID="order-detail" style={styles.content}>
+      {mapShown && (
+        <>
+          <View testID="order-tracking" style={styles.bleed}>
+            <TrackingMap key={tracking} url={tracking} />
+            <View style={styles.trackBody}>
+              <Text style={type.label}>(Delivery Tracking)</Text>
+              {shipment && <Text style={type.h2}>{shipmentLabel(shipment.status)}</Text>}
+              <PressableScale testID="order-track-delivery" accessibilityRole="link" onPress={() => onTrack(tracking)} style={styles.mapLink}>
+                <Text style={styles.mapLinkText}>Map not showing? Open it in your browser</Text>
+              </PressableScale>
+            </View>
+          </View>
+          {timeline}
+        </>
+      )}
       <Text accessibilityRole="header" style={[type.h1, type.numeric, styles.wrap]}>{order.orderNumber}</Text>
       <Text style={styles.body}>{`Placed ${dateTime(order.createdAt)}`}</Text>
       <View style={styles.chips}>
@@ -151,29 +187,15 @@ function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props
         </View>
       )}
 
-      {onTheWay && (
+      {onTheWay && !mapShown && (
         <View testID="order-tracking" style={styles.section}>
           <Text style={type.label}>(Delivery Tracking)</Text>
           {shipment && <Text style={styles.body}>{`Courier: ${shipmentLabel(shipment.status)}`}</Text>}
-          {tracking ? (
-            <>
-              <TrackingMap key={tracking} url={tracking} />
-              <Button testID="order-track-delivery" variant="secondary" label="Map not showing? Open it in your browser" onPress={() => onTrack(tracking)} labelStyle={styles.wrapLabel} />
-            </>
-          ) : (
-            <Text testID="order-tracking-pending" style={styles.body}>Tracking link isn&apos;t available yet. It appears once the courier assigns a driver.</Text>
-          )}
+          <Text testID="order-tracking-pending" style={styles.body}>Tracking link isn&apos;t available yet. It appears once the courier assigns a driver.</Text>
         </View>
       )}
 
-      <View style={styles.section}>
-        <Text style={type.label}>(Timeline)</Text>
-        <View accessibilityRole="list" testID="order-timeline">
-          {steps.map((step, i) => (
-            <TimelineRow key={step.key} step={step} next={steps[i + 1]} opacity={i > latest ? Math.max(MIN_OPACITY, 1 - FADE_STEP * (i - latest)) : 1} />
-          ))}
-        </View>
-      </View>
+      {!mapShown && timeline}
     </View>
   )
 }
@@ -207,6 +229,7 @@ function DetailSkeleton() {
         {/* Typical in-progress order: six stages, the first two timed (a real order's length is unknown while loading). */}
         {[true, true, false, false, false, false].map((timed, i) => (
           <View key={i} style={styles.step}>
+            <View style={styles.time}>{timed && <Skeleton width="80%" height={20} />}</View>
             <View style={styles.rail}>
               <View style={styles.skeletonMark}>
                 <Skeleton width={12} height={12} />
@@ -214,7 +237,6 @@ function DetailSkeleton() {
             </View>
             <View style={[styles.info, i < 5 && styles.stepGap]}>
               <Skeleton width="40%" height={24} />
-              {timed && <Skeleton width="30%" height={20} />}
             </View>
           </View>
         ))}
@@ -468,7 +490,10 @@ const styles = StyleSheet.create({
   total: { ...type.h2, ...type.numeric, textAlign: 'right' },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
   step: { flexDirection: 'row', gap: space.md },
+  time: { width: 84, gap: space.xs },
   rail: { width: 16, alignItems: 'center' },
+  bleed: { marginHorizontal: -space.lg, marginTop: -space.lg },
+  trackBody: { paddingHorizontal: space.lg, paddingTop: space.md, gap: space.sm },
   markCell: { width: '100%', alignItems: 'center', justifyContent: 'center' },
   skeletonMark: { height: 24, justifyContent: 'center' },
   marker: { position: 'absolute', width: 12, height: 12, backgroundColor: color.obsidian },
@@ -481,5 +506,7 @@ const styles = StyleSheet.create({
   line: { flex: 1, width: 2, backgroundColor: color.porcelain },
   lineDone: { backgroundColor: color.obsidian },
   stepGap: { paddingBottom: space.lg },
+  mapLink: { minHeight: TARGET, alignSelf: 'flex-start', justifyContent: 'center' },
+  mapLinkText: { ...type.small, fontSize: 12, lineHeight: 16, textDecorationLine: 'underline' },
   headerBack: { minHeight: TARGET, minWidth: TARGET, justifyContent: 'center' },
 })

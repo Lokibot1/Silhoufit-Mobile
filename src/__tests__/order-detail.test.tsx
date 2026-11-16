@@ -221,7 +221,7 @@ describe('delivery tracking', () => {
     api.fetchOrder.mockResolvedValue(onTheWay('https://share.lalamove.test/1', status))
     await render(<OrderScreen />)
     await screen.findByTestId('order-detail')
-    expect(screen.getByTestId('order-tracking')).toHaveTextContent(/Courier: Driver on the way/)
+    expect(screen.getByTestId('order-tracking')).toHaveTextContent(/Driver on the way/)
     expect(screen.getByTestId('order-track-delivery')).toBeTruthy()
     expect(screen.getByText('Map not showing? Open it in your browser')).toBeTruthy()
     expect(screen.getByTestId('tracking-map').props.source).toEqual({ uri: 'https://share.lalamove.test/1' })
