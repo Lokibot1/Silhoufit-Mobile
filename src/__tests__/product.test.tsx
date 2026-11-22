@@ -4,6 +4,7 @@ import { ApiError } from '@/lib/api'
 import ProductScreen from '../app/product/[id]'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
+jest.mock('@/lib/site', () => ({ openLegal: jest.fn(() => Promise.resolve()) }))
 jest.mock('@/api/products', () => ({ fetchProduct: jest.fn() }))
 jest.mock('@/api/cart', () => ({ addCartItem: jest.fn() }))
 jest.mock('@/api/wishlist', () => ({ fetchWishlistIds: jest.fn(() => Promise.resolve([])), addWishlistItem: jest.fn(), removeWishlistItem: jest.fn() }))
@@ -25,6 +26,7 @@ const mockToast = jest.fn()
 const mockRefresh = jest.fn()
 let mockCount = 0
 const mockFetch: jest.Mock = jest.requireMock('@/api/products').fetchProduct
+const mockOpenLegal: jest.Mock = jest.requireMock('@/lib/site').openLegal
 const mockAdd: jest.Mock = jest.requireMock('@/api/cart').addCartItem
 const mockUseSession: jest.Mock = jest.requireMock('@/auth/session').useSession
 const { router, useLocalSearchParams } = jest.requireMock('expo-router')
@@ -174,15 +176,44 @@ it('disables a size with no stock for the chosen colour', async () => {
   expect(mockAdd).not.toHaveBeenCalled()
 })
 
-it('keeps Add to Cart disabled until a variant is chosen', async () => {
+it('keeps the button disabled and names the missing choice until a variant is chosen', async () => {
   mockFetch.mockResolvedValue(product())
   await render(<ProductScreen />)
   await screen.findByTestId('product-name')
-  expect(screen.getByText('Choose a colour and a size.')).toBeTruthy()
-  expect(screen.getByTestId('product-add-to-cart').props.accessibilityHint).toBe('Choose a colour and a size first')
-  await fireEvent.press(screen.getByTestId('product-add-to-cart'))
+  const button = () => screen.getByTestId('product-add-to-cart')
+  expect(screen.getByRole('button', { name: 'Choose a Colour', disabled: true })).toBeTruthy()
+  expect(screen.getByTestId('product-choice-hint')).toHaveTextContent('Select a colour to add this piece to your cart.')
+  expect(within(screen.getByTestId('product-bar')).queryByTestId('product-choice-hint')).toBeNull()
+  expect(button().props.accessibilityHint).toBe('Choose a colour and a size first')
+  await fireEvent.press(button())
   expect(mockAdd).not.toHaveBeenCalled()
   expect(router.push).not.toHaveBeenCalled()
+  await fireEvent.press(screen.getByTestId('product-swatch-Navy'))
+  expect(screen.getByRole('button', { name: 'Choose a Size', disabled: true })).toBeTruthy()
+  expect(screen.getByTestId('product-choice-hint')).toHaveTextContent('Select a size to add this piece to your cart.')
+  expect(button().props.accessibilityHint).toBe('Choose a size first')
+  await fireEvent.press(screen.getByTestId('product-size-M'))
+  expect(screen.getByRole('button', { name: 'Add to Cart', disabled: false })).toBeTruthy()
+  expect(screen.queryByTestId('product-choice-hint')).toBeNull()
+})
+
+it('shows true delivery and payment info, and opens the Refund Policy', async () => {
+  mockFetch.mockResolvedValue(product())
+  await render(<ProductScreen />)
+  expect(await screen.findByText('Delivery fee shown at checkout')).toBeTruthy()
+  expect(screen.getByText('Final fee depends on your address.')).toBeTruthy()
+  expect(screen.getByText('Pay online on a secure page')).toBeTruthy()
+  expect(screen.queryByText(/free shipping|guaranteed|cash on delivery|auto refund/i)).toBeNull()
+  await fireEvent.press(screen.getByRole('link', { name: 'Refunds follow our Refund Policy' }))
+  expect(mockOpenLegal).toHaveBeenCalledWith('refund')
+})
+
+it('toasts when the Refund Policy cannot open', async () => {
+  mockFetch.mockResolvedValue(product())
+  mockOpenLegal.mockRejectedValueOnce(new Error('offline'))
+  await render(<ProductScreen />)
+  await fireEvent.press(await screen.findByTestId('product-refund-policy'))
+  await waitFor(() => expect(mockToast).toHaveBeenCalledWith("Couldn't open the page. Check your connection and try again."))
 })
 
 it('preselects a single colour and size', async () => {
@@ -208,7 +239,7 @@ describe('sold out', () => {
     mockFetch.mockResolvedValue(product({ variants: [v('v1', 'Navy', 'M', 0), v('v2', 'Red', 'L', 0)] }))
     await render(<ProductScreen />)
     expect(await screen.findByTestId('product-stock')).toHaveTextContent('Sold out')
-    expect(screen.queryByText('Choose a colour and a size.')).toBeNull()
+    expect(screen.queryByTestId('product-choice-hint')).toBeNull()
     expect(screen.getByRole('button', { name: 'Sold out', disabled: true })).toBeTruthy()
   })
 })

@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons'
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { useCallback, useRef, useState } from 'react'
@@ -10,6 +10,7 @@ import { fetchProduct, type Product } from '@/api/products'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { peso } from '@/lib/format'
+import { openLegal } from '@/lib/site'
 import { useCartCount } from '@/lib/useCartCount'
 import { useRequest } from '@/lib/useRequest'
 import { SizeGuideSheet } from '@/product/SizeGuideSheet'
@@ -153,6 +154,8 @@ function ProductView({ product }: { product: Product }) {
   const price = variant ? peso(variant.price) : prices.length ? (Math.min(...prices) === Math.max(...prices) ? peso(prices[0]) : `From ${peso(Math.min(...prices))}`) : null
   const stock = allSoldOut ? 'Sold out' : !variant ? null : variant.stock <= 0 ? 'Sold out' : variant.stock <= LOW_STOCK ? `Only ${variant.stock} left` : null
   const missing = [hasColor && !chosenColor && 'a colour', hasSize && !chosenSize && 'a size'].filter(Boolean).join(' and ')
+  const buyLabel = allSoldOut ? 'Sold out' : hasColor && !chosenColor ? 'Choose a Colour' : hasSize && !chosenSize ? 'Choose a Size' : 'Add to Cart'
+  const choiceHint = !allSoldOut && hasColor && !chosenColor ? 'Select a colour to add this piece to your cart.' : !allSoldOut && hasSize && !chosenSize ? 'Select a size to add this piece to your cart.' : null
   const reviews = `${product.reviewCount} ${product.reviewCount === 1 ? 'review' : 'reviews'}`
   const rated = product.reviewCount > 0 && product.rating !== null
   const sold = product.soldCount > 0 ? `${product.soldCount} sold` : null
@@ -205,6 +208,31 @@ function ProductView({ product }: { product: Product }) {
           {!!product.category && <Text style={type.label}>{`(${product.category})`}</Text>}
         </View>
 
+        <View style={styles.infoBlock}>
+          <View style={styles.infoRow}>
+            <MaterialCommunityIcons name="truck-outline" size={24} color={color.green} />
+            <View style={styles.infoText}>
+              <Text style={type.body}>Delivery fee shown at checkout</Text>
+              <Text style={type.small}>Final fee depends on your address.</Text>
+            </View>
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="card-outline" size={24} color={color.green} />
+            <Text style={[type.body, styles.infoText]}>Pay online on a secure page</Text>
+          </View>
+          <PressableScale
+            testID="product-refund-policy"
+            accessibilityRole="link"
+            accessibilityLabel="Refunds follow our Refund Policy"
+            accessibilityHint="Opens in your browser"
+            onPress={() => openLegal('refund').catch(() => toast("Couldn't open the page. Check your connection and try again."))}
+            style={styles.infoRow}>
+            <Ionicons name="return-down-back-outline" size={24} color={color.green} />
+            <Text style={[type.body, styles.infoText]}>Refunds follow our Refund Policy</Text>
+            <Ionicons name="chevron-forward" size={20} color={color.obsidian} />
+          </PressableScale>
+        </View>
+
         {hasColor && (
           <View style={styles.block}>
             <Text testID="product-colour-label" style={type.label}>{`(Colour)${chosenColor ? ` ${optionLabel(chosenColor, 'One colour')}` : ''}`}</Text>
@@ -250,6 +278,7 @@ function ProductView({ product }: { product: Product }) {
                 return <Chip key={s} testID={`product-size-${s}`} label={name} accessibilityLabel={ok ? `Size ${name}` : `Size ${name}, unavailable`} selected={s === chosenSize} disabled={!ok} onPress={() => pickSize(s)} />
               })}
             </View>
+            {choiceHint && <Text testID="product-choice-hint" style={styles.hint}>{choiceHint}</Text>}
           </View>
         )}
 
@@ -282,7 +311,6 @@ function ProductView({ product }: { product: Product }) {
 
       <View testID="product-bar" style={[styles.bar, { paddingBottom: insets.bottom + space.sm }]}>
         {variants.length === 0 && <Text testID="product-unavailable" style={styles.hint}>Not available to buy yet</Text>}
-        {variants.length > 0 && !variant && !allSoldOut && <Text style={styles.hint}>{`Choose ${missing || 'an option'}.`}</Text>}
         {failure && failure.variantId === variant?.id && (
           <View testID="product-inline-error" accessibilityRole="alert" style={styles.banner}>
             <Text style={type.body}>{failure.message}</Text>
@@ -291,7 +319,7 @@ function ProductView({ product }: { product: Product }) {
         <View style={styles.barRow}>
           <HeaderIcon testID="product-cart" name="bag-outline" label="Cart" status={count > 0 ? `${count} ${count === 1 ? 'item' : 'items'}` : undefined} count={count} onPress={() => router.navigate('/cart')} />
           <View style={styles.barButton}>
-            <Button testID="product-add-to-cart" label={allSoldOut ? 'Sold out' : 'Add to Cart'} disabled={!canBuy} accessibilityHint={!canBuy && !allSoldOut && variants.length > 0 ? `Choose ${missing || 'an option'} first` : undefined} pending={pending} onPress={add} />
+            <Button testID="product-add-to-cart" label={buyLabel} disabled={!canBuy} accessibilityHint={!canBuy && !allSoldOut && variants.length > 0 ? `Choose ${missing || 'an option'} first` : undefined} pending={pending} onPress={add} />
           </View>
         </View>
       </View>
@@ -320,7 +348,6 @@ function ProductSkeleton() {
         </View>
       </ScrollView>
       <View style={[styles.bar, { paddingBottom: insets.bottom + space.sm }]}>
-        <Skeleton width={200} height={type.small.lineHeight} />
         <View style={styles.barRow}>
           <Skeleton width={TARGET} height={TARGET} />
           <View style={styles.barButton}><Skeleton height={48} /></View>
@@ -385,6 +412,9 @@ const styles = StyleSheet.create({
   counter: { position: 'absolute', right: space.md, bottom: space.md, backgroundColor: color.paper, borderRadius: radius.pill, paddingHorizontal: space.md, paddingVertical: space.xs },
   counterText: { ...type.label, ...type.numeric },
   block: { paddingHorizontal: space.lg, paddingVertical: space.lg, gap: space.sm, borderBottomWidth: 1, borderBottomColor: color.porcelain },
+  infoBlock: { paddingHorizontal: space.lg, paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: color.porcelain },
+  infoRow: { minHeight: TARGET, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm },
+  infoText: { flex: 1 },
   wrap: { flexShrink: 1 },
   headRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
   heading: { flex: 1, gap: space.sm },
