@@ -169,6 +169,37 @@ it('toasts when a credit link cannot open', async () => {
   await waitFor(() => expect(mockToast).toHaveBeenCalledWith("Couldn't open the page. Check your connection and try again."))
 })
 
+it('shows Start Live Try-On only when ready, and the old note is gone', async () => {
+  mockProduct.mockReturnValue(never())
+  const { unmount } = await render(<TryOnScreen />)
+  expect(screen.queryByTestId('try-on-live')).toBeNull()
+  await unmount()
+  mockProduct.mockResolvedValue({ ...product, category: 'Hoodie' })
+  const second = await render(<TryOnScreen />)
+  await screen.findByTestId('try-on-unavailable')
+  expect(screen.queryByTestId('try-on-live')).toBeNull()
+  await second.unmount()
+  mockProduct.mockResolvedValue(product)
+  await render(<TryOnScreen />)
+  expect(await screen.findByTestId('try-on-live')).toBeTruthy()
+  expect(screen.queryByTestId('try-on-camera-note')).toBeNull()
+  expect(screen.queryByText('Live camera try-on is coming.')).toBeNull()
+})
+
+it('Start Live Try-On opens the live route with the selected colour', async () => {
+  await render(<TryOnScreen />)
+  await fireEvent.press(await screen.findByTestId('try-on-colour-Black'))
+  await fireEvent.press(screen.getByTestId('try-on-live'))
+  expect(router.push).toHaveBeenCalledWith('/product/try-on/live/p1?color=Black')
+})
+
+it('Start Live Try-On opens the live route without a colour when the piece has none', async () => {
+  mockProduct.mockResolvedValue({ ...product, variants: variants.map((v) => ({ ...v, color: null })) })
+  await render(<TryOnScreen />)
+  await fireEvent.press(await screen.findByTestId('try-on-live'))
+  expect(router.push).toHaveBeenCalledWith('/product/try-on/live/p1')
+})
+
 it('signs out and goes to sign-in when the session has expired', async () => {
   mockProfile.mockRejectedValue(new ApiError('forbidden', undefined, 401))
   await render(<TryOnScreen />)

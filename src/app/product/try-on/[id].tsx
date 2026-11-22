@@ -283,7 +283,7 @@ function TryOnView({ product, preferred, onExpired }: { product: Product; prefer
       </View>
 
       <View style={styles.block}>
-        <Text testID="try-on-camera-note" style={[type.small, styles.muted]}>Live camera try-on is coming.</Text>
+        <Button testID="try-on-live" label="Start Live Try-On" accessibilityLabel="Start live try-on with your camera" onPress={() => router.push(`/product/try-on/live/${product.id}${colour ? `?color=${encodeURIComponent(colour.name)}` : ''}`)} />
         <Credit />
       </View>
     </ScrollView>
