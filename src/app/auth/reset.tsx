@@ -63,8 +63,10 @@ export default function ResetPassword() {
     setPending(false)
     if (result.ok) {
       saved.current = true
-      toast('Password updated.')
-      return router.replace('/(tabs)/profile')
+      // A reset ends the recovery session: sign in again with the new password.
+      await signOut().catch(() => {})
+      toast('Password updated. Sign in with your new password.')
+      return router.replace('/sign-in')
     }
     if (result.kind === 'expired') return setGone(true)
     if (result.kind === 'same') {

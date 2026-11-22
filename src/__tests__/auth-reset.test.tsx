@@ -94,7 +94,7 @@ it('signs out when the user leaves before setting a password, but not after savi
   setPassword.mockResolvedValue({ ok: true })
   await fillAndSubmit()
   await second()
-  expect(mockSignOut).not.toHaveBeenCalled()
+  expect(mockSignOut).toHaveBeenCalledTimes(1) // the save itself signs out; leaving adds no second sign-out
 })
 
 it('retries after a network failure', async () => {
@@ -124,13 +124,14 @@ it('validates and shows the live checklist', async () => {
   expect(await screen.findByText("Passwords don't match.")).toBeTruthy()
 })
 
-it('saves, toasts and opens Profile', async () => {
+it('saves, signs out, toasts and opens Sign In', async () => {
   await openForm()
   setPassword.mockResolvedValue({ ok: true })
   await fillAndSubmit()
   expect(setPassword).toHaveBeenCalledWith('Abcdefg1!')
-  expect(mockToast).toHaveBeenCalledWith('Password updated.')
-  expect(replace).toHaveBeenCalledWith('/(tabs)/profile')
+  expect(mockSignOut).toHaveBeenCalledTimes(1)
+  expect(mockToast).toHaveBeenCalledWith('Password updated. Sign in with your new password.')
+  expect(replace).toHaveBeenCalledWith('/sign-in')
 })
 
 it('says on the field that the password is unchanged', async () => {
