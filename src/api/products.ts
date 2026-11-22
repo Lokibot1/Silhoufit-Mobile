@@ -54,6 +54,7 @@ export type Product = {
   variants: ProductVariant[]
   rating: number | null
   reviewCount: number
+  soldCount: number // units sold, from the API's `soldCount`; 0 when absent
 }
 
 // A variant without an id or a price cannot be bought, so it is dropped; a missing stock counts as none.
@@ -93,6 +94,7 @@ export function toProduct(body: unknown): Product {
     variants: (Array.isArray(body.variants) ? body.variants : []).map(toVariant).filter((variant) => variant !== null),
     rating: rated ? (ratingSummary.averageRating as number) : null,
     reviewCount: rated ? (ratingSummary.reviewCount as number) : 0,
+    soldCount: isNum(body.soldCount) && body.soldCount > 0 ? body.soldCount : 0,
   }
 }
 

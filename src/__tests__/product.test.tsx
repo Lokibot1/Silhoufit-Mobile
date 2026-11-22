@@ -40,6 +40,7 @@ const product = (over = {}) => ({
   variants: [v('v1', 'Navy', 'M', 10), v('v2', 'Navy', 'L', 0), v('v3', 'Red', 'M', 3, 1300)],
   rating: 4.5,
   reviewCount: 12,
+  soldCount: 12,
   ...over,
 })
 const measured = (chestWidthCm: number) => ({ ...jest.requireActual('@/api/sizeMeasurements').toMeasurements({}), chestWidthCm })
@@ -69,7 +70,8 @@ it('renders the name, label and a From price until a variant is chosen, then the
   mockFetch.mockResolvedValue(product())
   await render(<ProductScreen />)
   expect(await screen.findByText('Linen Shirt')).toBeTruthy()
-  expect(screen.getByText('(KRAL / Shirt)')).toBeTruthy()
+  expect(screen.getByText('(Shirt)')).toBeTruthy()
+  expect(screen.queryByText(/KRAL/)).toBeNull()
   expect(screen.getByText('From ₱1,250.00')).toBeTruthy()
   expect(screen.getByText('1 / 2', { includeHiddenElements: true })).toBeTruthy()
   await pickNavyM()
@@ -344,20 +346,34 @@ it('exposes the E2E test ids', async () => {
 })
 
 describe('rating', () => {
-  it('shows the average and review count when there are reviews', async () => {
+  it('shows the average, review count and sold count', async () => {
     mockFetch.mockResolvedValue(product())
     await render(<ProductScreen />)
-    expect(await screen.findByTestId('product-rating')).toHaveTextContent('4.5 ★ · 12 reviews')
-    expect(screen.getByLabelText('Rated 4.5 out of 5 from 12 reviews')).toBeTruthy()
+    expect(await screen.findByTestId('product-rating')).toHaveTextContent('★ 4.5 (12 reviews) | 12 sold')
+    expect(screen.getByLabelText('Rated 4.5 out of 5 from 12 reviews, 12 sold')).toBeTruthy()
   })
 
   it('says "1 review" for a single review', async () => {
     mockFetch.mockResolvedValue(product({ reviewCount: 1 }))
     await render(<ProductScreen />)
-    expect(await screen.findByTestId('product-rating')).toHaveTextContent('4.5 ★ · 1 review')
+    expect(await screen.findByTestId('product-rating')).toHaveTextContent('★ 4.5 (1 review) | 12 sold')
   })
 
-  it.each([{ rating: null, reviewCount: 0 }, { rating: 4.5, reviewCount: 0 }])('is hidden for %p', async (over) => {
+  it('shows only the sold count when there are no reviews', async () => {
+    mockFetch.mockResolvedValue(product({ rating: null, reviewCount: 0 }))
+    await render(<ProductScreen />)
+    const line = await screen.findByTestId('product-rating')
+    expect(line).toHaveTextContent(/^12 sold$/)
+    expect(screen.getByLabelText('12 sold')).toBeTruthy()
+  })
+
+  it('shows only the rating when nothing has sold', async () => {
+    mockFetch.mockResolvedValue(product({ soldCount: 0 }))
+    await render(<ProductScreen />)
+    expect(await screen.findByTestId('product-rating')).toHaveTextContent(/^★ 4\.5 \(12 reviews\)$/)
+  })
+
+  it.each([{ rating: null, reviewCount: 0, soldCount: 0 }, { rating: 4.5, reviewCount: 0, soldCount: 0 }])('is hidden for %p', async (over) => {
     mockFetch.mockResolvedValue(product(over))
     await render(<ProductScreen />)
     await screen.findByTestId('product-name')

@@ -153,9 +153,9 @@ function ProductView({ product }: { product: Product }) {
   const price = variant ? peso(variant.price) : prices.length ? (Math.min(...prices) === Math.max(...prices) ? peso(prices[0]) : `From ${peso(Math.min(...prices))}`) : null
   const stock = allSoldOut ? 'Sold out' : !variant ? null : variant.stock <= 0 ? 'Sold out' : variant.stock <= LOW_STOCK ? `Only ${variant.stock} left` : null
   const missing = [hasColor && !chosenColor && 'a colour', hasSize && !chosenSize && 'a size'].filter(Boolean).join(' and ')
-  const label = [product.brand, product.category].filter(Boolean).join(' / ')
   const reviews = `${product.reviewCount} ${product.reviewCount === 1 ? 'review' : 'reviews'}`
   const rated = product.reviewCount > 0 && product.rating !== null
+  const sold = product.soldCount > 0 ? `${product.soldCount} sold` : null
 
   async function add() {
     if (!canBuy || busy.current) return
@@ -193,12 +193,16 @@ function ProductView({ product }: { product: Product }) {
             </View>
             <WishlistHeart productId={product.id} notify={notify} />
           </View>
-          {rated && (
-            <Text testID="product-rating" accessibilityLabel={`Rated ${product.rating?.toFixed(1)} out of 5 from ${reviews}`} style={styles.rating}>
-              {`${product.rating?.toFixed(1)} ★ · ${reviews}`}
+          {(rated || sold) && (
+            <Text
+              testID="product-rating"
+              accessibilityLabel={[rated && `Rated ${product.rating?.toFixed(1)} out of 5 from ${reviews}`, sold].filter(Boolean).join(', ')}
+              style={styles.rating}
+            >
+              {[rated && `★ ${product.rating?.toFixed(1)} (${reviews})`, sold].filter(Boolean).join(' | ')}
             </Text>
           )}
-          {label !== '' && <Text style={type.label}>{`(${label})`}</Text>}
+          {!!product.category && <Text style={type.label}>{`(${product.category})`}</Text>}
         </View>
 
         {hasColor && (
