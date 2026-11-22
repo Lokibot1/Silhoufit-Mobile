@@ -1,8 +1,8 @@
 import { useFonts } from 'expo-font'
-import { DefaultTheme, Stack, ThemeProvider } from 'expo-router'
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavThemeProvider } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Text } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
@@ -12,7 +12,8 @@ import { fontAssets } from '@/ui/fonts'
 import { OnboardingGate } from '@/onboarding/OnboardingGate'
 import { IntroLoader } from '@/ui/IntroLoader'
 import { KralLogo } from '@/ui/KralLogo'
-import { color, type } from '@/ui/theme'
+import { themes, useTheme } from '@/ui/theme'
+import { ThemeProvider, useScheme } from '@/ui/ThemeProvider'
 import { ToastProvider } from '@/ui/toast'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
@@ -21,9 +22,10 @@ export { RouteError as ErrorBoundary } from '@/ui/ErrorScreen'
 
 SplashScreen.preventAutoHideAsync()
 
-const kralTheme = {
-  ...DefaultTheme,
-  colors: { ...DefaultTheme.colors, background: color.paper, card: color.paper, text: color.obsidian, primary: color.red, border: color.porcelain },
+function navTheme(scheme: 'light' | 'dark') {
+  const base = scheme === 'dark' ? DarkTheme : DefaultTheme
+  const c = themes[scheme].color
+  return { ...base, colors: { ...base.colors, background: c.paper, card: c.paper, text: c.obsidian, border: c.porcelain, primary: c.red, notification: c.red } }
 }
 
 // Cold-start loader: shown over the app until fonts + session restore are done and the animation has played.
@@ -31,9 +33,11 @@ function Gate() {
   const { loading } = useSession()
   const [done, setDone] = useState(false)
   const reduce = useReduceMotion()
+  const { color, type } = useTheme()
+  const scheme = useScheme()
   return (
     <>
-      <StatusBar style={done ? 'dark' : 'light'} />
+      <StatusBar style={done && scheme !== 'dark' ? 'dark' : 'light'} />
       <Stack screenOptions={{ animation: reduce ? 'none' : 'ios_from_right' }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
@@ -248,6 +252,10 @@ function Gate() {
   )
 }
 
+function NavTheme({ children }: { children: ReactNode }) {
+  return <NavThemeProvider value={navTheme(useScheme())}>{children}</NavThemeProvider>
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets)
   const fontsSettled = fontsLoaded || !!fontError
@@ -260,10 +268,12 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SessionProvider>
-        <ThemeProvider value={kralTheme}>
-          <ToastProvider>
-            <Gate />
-          </ToastProvider>
+        <ThemeProvider>
+          <NavTheme>
+            <ToastProvider>
+              <Gate />
+            </ToastProvider>
+          </NavTheme>
         </ThemeProvider>
       </SessionProvider>
     </GestureHandlerRootView>
