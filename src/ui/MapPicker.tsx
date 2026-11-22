@@ -9,12 +9,15 @@ import { isRecord } from '@/lib/api'
 import { Button } from './Button'
 import { HeaderIcon } from './HeaderIcon'
 import { Skeleton } from './Skeleton'
-import { color, hairline, space, type } from './theme'
+import { space, themed, useTheme } from './theme'
+import { useScheme } from './ThemeProvider'
 
 export const MAP_HEIGHT = 320
 const TIMEOUT_MS = 20_000
 const LOCATION_TIMEOUT_MS = 15_000
 const STREET_ZOOM = 17
+// Same dark-tile recipe as the web app's .dark .address-map; only the tile pane is filtered, so the pin stays true red.
+const DARK_TILES = 'filter:invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)'
 // OpenStreetMap's tile policy wants a Referer, which an inline page has none of: the page is given the web app's address as its base.
 const BASE_URL = 'https://silhoufit-frontend.vercel.app/'
 const COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright'
@@ -26,12 +29,12 @@ const JS_SRI = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo='
 type Pin = { lat: number; lon: number }
 
 /** The page the WebView shows. `initial` only sets where it opens; later pins arrive through setPin. */
-export function mapHtml(initial: Pin | null): string {
+export function mapHtml(initial: Pin | null, dark = false): string {
   const start = initial ?? MANILA
   const zoom = initial ? STREET_ZOOM : 11
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <link rel="stylesheet" href="${LEAFLET}.css" integrity="${CSS_SRI}" crossorigin="">
-<style>html,body,#map{height:100%;margin:0;background:#EEECED}.leaflet-touch .leaflet-bar a{width:44px;height:44px;line-height:44px;font-size:24px}.pin{display:block;width:28px;height:28px;margin:8px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#CB1C2B;border:2px solid #FFFBFD;box-shadow:0 1px 4px rgba(0,0,0,.4)}</style>
+<style>html,body,#map{height:100%;margin:0;background:${dark ? '#161113' : '#EEECED'}}.leaflet-touch .leaflet-bar a{width:44px;height:44px;line-height:44px;font-size:24px}.pin{display:block;width:28px;height:28px;margin:8px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#CB1C2B;border:2px solid #FFFBFD;box-shadow:0 1px 4px rgba(0,0,0,.4)}${dark ? `.leaflet-tile-pane{${DARK_TILES}}` : ''}</style>
 </head><body><div id="map"></div>
 <script src="${LEAFLET}.js" integrity="${JS_SRI}" crossorigin=""></script>
 <script>
@@ -102,12 +105,15 @@ type Props = { value: Pin | null; onChange: (lat: number, lon: number) => void; 
 // Leaflet over OpenStreetMap tiles in a WebView. Tap the map or drag the pin; the page reports the spot and this checks it before use.
 // The height is fixed so loading, error and loaded never shift the form.
 export function MapPicker({ value, onChange, disabled, error }: Props) {
+  const s = useStyles()
+  const { type } = useTheme()
+  const dark = useScheme() === 'dark'
   const view = useRef<ComponentRef<typeof WebView>>(null)
   const latest = useRef(value)
   const onPage = useRef(value) // the pin the page is showing
   const version = useRef(0) // counts pins set by anyone, so a slow GPS fix can tell it was overtaken
   const alive = useRef(true)
-  const [page, setPage] = useState(() => ({ attempt: 0, html: mapHtml(value) }))
+  const [page, setPage] = useState(() => ({ attempt: 0, html: mapHtml(value, dark) }))
   const [phase, setPhase] = useState<'loading' | 'ready' | 'failed'>('loading')
   const [tilesFailed, setTilesFailed] = useState(false)
   const [locating, setLocating] = useState(false)
@@ -140,8 +146,15 @@ export function MapPicker({ value, onChange, disabled, error }: Props) {
     setPhase('loading')
     setTilesFailed(false)
     onPage.current = latest.current
-    setPage((current) => ({ attempt: current.attempt + 1, html: mapHtml(latest.current) }))
+    setPage((current) => ({ attempt: current.attempt + 1, html: mapHtml(latest.current, dark) }))
   }
+  // A new scheme means a new page, which reloads; the pin lives in the form (`latest`), so it is rebuilt into the page rather than lost.
+  const shown = useRef(dark)
+  useEffect(() => {
+    if (shown.current === dark) return
+    shown.current = dark
+    retry()
+  })
 
   function onMessage(event: WebViewMessageEvent) {
     const message = parseMapMessage(event.nativeEvent.data)
@@ -182,11 +195,11 @@ export function MapPicker({ value, onChange, disabled, error }: Props) {
   }
 
   return (
-    <View style={styles.group}>
+    <View style={s.group}>
       <Text accessibilityRole="header" style={type.label}>(Map pin)</Text>
-      <Text style={styles.body}>Your pin tells the courier exactly where to deliver and sets your shipping fee. Tap the map to drop it, then drag it to adjust.</Text>
+      <Text style={s.body}>Your pin tells the courier exactly where to deliver and sets your shipping fee. Tap the map to drop it, then drag it to adjust.</Text>
       <Text style={type.small}>Your pin is sent to OpenStreetMap services to find the address.</Text>
-      <View pointerEvents={disabled ? 'none' : 'auto'} style={[styles.box, !!error && styles.boxError]}>
+      <View pointerEvents={disabled ? 'none' : 'auto'} style={[s.box, !!error && s.boxError]}>
         <WebView
           key={page.attempt}
           ref={view}
@@ -204,38 +217,38 @@ export function MapPicker({ value, onChange, disabled, error }: Props) {
           mixedContentMode="never"
           setSupportMultipleWindows={false}
           nestedScrollEnabled
-          style={styles.fill}
+          style={s.fill}
         />
         {phase === 'loading' && (
-          <View accessible accessibilityRole="progressbar" accessibilityLabel="Loading map" testID="map-picker-loading" style={styles.overlay} pointerEvents="none">
+          <View accessible accessibilityRole="progressbar" accessibilityLabel="Loading map" testID="map-picker-loading" style={s.overlay} pointerEvents="none">
             <Skeleton height={MAP_HEIGHT} />
-            <Text style={styles.loadingText}>Loading map…</Text>
+            <Text style={s.loadingText}>Loading map…</Text>
           </View>
         )}
         {phase === 'failed' && (
-          <View accessibilityRole="alert" testID="map-picker-error" style={[styles.overlay, styles.errorBox]}>
+          <View accessibilityRole="alert" testID="map-picker-error" style={[s.overlay, s.errorBox]}>
             <Text style={type.body}>{"Couldn't load the map. Check your connection, then try again."}</Text>
             <HeaderIcon testID="map-picker-retry" name="refresh" label="Retry" onPress={retry} />
           </View>
         )}
       </View>
-      {tilesFailed && phase === 'ready' && <Text accessibilityRole="alert" style={styles.problem}>The map pictures did not load, so the map may look blank. Check your connection; Use My Location still works.</Text>}
+      {tilesFailed && phase === 'ready' && <Text accessibilityRole="alert" style={s.problem}>The map pictures did not load, so the map may look blank. Check your connection; Use My Location still works.</Text>}
       <Text testID="map-picker-status" accessibilityLiveRegion="polite" style={[type.small, type.numeric]}>
         {value ? `Pinned at ${value.lat.toFixed(5)}, ${value.lon.toFixed(5)}` : 'No pin yet.'}
       </Text>
       <Button testID="map-picker-locate" variant="secondary" label="Use My Location" pending={locating} disabled={disabled} onPress={() => void locate()} />
       {problem && (
-        <View testID="map-picker-problem" accessibilityRole="alert" style={styles.banner}>
+        <View testID="map-picker-problem" accessibilityRole="alert" style={s.banner}>
           <Text style={type.body}>{PROBLEMS[problem]}</Text>
           {problem === 'denied' && <Button testID="map-picker-settings" variant="secondary" label="Open Settings" onPress={() => void Linking.openSettings()} />}
         </View>
       )}
-      <Text accessibilityLiveRegion="polite" style={[type.small, error ? styles.errorText : null]}>{error ?? ' '}</Text>
+      <Text accessibilityLiveRegion="polite" style={[type.small, error ? s.errorText : null]}>{error ?? ' '}</Text>
     </View>
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type, hairline }) => StyleSheet.create({
   group: { gap: space.sm },
   body: { ...type.body, color: color.graphite },
   box: { height: MAP_HEIGHT, backgroundColor: color.porcelain, ...hairline },
@@ -244,7 +257,7 @@ const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFill },
   loadingText: { ...type.small, position: 'absolute', alignSelf: 'center', top: MAP_HEIGHT / 2 - 10 },
   errorBox: { backgroundColor: color.paper, padding: space.lg, gap: space.md, justifyContent: 'center' },
-  problem: { ...type.small, color: color.red },
+  problem: { ...type.small, color: color.redInk },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md, gap: space.md },
-  errorText: { color: color.red },
-})
+  errorText: { color: color.redInk },
+}))

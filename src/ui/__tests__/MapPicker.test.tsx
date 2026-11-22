@@ -91,6 +91,16 @@ describe('page', () => {
     expect(html).toContain('marker.setLatLng(last)')
     expect(html).toContain('.leaflet-touch .leaflet-bar a{width:44px;height:44px')
   })
+  it('dark inverts only the tile pane and uses the dark page background; light is unchanged', () => {
+    const light = mapHtml(null)
+    const dark = mapHtml(null, true)
+    expect(light).toBe(mapHtml(null, false))
+    expect(light).toContain('background:#EEECED}')
+    expect(light).not.toContain('invert(1)')
+    expect(dark).toContain('background:#161113}')
+    expect(dark).toContain('.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)}')
+    expect(dark).not.toContain('.leaflet-marker-pane{filter')
+  })
   it('only allows the inline page and the copyright link (opened outside the app)', () => {
     const open = jest.spyOn(Linking, 'openURL').mockResolvedValue()
     expect(allowRequest('about:blank')).toBe(true)
