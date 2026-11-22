@@ -7,11 +7,13 @@ import { useSession } from '@/auth/session'
 import { dateOnly } from '@/lib/format'
 import { CONTACT_EMAIL, openLegal } from '@/lib/site'
 import { Avatar } from '@/ui/Avatar'
+import { ActionSheet } from '@/ui/ActionSheet'
 import { Button } from '@/ui/Button'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
+import { type Preference, useAppearance } from '@/ui/ThemeProvider'
 import { useToast } from '@/ui/toast'
 import { radius, space, themed, useTheme } from '@/ui/theme'
 
@@ -27,11 +29,17 @@ const SHORTCUTS: { id: string; label: string; icon: IconName }[] = [
 
 const SOON = 'Coming soon'
 
+const APPEARANCES: { id: Preference; label: string }[] = [
+  { id: 'system', label: 'System' },
+  { id: 'light', label: 'Light' },
+  { id: 'dark', label: 'Dark' },
+]
+
 // `nav` is unique per tap so Orders re-selects the tab even when the param value is unchanged.
 const openOrders = (tab: string) => router.navigate({ pathname: '/orders', params: { tab, nav: String(Date.now()) } })
 
 // A 56px menu row. A disabled row says why instead of pretending to go somewhere.
-function MenuRow({ icon, label, onPress, disabled = false, pending = false, divider = true, external = false, hint, testID }: {
+function MenuRow({ icon, label, onPress, disabled = false, pending = false, divider = true, external = false, hint, value, testID }: {
   icon: IconName
   label: string
   onPress?: () => void
@@ -40,6 +48,7 @@ function MenuRow({ icon, label, onPress, disabled = false, pending = false, divi
   divider?: boolean
   external?: boolean
   hint?: string
+  value?: string
   testID: string
 }) {
   const styles = useStyles()
@@ -49,7 +58,7 @@ function MenuRow({ icon, label, onPress, disabled = false, pending = false, divi
     <PressableScale
       testID={testID}
       accessibilityRole="button"
-      accessibilityLabel={disabled ? `${label}, ${SOON}` : label}
+      accessibilityLabel={disabled ? `${label}, ${SOON}` : value ? `${label}, ${value}` : label}
       accessibilityHint={hint}
       accessibilityState={{ disabled: off, busy: pending }}
       disabled={off}
@@ -62,7 +71,10 @@ function MenuRow({ icon, label, onPress, disabled = false, pending = false, divi
       ) : disabled ? (
         <Text style={[type.small, styles.off]}>{SOON}</Text>
       ) : (
-        <Ionicons name={external ? 'open-outline' : 'chevron-forward'} size={24} color={color.graphite} />
+        <>
+          {value && <Text style={[type.small, styles.off]}>{value}</Text>}
+          <Ionicons name={external ? 'open-outline' : 'chevron-forward'} size={24} color={color.graphite} />
+        </>
       )}
     </PressableScale>
   )
@@ -74,6 +86,8 @@ export default function Profile() {
   const { color, type } = useTheme()
   const { session, profile, loading, error, retry, signOut } = useSession()
   const toast = useToast()
+  const { preference, setPreference } = useAppearance()
+  const [choosingAppearance, setChoosingAppearance] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const busy = useRef(false)
   const asking = useRef(false)
@@ -127,6 +141,7 @@ export default function Profile() {
   const openPage = (doc: Parameters<typeof openLegal>[0]) =>
     openLegal(doc).catch(() => toast("Couldn't open the page. Check your connection and try again."))
   const writeToUs = () => Linking.openURL(`mailto:${CONTACT_EMAIL}`).catch(() => toast(`No email app found. Write to ${CONTACT_EMAIL}.`))
+  const appearanceLabel = APPEARANCES.find((a) => a.id === preference)?.label ?? 'System'
   const name = profile ? profile.fullName?.trim() || `${profile.firstName} ${profile.lastName}`.trim() : ''
 
   return (
@@ -222,6 +237,15 @@ export default function Profile() {
           </View>
         </View>
       )}
+      {/* Also shown signed out: the look of the app needs no account. */}
+      {!loading && (
+        <View style={styles.stack}>
+          <Text accessibilityRole="header" style={type.h2}>Preferences</Text>
+          <View style={styles.card}>
+            <MenuRow testID="profile-menu-appearance" icon="contrast-outline" label="Appearance" value={appearanceLabel} onPress={() => setChoosingAppearance(true)} divider={false} />
+          </View>
+        </View>
+      )}
       {/* Also shown signed out and on a profile error: the policies and contact need no account. */}
       {!loading && (
         <View style={styles.stack}>
@@ -238,6 +262,16 @@ export default function Profile() {
           </View>
         </View>
       )}
+      <ActionSheet
+        visible={choosingAppearance}
+        title="Appearance"
+        onClose={() => setChoosingAppearance(false)}
+        options={APPEARANCES.map((a) => ({
+          label: a.id === preference ? `${a.label} (current)` : a.label,
+          testID: `appearance-${a.id}`,
+          onPress: () => { setPreference(a.id); toast(`Appearance set to ${a.label}`) },
+        }))}
+      />
     </ScrollView>
   )
 }

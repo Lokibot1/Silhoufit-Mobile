@@ -1,8 +1,15 @@
-import { render } from '@testing-library/react-native'
-import { Text } from 'react-native'
+import { act, render, waitFor } from '@testing-library/react-native'
+import { Appearance, Text } from 'react-native'
 
 import { color, themed, themes, useTheme } from '../theme'
-import { ThemeProvider } from '../ThemeProvider'
+import { ThemeProvider, useAppearance } from '../ThemeProvider'
+
+const mockStore: Record<string, string> = {}
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn((key: string) => Promise.resolve(mockStore[key] ?? null)),
+  setItem: jest.fn((key: string, value: string) => Promise.resolve((mockStore[key] = value, undefined))),
+}))
+const setScheme = jest.spyOn(Appearance, 'setColorScheme').mockImplementation(() => {})
 
 jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({ default: jest.fn() }))
 
@@ -15,6 +22,11 @@ function Probe() {
 }
 
 describe('theme', () => {
+  beforeEach(() => {
+    for (const key of Object.keys(mockStore)) delete mockStore[key]
+    setScheme.mockClear()
+  })
+
   it('uses the dark palette when the scheme is dark', async () => {
     mockScheme('dark')
     const { getByTestId } = await render(<ThemeProvider><Probe /></ThemeProvider>)
@@ -61,6 +73,49 @@ describe('theme', () => {
       porcelain: '#EEECED',
       paper: '#FFFBFD',
       scrim: 'rgba(22,17,19,0.5)',
+    })
+  })
+
+  describe('appearance preference', () => {
+    const api = {} as ReturnType<typeof useAppearance>
+    function Controls() {
+      Object.assign(api, useAppearance())
+      return <Probe />
+    }
+    const paper = (r: { getByTestId: (id: string) => { props: Record<string, unknown> } }) => r.getByTestId('paper').props.children
+
+    it('follows the device scheme by default and clears the native override', async () => {
+      mockScheme('dark')
+      const r = await render(<ThemeProvider><Controls /></ThemeProvider>)
+      expect(api.preference).toBe('system')
+      expect(paper(r)).toBe('#161113')
+      expect(setScheme).toHaveBeenLastCalledWith('unspecified')
+    })
+
+    it('lets Light and Dark override the device, stores the choice and sets the native scheme', async () => {
+      mockScheme('dark')
+      const r = await render(<ThemeProvider><Controls /></ThemeProvider>)
+      await act(async () => api.setPreference('light'))
+      expect(paper(r)).toBe('#FFFBFD')
+      expect(mockStore['silhoufit-theme']).toBe('light')
+      expect(setScheme).toHaveBeenLastCalledWith('light')
+      mockScheme('light')
+      await act(async () => api.setPreference('dark'))
+      expect(paper(r)).toBe('#161113')
+      expect(mockStore['silhoufit-theme']).toBe('dark')
+      expect(setScheme).toHaveBeenLastCalledWith('dark')
+    })
+
+    it('restores the stored choice and ignores a junk value', async () => {
+      mockScheme('light')
+      mockStore['silhoufit-theme'] = 'dark'
+      const r = await render(<ThemeProvider><Controls /></ThemeProvider>)
+      await waitFor(() => expect(api.preference).toBe('dark'))
+      expect(paper(r)).toBe('#161113')
+      mockStore['silhoufit-theme'] = 'purple'
+      await render(<ThemeProvider><Controls /></ThemeProvider>)
+      await act(async () => {})
+      expect(api.preference).toBe('system')
     })
   })
 })

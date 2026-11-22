@@ -1,9 +1,13 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
-import { Alert, Linking } from 'react-native'
+import { Alert, Linking, Platform, Text } from 'react-native'
 
 import Profile from '../app/(tabs)/profile'
+import { ThemeProvider } from '../ui/ThemeProvider'
+import { useTheme } from '../ui/theme'
 
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) }))
+jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }))
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), navigate: jest.fn() }, useFocusEffect: jest.fn() }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
@@ -253,4 +257,27 @@ it('shows the About KRAL rows signed out too, but not while loading', async () =
   mockUseSession.mockReturnValue({ ...base, loading: true })
   await view.rerender(<Profile />)
   expect(screen.queryByTestId('profile-menu-contact')).toBeNull()
+})
+
+describe('appearance', () => {
+  const asyncStorage = jest.requireMock('@react-native-async-storage/async-storage')
+  const Paper = () => <Text testID="paper">{useTheme().color.paper}</Text>
+  const renderThemed = () => render(<ThemeProvider><Profile /><Paper /></ThemeProvider>)
+
+  it('shows the current value signed out and applies a choice with a toast', async () => {
+    // Android runs the chosen action on a timer; the test Modal never fires onDismiss (the iOS path).
+    jest.replaceProperty(Platform, 'OS', 'android')
+    mockUseSession.mockReturnValue(base)
+    await renderThemed()
+    expect(screen.getByLabelText('Appearance, System')).toBeTruthy()
+    expect(screen.getByTestId('paper').props.children).toBe('#FFFBFD')
+    await fireEvent.press(screen.getByTestId('profile-menu-appearance'))
+    expect(screen.getByText('System (current)')).toBeTruthy()
+    await fireEvent.press(screen.getByTestId('appearance-dark'))
+    // The sheet runs the action after it closes: on iOS in onDismiss, on Android after a timer.
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith('Appearance set to Dark'), { timeout: 1500 })
+    expect(asyncStorage.setItem).toHaveBeenCalledWith('silhoufit-theme', 'dark')
+    expect(screen.getByTestId('paper').props.children).toBe('#161113')
+    expect(screen.getByLabelText('Appearance, Dark')).toBeTruthy()
+  })
 })
