@@ -12,7 +12,7 @@ export const FAQ: FaqItem[] = [
   {
     id: 'how-silhoufit-works',
     question: 'How does SilhouFit work?',
-    answer: 'Save your measurements, then open AR Try-On on a shirt marked AR-ready. It compares your chest, waist, shoulders and sleeve with each size and recommends one. The module is still a working prototype, and live camera try-on is coming.',
+    answer: 'Save your measurements, then open AR Try-On on a shirt marked AR-ready. It compares your chest, waist, shoulders and sleeve with each size and recommends one. The module is still a working prototype. To see the shirt on your camera, tap Start Live Try-On on the AR Try-On screen. It needs camera permission and an internet connection, and the camera picture stays on your phone.',
     keywords: ['ar', 'camera', 'pose', '3d', 'virtual'],
   },
   {
