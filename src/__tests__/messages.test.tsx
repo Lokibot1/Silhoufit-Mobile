@@ -106,6 +106,25 @@ it('sends a message, clears the input and shows it once', async () => {
   expect(screen.queryByTestId('message-unsent')).toBeNull()
 })
 
+it('shows the masked-words notice when the saved text differs, and clears it when typing', async () => {
+  api.sendMessage.mockResolvedValue(message('m3', { senderId: 'u1', content: 'What the ****' }))
+  await render(<MessagesScreen />)
+  await type('What the heck')
+  await fireEvent.press(screen.getByTestId('messages-send'))
+  expect(await screen.findByTestId('messages-masked-note')).toBeTruthy()
+  await type('a')
+  expect(screen.queryByTestId('messages-masked-note')).toBeNull()
+})
+
+it('shows no masked-words notice when the saved text is identical', async () => {
+  api.sendMessage.mockResolvedValue(message('m3', { senderId: 'u1', content: 'Hello' }))
+  await render(<MessagesScreen />)
+  await type('  Hello  ')
+  await fireEvent.press(screen.getByTestId('messages-send'))
+  expect(await screen.findByTestId('message-m3')).toBeTruthy()
+  expect(screen.queryByTestId('messages-masked-note')).toBeNull()
+})
+
 it('keeps a failed message inline with "Not sent" and Retry sends it again', async () => {
   api.sendMessage.mockRejectedValueOnce(new ApiError('network')).mockResolvedValueOnce(message('m3', { senderId: 'u1', content: 'Hello' }))
   await render(<MessagesScreen />)

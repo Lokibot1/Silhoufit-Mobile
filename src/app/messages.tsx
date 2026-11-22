@@ -94,10 +94,12 @@ export default function MessagesScreen() {
   const mine = store.owner === userId ? store : EMPTY
   const { convId, messages, error, unsent, blocked: muted, blockedReason } = mine
   const [text, setText] = useState('')
+  const [masked, setMasked] = useState(false)
   const [textOwner, setTextOwner] = useState(userId)
   if (textOwner !== userId) {
     setTextOwner(userId)
     setText('')
+    setMasked(false)
   }
   const [top, setTop] = useState(0)
   const [keyboard, setKeyboard] = useState(false)
@@ -207,11 +209,16 @@ export default function MessagesScreen() {
   const send = (content: string) => {
     if (!userId || inFlight.current) return
     inFlight.current = true
+    setMasked(false)
     const ctl = (sending.current = new AbortController())
     patch(userId, () => ({ unsent: { content, failure: null, retry: true } }))
     sendMessage(content, ctl.signal)
       .then(
-        (message) => patch(userId, (s) => ({ messages: merge(s.messages, [message]), unsent: null })),
+        (message) => {
+          // The server masks profane words, so saved text that differs from what was sent means some were hidden.
+          if (userRef.current === userId) setMasked(message.content !== content)
+          patch(userId, (s) => ({ messages: merge(s.messages, [message]), unsent: null }))
+        },
         (failure) => {
           // No unsent left means the echo already showed the message arrived.
           if (ctl.signal.aborted) return
@@ -300,6 +307,11 @@ export default function MessagesScreen() {
             {`Your messaging is blocked, so you can't send messages. You can still read replies.${blockedReason ? ` Reason: ${blockedReason}` : ''}`}
           </Text>
         )}
+        {ready && masked && (
+          <Text testID="messages-masked-note" accessibilityRole="alert" style={[type.small, styles.note]}>
+            Some words were hidden. Repeated use of this language can lead to your messaging being blocked or your account banned.
+          </Text>
+        )}
         {ready && (
           <View style={[styles.composer, { paddingBottom: keyboard ? space.sm : Math.max(insets.bottom, space.sm) }]}>
             <View style={styles.field}>
@@ -311,7 +323,10 @@ export default function MessagesScreen() {
                 placeholderTextColor={color.graphite}
                 style={styles.input}
                 value={text}
-                onChangeText={setText}
+                onChangeText={(value) => {
+                  setText(value)
+                  setMasked(false)
+                }}
                 onFocus={() => setInputFocused(true)}
                 onBlur={() => setInputFocused(false)}
                 maxLength={MAX_MESSAGE_LENGTH}
