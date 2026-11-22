@@ -56,6 +56,9 @@ const order = (id: string, over: Record<string, unknown> = {}) => ({
   address: null,
   items: [{ id: `i-${id}`, name: 'Tee', size: 'M', color: 'Red', quantity: 2, unitPrice: 550, lineTotal: 1100, imageUrl: null }],
   shipment: null,
+  shipmentEvents: [],
+  sellerNotes: null,
+  courierNotes: null,
   ...over,
 })
 
