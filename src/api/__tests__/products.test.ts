@@ -87,8 +87,10 @@ describe('toProduct', () => {
       rating: 4.5,
       reviewCount: 12,
       soldCount: 371,
+      isArReady: false,
     })
   })
+  it.each([[true, true], [false, false], [undefined, false], [null, false], ['true', false], [1, false]])('maps isArReady %p to %p', (raw, expected) => expect(toProduct({ ...detail, isArReady: raw }).isArReady).toBe(expected))
   it.each([undefined, null, '371', 0, -4, NaN, {}])('counts an invalid soldCount %p as 0', (bad) => expect(toProduct({ ...detail, soldCount: bad }).soldCount).toBe(0))
   it("keeps a variant's garment measurements", () => {
     const measurements = { id: 'm1', chestWidthCm: 54, totalLengthCm: '70.5', waistWidthCm: 0 }
