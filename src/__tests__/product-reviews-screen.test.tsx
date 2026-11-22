@@ -9,7 +9,11 @@ jest.mock('@/api/reviews', () => ({ ...jest.requireActual('@/api/reviews'), fetc
 jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
 jest.mock('expo-image', () => ({ Image: () => null }))
-jest.mock('expo-router', () => ({ router: { back: jest.fn() }, useLocalSearchParams: jest.fn(() => ({ id: 'p1' })) }))
+jest.mock('expo-router', () => ({
+  router: { back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) },
+  Stack: { Screen: ({ options }: { options: { headerLeft?: () => unknown } }) => options.headerLeft?.() ?? null },
+  useLocalSearchParams: jest.fn(() => ({ id: 'p1' })),
+}))
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) }))
 const mockProduct: jest.Mock = jest.requireMock('@/api/products').fetchProduct
 const mockReviews: jest.Mock = jest.requireMock('@/api/reviews').fetchProductReviews
@@ -23,6 +27,7 @@ const never = () => new Promise(() => {})
 
 beforeEach(() => {
   jest.clearAllMocks()
+  router.canGoBack.mockReturnValue(true)
   mockProduct.mockResolvedValue(product)
   mockReviews.mockResolvedValue(page())
 })
@@ -53,6 +58,18 @@ it('shows the mini card, the reviews and a Back to Product button that goes back
   expect(await screen.findByText('Great fit')).toBeTruthy()
   await fireEvent.press(screen.getByRole('button', { name: 'Back to Product' }))
   expect(router.back).toHaveBeenCalled()
+  expect(router.replace).not.toHaveBeenCalled()
+  expect(screen.queryByTestId('reviews-header-back')).toBeNull()
+})
+
+it('opened by deep link or refresh, both back controls open the product page instead', async () => {
+  router.canGoBack.mockReturnValue(false)
+  await render(<ReviewsScreen />)
+  await fireEvent.press(screen.getByRole('button', { name: 'Back to Product' }))
+  await fireEvent.press(screen.getByTestId('reviews-header-back'))
+  expect(router.replace).toHaveBeenCalledTimes(2)
+  expect(router.replace).toHaveBeenCalledWith('/product/p1')
+  expect(router.back).not.toHaveBeenCalled()
 })
 
 it("shows \"You've seen all reviews\" only on the last page", async () => {

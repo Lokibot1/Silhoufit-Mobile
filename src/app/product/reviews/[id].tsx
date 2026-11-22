@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -10,6 +11,7 @@ import { peso } from '@/lib/format'
 import { useRequest } from '@/lib/useRequest'
 import { ProductReviews } from '@/product/ProductReviews'
 import { Button } from '@/ui/Button'
+import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { color, font, radius, space, type } from '@/ui/theme'
@@ -56,8 +58,22 @@ export default function ProductReviewsScreen() {
   const insets = useSafeAreaInsets()
   const { status, data, error, retry } = useRequest(id, (signal) => (id ? fetchProduct(id, signal) : Promise.reject(new ApiError('not-found'))))
 
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace(`/product/${id}`))
+
   return (
     <View style={styles.screen}>
+      {/* A deep link or refresh has no screen to go back to, so the header arrow and the bar button fall back to the product page. */}
+      <Stack.Screen
+        options={{
+          headerLeft: router.canGoBack()
+            ? undefined
+            : () => (
+                <PressableScale testID="reviews-header-back" accessibilityRole="button" accessibilityLabel="Back to product" onPress={goBack} style={styles.headerBack}>
+                  <Ionicons name="chevron-back" size={24} color={color.obsidian} />
+                </PressableScale>
+              ),
+        }}
+      />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         {status === 'loading' && <CardSkeleton />}
         {status === 'error' && (
@@ -69,7 +85,7 @@ export default function ProductReviewsScreen() {
         {id !== '' && <ProductReviews productId={id} />}
       </ScrollView>
       <View testID="reviews-bar" style={[styles.bar, { paddingBottom: insets.bottom + space.sm }]}>
-        <Button testID="reviews-back" label="Back to Product" onPress={() => router.back()} />
+        <Button testID="reviews-back" label="Back to Product" onPress={goBack} />
       </View>
     </View>
   )
@@ -85,5 +101,6 @@ const styles = StyleSheet.create({
   fill: { width: '100%', height: '100%' },
   info: { flex: 1, gap: space.xs, justifyContent: 'center' },
   price: { fontFamily: font.bold, fontSize: 24, lineHeight: 32, color: color.red, ...type.numeric },
+  headerBack: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
   bar: { paddingHorizontal: space.lg, paddingTop: space.sm, backgroundColor: color.paper, borderTopWidth: 1, borderTopColor: color.porcelain },
 })
