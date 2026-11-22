@@ -12,7 +12,7 @@ import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { font, radius, space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 // The character count turns red for the last 100 characters.
@@ -40,6 +40,8 @@ function land(s: Store, incoming: ChatMessage[], uid: string): Partial<Store> {
 }
 
 function Bubble({ message, mine, live }: { message: ChatMessage; mine: boolean; live: boolean }) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const time = dateTime(message.createdAt)
   return (
     <View testID={`message-${message.id}`} accessible accessibilityLiveRegion={live ? 'polite' : 'none'} accessibilityLabel={`${mine ? 'You' : 'KRAL'}, ${message.content}, ${time}`} style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
@@ -51,6 +53,8 @@ function Bubble({ message, mine, live }: { message: ChatMessage; mine: boolean; 
 }
 
 function UnsentBubble({ unsent, onRetry, onDiscard }: { unsent: Unsent; onRetry: () => void; onDiscard: () => void }) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   return (
     <View testID="message-unsent" style={styles.unsent}>
       <View accessible accessibilityLabel={`${unsent.failure === null ? 'Sending' : 'Not sent'}, ${unsent.content}`} style={[styles.bubble, styles.mine, unsent.failure === null && styles.sending]}>
@@ -72,6 +76,7 @@ function UnsentBubble({ unsent, onRetry, onDiscard }: { unsent: Unsent; onRetry:
 
 // Same shape as the bubbles: alternating sides, so the swap to real messages does not jump.
 function MessagesSkeleton() {
+  const styles = useStyles()
   return (
     <View accessible accessibilityLabel="Loading" accessibilityRole="progressbar" style={styles.skeleton}>
       {[['flex-start', '60%', 72], ['flex-end', '45%', 48], ['flex-start', '70%', 96], ['flex-end', '50%', 48]].map(([side, width, height], key) => (
@@ -85,6 +90,8 @@ function MessagesSkeleton() {
 
 // Customer chat with the store. Realtime is a bonus: every focus refetches, so a dead channel only costs the live delivery.
 export default function MessagesScreen() {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const { session, loading } = useSession()
   const userId = session?.user.id ?? null
   const toast = useToast()
@@ -352,7 +359,7 @@ export default function MessagesScreen() {
               disabled={blocked || empty}
               onPress={submit}
               style={styles.send}>
-              {pending ? <ActivityIndicator color={color.obsidian} /> : <Ionicons name="send" size={24} color={blocked || empty ? color.stonewash : color.red} />}
+              {pending ? <ActivityIndicator color={color.obsidian} /> : <Ionicons name="send" size={24} color={blocked || empty ? color.stonewash : color.redInk} />}
             </PressableScale>
           </View>
         )}
@@ -361,9 +368,12 @@ export default function MessagesScreen() {
   )
 }
 
-const Gap = () => <View style={styles.gap} />
+function Gap() {
+  const styles = useStyles()
+  return <View style={styles.gap} />
+}
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   message: { padding: space.lg },
   list: { padding: space.lg },
@@ -381,6 +391,7 @@ const styles = StyleSheet.create({
   field: { flex: 1, gap: space.xs },
   input: { ...type.body, borderWidth: 1, borderColor: color.stonewash, borderRadius: radius.soft, minHeight: 48, maxHeight: 120, paddingHorizontal: space.md, paddingVertical: space.md, backgroundColor: color.paper },
   count: { alignSelf: 'flex-end', color: color.graphite },
-  countWarn: { color: color.red, fontFamily: font.semibold },
+  countWarn: { color: color.redInk, fontFamily: font.semibold },
   send: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
 })
+)
