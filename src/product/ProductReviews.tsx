@@ -264,6 +264,7 @@ export function ProductReviews({ productId }: { productId: string }) {
             {state.page < state.totalPages && (
               <Button testID="reviews-load-more" variant="secondary" label={state.more === 'error' ? 'Try Again' : 'Load More Reviews'} pending={state.more === 'loading'} onPress={loadMore} />
             )}
+            {state.page >= state.totalPages && <Text testID="reviews-end" style={[type.small, styles.end]}>{"You've seen all reviews"}</Text>}
           </>
         )}
       </>
@@ -283,6 +284,7 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: space.lg, paddingVertical: space.lg, gap: space.md },
   stack: { gap: space.md },
   muted: { color: color.graphite },
+  end: { textAlign: 'center', paddingVertical: space.md },
   fill: { width: '100%', height: '100%' },
   stars: { flexDirection: 'row', gap: 2 },
   summary: { flexDirection: 'row', alignItems: 'center', gap: space.lg },

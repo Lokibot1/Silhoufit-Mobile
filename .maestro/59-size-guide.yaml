@@ -29,7 +29,7 @@ appId: ${APP_ID}
     optional: true
 - scrollUntilVisible:
     element:
-      id: 'size-guide-link|product-description|product-reviews'
+      id: 'size-guide-link|product-description|product-reviews|product-reviews-empty'
     direction: DOWN
     timeout: 20000
 - runFlow:

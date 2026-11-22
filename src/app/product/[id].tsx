@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { useCallback, useRef, useState } from 'react'
@@ -11,7 +12,6 @@ import { ApiError, errorMessage } from '@/lib/api'
 import { peso } from '@/lib/format'
 import { useCartCount } from '@/lib/useCartCount'
 import { useRequest } from '@/lib/useRequest'
-import { ProductReviews } from '@/product/ProductReviews'
 import { SizeGuideSheet } from '@/product/SizeGuideSheet'
 import { WishlistHeart } from '@/product/WishlistHeart'
 import { Button } from '@/ui/Button'
@@ -260,7 +260,23 @@ function ProductView({ product }: { product: Product }) {
           </View>
         )}
 
-        <ProductReviews productId={product.id} />
+        {rated ? (
+          <PressableScale
+            testID="product-reviews"
+            accessibilityRole="button"
+            accessibilityLabel={`Rated ${product.rating?.toFixed(1)} out of 5 from ${reviews}. Opens customer reviews.`}
+            onPress={() => router.push(`/product/reviews/${product.id}`)}
+            style={styles.reviewsRow}>
+            <Ionicons name="star" size={16} color={color.obsidian} />
+            <Text style={[type.body, type.numeric, styles.reviewsAverage]}>{product.rating?.toFixed(1)}</Text>
+            <Text style={[type.small, type.numeric, styles.reviewsCount]}>{reviews}</Text>
+            <Ionicons name="chevron-forward" size={20} color={color.obsidian} />
+          </PressableScale>
+        ) : (
+          <View testID="product-reviews-empty" style={styles.reviewsRow}>
+            <Text style={[type.small, styles.reviewsCount]}>No reviews yet</Text>
+          </View>
+        )}
       </ScrollView>
       <SizeGuideSheet visible={guideOpen} onClose={() => setGuideOpen(false)} category={product.category} variants={variants} selected={chosenSize === NONE ? null : chosenSize} />
 
@@ -391,6 +407,9 @@ const styles = StyleSheet.create({
   hint: { ...type.small, color: color.graphite },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
   description: { ...type.body, color: color.graphite },
+  reviewsRow: { minHeight: TARGET, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.sm },
+  reviewsAverage: { fontFamily: font.semibold },
+  reviewsCount: { flex: 1 },
   bar: { paddingHorizontal: space.lg, paddingTop: space.sm, gap: space.sm, backgroundColor: color.paper, borderTopWidth: 1, borderTopColor: color.porcelain },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   barButton: { flex: 1 },

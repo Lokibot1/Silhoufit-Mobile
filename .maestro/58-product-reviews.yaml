@@ -1,7 +1,8 @@
 appId: ${APP_ID}
 ---
 # Product reviews, signed out (the endpoint is public), read-only. Needs an active product as the first Shop card.
-# The section always ends in one of: the summary (`reviews-average`), "No reviews yet" (`reviews-empty`) or its own error (`reviews-retry`).
+# The product page shows one summary row (`product-reviews`, opens the Customer reviews screen) or "No reviews yet" (`product-reviews-empty`).
+# On the Customer reviews screen the section always ends in one of: the summary (`reviews-average`), "No reviews yet" (`reviews-empty`) or its own error (`reviews-retry`).
 # With reviews it filters (5 stars, with photos, back to All), cycles the sort, loads more when there is another page, and opens and
 # closes a review photo when one exists. Whatever it shows, the rest of the page (name, Add to Cart) is still there.
 - runFlow: subflows/launch.yaml
@@ -17,12 +18,23 @@ appId: ${APP_ID}
     timeout: 15000
 - scrollUntilVisible:
     element:
-      id: product-reviews
+      id: 'product-reviews|product-reviews-empty'
     direction: DOWN
     timeout: 20000
+- runFlow:
+    when:
+      visible:
+        id: product-reviews
+    commands:
+      - tapOn:
+          id: product-reviews
+      - extendedWaitUntil:
+          visible:
+            id: reviews-back
+          timeout: 15000
 - extendedWaitUntil:
     visible:
-      id: 'reviews-average|reviews-empty|reviews-retry'
+      id: 'reviews-average|reviews-empty|reviews-retry|product-reviews-empty'
     timeout: 15000
 - runFlow:
     when:
@@ -115,6 +127,13 @@ appId: ${APP_ID}
       - assertVisible: No reviews yet
       - assertNotVisible:
           id: reviews-filter-all
-# A failure here is its own block with Retry and never replaces the page.
+# A failure here is its own block with Retry and never replaces the page; Back to Product returns to it.
+- runFlow:
+    when:
+      visible:
+        id: reviews-back
+    commands:
+      - tapOn:
+          id: reviews-back
 - assertVisible:
     id: product-add-to-cart

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native'
 
 import { ApiError } from '@/lib/api'
 import ProductScreen from '../app/product/[id]'
@@ -434,6 +434,25 @@ it('shows the heart, the size guide link and the reviews section, in order, with
   expect(screen.getByRole('button', { name: 'Size guide' })).toBe(screen.getByTestId('size-guide-link'))
   expect(screen.getByTestId('product-reviews')).toBeTruthy()
   expect(screen.getByTestId('product-add-to-cart')).toBeTruthy()
+})
+
+it('opens the customer reviews screen from the summary row', async () => {
+  mockFetch.mockResolvedValue(product())
+  await render(<ProductScreen />)
+  const row = await screen.findByTestId('product-reviews')
+  expect(within(row).getByText('4.5')).toBeTruthy()
+  expect(within(row).getByText('12 reviews')).toBeTruthy()
+  expect(screen.getByLabelText('Rated 4.5 out of 5 from 12 reviews. Opens customer reviews.')).toBe(row)
+  await fireEvent.press(row)
+  expect(router.push).toHaveBeenCalledWith('/product/reviews/p1')
+})
+
+it('shows No reviews yet without navigating when there are no reviews', async () => {
+  mockFetch.mockResolvedValue(product({ rating: null, reviewCount: 0 }))
+  await render(<ProductScreen />)
+  expect(await screen.findByText('No reviews yet')).toBeTruthy()
+  expect(screen.queryByTestId('product-reviews')).toBeNull()
+  expect(screen.queryByRole('button', { name: /Opens customer reviews/ })).toBeNull()
 })
 
 it('opens the size guide from the link with the picked size highlighted, and closes it', async () => {

@@ -46,6 +46,15 @@ function Gate() {
           }}
         />
         <Stack.Screen
+          name="product/reviews/[id]"
+          options={{
+            headerTitle: () => <Text accessibilityRole="header" style={type.h2}>Customer reviews</Text>,
+            headerStyle: { backgroundColor: color.paper },
+            headerShadowVisible: false,
+            headerTintColor: color.obsidian,
+          }}
+        />
+        <Stack.Screen
           name="orders/[id]"
           options={{
             headerTitle: () => <KralLogo width={72} />,
