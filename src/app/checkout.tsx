@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { fetchAddresses } from '@/api/addresses'
 import { fetchCart, removeCartItem } from '@/api/cart'
-import { createOrder, fetchOrdersPage, quoteShipping, type Order, type ShippingQuote } from '@/api/orders'
+import { createOrder, deliveryProblem, fetchOrdersPage, quoteShipping, type Order, type ShippingQuote } from '@/api/orders'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { peso } from '@/lib/format'
@@ -198,11 +198,17 @@ export default function CheckoutScreen() {
     const pick = { label: 'Pick another address', run: () => setPicking(true) }
     const status = failure instanceof ApiError ? failure.status : undefined
     // Only a request that went out and got no clear answer can have created the order; every other failure is a definite "not placed".
-    const unsure = !!sent && (!(failure instanceof ApiError) || failure.kind === 'network' || failure.kind === 'server')
+    // A coded failure is the server's definite refusal, whatever its status.
+    const problem = deliveryProblem(failure)
+    const unsure = !problem && !!sent && (!(failure instanceof ApiError) || failure.kind === 'network' || failure.kind === 'server')
     unknown.current = unsure ? sent : null
     if (isExpired(failure)) {
       toast('Your session has expired. Sign in again.')
       return expire()
+    }
+    if (problem) {
+      const actions = [...(problem.undeliverable ? [pick] : []), ...(problem.retry ? [{ label: 'Try Again', run: () => void place(true) }] : [])]
+      return setNotice({ message: problem.message, actions })
     }
     if (status === 403) return setNotice({ message: "You don't have permission to place this order." })
     if (status === 409) {
@@ -338,7 +344,7 @@ export default function CheckoutScreen() {
         </View>
         <AddressSection req={addresses} selected={selected} disabled={placing} onChange={() => setPicking(true)} onAdd={addAddress} />
         <ItemsSection req={cart} />
-        <ShippingSection idle={idleShipping} req={shipping} />
+        <ShippingSection idle={idleShipping} req={shipping} onPick={() => setPicking(true)} />
         <PaymentSection />
         <SummarySection {...amounts} />
       </ScrollView>

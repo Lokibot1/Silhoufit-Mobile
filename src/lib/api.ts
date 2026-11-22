@@ -11,6 +11,7 @@ export class ApiError extends Error {
     readonly status?: number,
     readonly code?: string,
     readonly retryAfterMs?: number,
+    readonly retryable?: boolean,
   ) {
     super(`Request failed (${kind}).`)
   }
@@ -25,11 +26,11 @@ const retryAfterMs = (r: Response) => {
   return Math.min(s > 0 ? s : 15, 120) * 1000
 }
 
-async function errorBody(response: Response): Promise<{ detail?: string; code?: string }> {
+async function errorBody(response: Response): Promise<{ detail?: string; code?: string; retryable?: boolean }> {
   try {
-    const { message, code } = (await response.json()) as { message?: unknown; code?: unknown }
+    const { message, code, retryable } = (await response.json()) as { message?: unknown; code?: unknown; retryable?: unknown }
     const text = Array.isArray(message) ? message.filter((m) => typeof m === 'string').join('; ') : message
-    return { detail: typeof text === 'string' && text ? text.slice(0, 300) : undefined, code: typeof code === 'string' ? code : undefined }
+    return { detail: typeof text === 'string' && text ? text.slice(0, 300) : undefined, code: typeof code === 'string' ? code : undefined, retryable: typeof retryable === 'boolean' ? retryable : undefined }
   } catch {
     return {}
   }
@@ -71,8 +72,8 @@ export async function request(method: 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE
     throw new ApiError('network')
   }
   if (!response.ok) {
-    const { detail, code } = await errorBody(response)
-    throw new ApiError(STATUS_KIND[response.status] ?? 'server', detail, response.status, code, retryAfterMs(response))
+    const { detail, code, retryable } = await errorBody(response)
+    throw new ApiError(STATUS_KIND[response.status] ?? 'server', detail, response.status, code, retryAfterMs(response), retryable)
   }
   try {
     return await response.json()

@@ -44,3 +44,8 @@ it('leaves retryAfterMs undefined on other errors', async () => {
   failWith(500, { 'Retry-After': '7' })
   await expect(request('GET', '/x')).rejects.toMatchObject({ retryAfterMs: undefined })
 })
+
+it.each([[false, false], [true, true], ['false', undefined], [0, undefined]])('reads retryable %p as %p', async (sent, expected) => {
+  fetchMock.mockResolvedValue({ ok: false, status: 400, headers: new Headers(), json: async () => ({ code: 'OUT_OF_SERVICE_AREA', retryable: sent }) })
+  await expect(request('GET', '/x')).rejects.toMatchObject({ code: 'OUT_OF_SERVICE_AREA', retryable: expected })
+})

@@ -1,4 +1,4 @@
-import { ApiError, isHttps, isRecord, num, request, str } from '@/lib/api'
+import { ApiError, errorMessage, isHttps, isRecord, num, request, str } from '@/lib/api'
 
 // Status values stay plain strings: one the API adds later reads as a neutral label and offers no actions.
 export type OrderItem = { id: string; name: string; size: string | null; color: string | null; quantity: number; unitPrice: number; lineTotal: number; imageUrl: string | null; sku: string | null }
@@ -236,6 +236,23 @@ export const isClosed = ({ status }: Pick<Order, 'status'>) => CLOSED.includes(s
 export const orderSignature = (o: Order) =>
   [o.id, o.status, o.paymentStatus, o.total, o.updatedAt, o.paidAt, o.cancelledAt, o.cancellationReason, o.shipment?.status, o.shipment?.pickupTime, o.shipment?.deliveredAt, o.shipment?.trackingUrl].join('|')
 export const ordersSignature = (orders: Order[]) => orders.map(orderSignature).join('\n')
+
+const ADDRESS_CODES = ['OUT_OF_SERVICE_AREA', 'ROUTE_TOO_FAR', 'INVALID_MARKET', 'INVALID_DELIVERY_ROUTE', 'INCOMPLETE_ADDRESS']
+const OUR_SIDE_CODES = ['PICKUP_LOCATION_NOT_CONFIGURED', 'PICKUP_LOCATION_INVALID', 'COURIER_SERVICE_UNAVAILABLE', 'COURIER_AUTH_ERROR']
+
+/** A coded shipping failure is a definite "not placed". `undeliverable`: another address can fix it. `retry`: false when asking again cannot help. Null when the code is unknown and retrying is allowed. */
+export function deliveryProblem(error: unknown): { message: string; undeliverable: boolean; retry: boolean } | null {
+  if (!(error instanceof ApiError) || !error.code) return null
+  if (ADDRESS_CODES.includes(error.code)) return { message: `${error.detail ?? ''} Choose another delivery address.`.trim(), undeliverable: true, retry: false }
+  if (error.code === 'INVALID_PHONE_NUMBER') {
+    return { message: "The phone number on this address can't be used by our courier. Edit the address with a Philippine mobile number like 0917 123 4567.", undeliverable: true, retry: false }
+  }
+  if (OUR_SIDE_CODES.includes(error.code)) {
+    return { message: "Delivery isn't available right now because of a problem on our side. Your order was not placed. Contact us and we'll sort it out.", undeliverable: false, retry: false }
+  }
+  // Any other code only matters when the server says asking again cannot help.
+  return error.retryable === false ? { message: errorMessage(error), undeliverable: false, retry: false } : null
+}
 
 export type ShippingQuote = { quotationId: string; courier: string; shippingFee: number; expiresAt: string }
 

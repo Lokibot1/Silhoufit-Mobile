@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { awaitsPayment, cancelOrder, isClosed, orderSignature, ordersSignature, createCheckoutSession, createOrder, quoteShipping, fetchAllOrders, fetchOrder, fetchOrdersPage, matchesTab, ORDER_TABS, buildTimeline, tabCounts, trackingLink, paymentLabel, shipmentLabel, statusLabel, toOrder, toOrdersPage } from '../orders'
+import { awaitsPayment, cancelOrder, isClosed, orderSignature, ordersSignature, createCheckoutSession, createOrder, deliveryProblem, quoteShipping, fetchAllOrders, fetchOrder, fetchOrdersPage, matchesTab, ORDER_TABS, buildTimeline, tabCounts, trackingLink, paymentLabel, shipmentLabel, statusLabel, toOrder, toOrdersPage } from '../orders'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -282,5 +282,27 @@ describe('live poll helpers', () => {
     expect(orderSignature(toOrder(raw({ shipment: { status: 'ON_GOING', pickupTime: null, deliveredAt: null, trackingUrl: null } })))).not.toBe(orderSignature(base))
     expect(ordersSignature([base, base])).toBe(ordersSignature([toOrder(raw()), toOrder(raw())]))
     expect(ordersSignature([base])).not.toBe(ordersSignature([base, base]))
+  })
+})
+
+describe('deliveryProblem', () => {
+  const coded = (code: string, retryable?: boolean, detail = 'No couriers there.') => new ApiError('validation', detail, 400, code, undefined, retryable)
+  it.each(['OUT_OF_SERVICE_AREA', 'ROUTE_TOO_FAR', 'INVALID_MARKET', 'INVALID_DELIVERY_ROUTE', 'INCOMPLETE_ADDRESS'])('%s: server message, pick an address, no retry', (code) => {
+    expect(deliveryProblem(coded(code, true))).toEqual({ message: 'No couriers there. Choose another delivery address.', undeliverable: true, retry: false })
+  })
+  it('INVALID_PHONE_NUMBER: fixed copy, pick an address, no retry', () => {
+    expect(deliveryProblem(coded('INVALID_PHONE_NUMBER'))).toEqual({ message: expect.stringContaining('0917 123 4567'), undeliverable: true, retry: false })
+  })
+  it.each(['PICKUP_LOCATION_NOT_CONFIGURED', 'PICKUP_LOCATION_INVALID', 'COURIER_SERVICE_UNAVAILABLE', 'COURIER_AUTH_ERROR'])('%s: our-side copy, no retry', (code) => {
+    expect(deliveryProblem(coded(code, true))).toEqual({ message: expect.stringContaining('problem on our side'), undeliverable: false, retry: false })
+  })
+  it('an unknown code only matters when retryable is false', () => {
+    expect(deliveryProblem(coded('SOMETHING_NEW', false))).toMatchObject({ undeliverable: false, retry: false })
+    expect(deliveryProblem(coded('SOMETHING_NEW', true))).toBeNull()
+    expect(deliveryProblem(coded('SOMETHING_NEW'))).toBeNull()
+  })
+  it('is null without a code or for a non-ApiError', () => {
+    expect(deliveryProblem(new ApiError('server', undefined, 500))).toBeNull()
+    expect(deliveryProblem(new Error('x'))).toBeNull()
   })
 })

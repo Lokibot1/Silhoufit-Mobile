@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native'
 
 import type { Address } from '@/api/addresses'
 import type { Cart, CartItem } from '@/api/cart'
-import type { ShippingQuote } from '@/api/orders'
+import { deliveryProblem, type ShippingQuote } from '@/api/orders'
 import { ApiError, errorMessage } from '@/lib/api'
 import { peso } from '@/lib/format'
 import { Button } from '@/ui/Button'
@@ -33,11 +33,12 @@ const Loading = ({ label, children }: { label: string; children: ReactNode }) =>
   <View accessible accessibilityLabel={label} accessibilityRole="progressbar" style={styles.gap}>{children}</View>
 )
 
-function Failure({ message, label, testID, onRetry }: { message: string; label: string; testID: string; onRetry: () => void }) {
+function Failure({ message, label, testID, onRetry, onPick }: { message: string; label: string; testID: string; onRetry?: () => void; onPick?: () => void }) {
   return (
     <View accessibilityRole="alert" style={styles.gap}>
       <Text style={styles.body}>{message}</Text>
-      <HeaderIcon testID={testID} name="refresh" label={label} onPress={onRetry} />
+      {onPick && <Button testID="checkout-shipping-pick" label="Pick another address" variant="secondary" onPress={onPick} />}
+      {onRetry && <HeaderIcon testID={testID} name="refresh" label={label} onPress={onRetry} />}
     </View>
   )
 }
@@ -134,6 +135,8 @@ export function ItemsSection({ req }: { req: Req<Cart> }) {
 
 // A 400 naming coordinates means the address has no map pin; the server's own text is not shown.
 function shippingCopy(error: unknown): string {
+  const problem = deliveryProblem(error)
+  if (problem) return problem.message
   if (error instanceof ApiError && error.kind === 'validation' && /coordinates/i.test(error.detail ?? '')) return "This address has no map pin, so we can't price delivery. Choose another address."
   if (error instanceof ApiError && error.kind === 'rate-limit') return 'Too many shipping requests. Wait a moment and tap Retry.'
   if (error instanceof ApiError && error.kind === 'network') return "Can't reach the server to price delivery. Check your connection and tap Retry."
@@ -141,7 +144,7 @@ function shippingCopy(error: unknown): string {
 }
 
 // `idle`: the fee cannot be asked for yet because the address is still loading or missing.
-export function ShippingSection({ idle, req }: { idle: 'loading' | 'none' | null; req: Req<ShippingQuote> }) {
+export function ShippingSection({ idle, req, onPick }: { idle: 'loading' | 'none' | null; req: Req<ShippingQuote>; onPick: () => void }) {
   let body: ReactNode
   if (idle === 'loading' || (!idle && req.status === 'loading')) {
     body = (
@@ -150,7 +153,10 @@ export function ShippingSection({ idle, req }: { idle: 'loading' | 'none' | null
       </Loading>
     )
   } else if (idle === 'none') body = <Text testID="checkout-shipping-idle" style={styles.body}>Choose a delivery address to see the shipping fee.</Text>
-  else if (req.status === 'error') body = <Failure message={shippingCopy(req.error)} label="Retry shipping fee" testID="checkout-shipping-retry" onRetry={req.retry} />
+  else if (req.status === 'error') {
+    const problem = deliveryProblem(req.error)
+    body = <Failure message={shippingCopy(req.error)} label="Retry shipping fee" testID="checkout-shipping-retry" onRetry={problem?.retry === false ? undefined : req.retry} onPick={problem?.undeliverable ? onPick : undefined} />
+  }
   else if (req.data) {
     body = (
       <View style={styles.row}>

@@ -6,7 +6,7 @@ import CheckoutScreen from '../app/checkout'
 
 jest.mock('@/api/cart', () => ({ fetchCart: jest.fn(), removeCartItem: jest.fn() }))
 jest.mock('@/api/addresses', () => ({ fetchAddresses: jest.fn() }))
-jest.mock('@/api/orders', () => ({ quoteShipping: jest.fn(), createOrder: jest.fn(), fetchOrdersPage: jest.fn() }))
+jest.mock('@/api/orders', () => ({ deliveryProblem: jest.requireActual('@/api/orders').deliveryProblem, quoteShipping: jest.fn(), createOrder: jest.fn(), fetchOrdersPage: jest.fn() }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
 const mockToast = jest.fn()
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
@@ -200,6 +200,15 @@ it('never shows a half sum while the shipping fee is unknown', async () => {
   expect(screen.getByTestId('checkout-bar-total').props.children).toBe('—')
 })
 
+it('an undeliverable address shows Pick another address and no Retry', async () => {
+  ordersApi.quoteShipping.mockRejectedValue(new ApiError('validation', 'We do not deliver to this area yet.', 400, 'OUT_OF_SERVICE_AREA', undefined, false))
+  await render(<CheckoutScreen />)
+  expect(await screen.findByText('We do not deliver to this area yet. Choose another delivery address.')).toBeTruthy()
+  expect(screen.queryByTestId('checkout-shipping-retry')).toBeNull()
+  await fireEvent.press(screen.getByTestId('checkout-shipping-pick'))
+  expect(screen.getByTestId('address-option-home')).toBeTruthy() // the sheet is open
+})
+
 const placeButton = () => screen.getByTestId('checkout-place-order')
 const ready = async () => {
   await render(<CheckoutScreen />)
@@ -329,6 +338,25 @@ describe('a refused order is explained inline', () => {
     await fireEvent.press(screen.getByTestId('checkout-notice-action'))
     expect(screen.getByTestId('address-option-home')).toBeTruthy() // the sheet is open
     expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('an invalid phone: Pick another address, no Try Again', async () => {
+    ordersApi.createOrder.mockRejectedValue(new ApiError('validation', 'Invalid phone', 400, 'INVALID_PHONE_NUMBER', undefined, false))
+    await ready()
+    await place()
+    expect(await screen.findByText(/Philippine mobile number/)).toBeTruthy()
+    expect(within(screen.getByTestId('checkout-notice-action')).getByText('Pick another address')).toBeTruthy()
+    expect(screen.queryByText('Try Again')).toBeNull()
+  })
+
+  it('a coded 5xx with retryable false is "not placed": no lookup, no Try Again', async () => {
+    ordersApi.createOrder.mockRejectedValue(new ApiError('server', 'x', 503, 'COURIER_AUTH_ERROR', undefined, false))
+    await ready()
+    await place()
+    expect(await screen.findByText(/problem on our side/)).toBeTruthy()
+    expect(screen.queryByText('Try Again')).toBeNull()
+    expect(screen.queryByTestId('checkout-notice-action')).toBeNull()
+    expect(ordersApi.fetchOrdersPage).not.toHaveBeenCalled()
   })
 
   it('a 404 address: offers another address', async () => {
