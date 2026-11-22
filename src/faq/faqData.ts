@@ -6,13 +6,13 @@ export const FAQ: FaqItem[] = [
   {
     id: 'what-is-silhoufit',
     question: 'What is SilhouFit?',
-    answer: "SilhouFit is KRAL's AR fitting. It uses your camera and the measurements you enter to show how a piece sits on you. Nothing is uploaded. AR try-on is coming soon to the app; for now, save your measurements to get size advice.",
+    answer: "SilhouFit is KRAL's AR fitting. It uses the measurements you enter to show how a piece fits you. Nothing is uploaded. In the app, AR Try-On works on shirts: it recommends a size and shows how the chest, waist, shoulders and sleeve fit.",
     keywords: ['silhoufit', 'ar', 'camera', 'try on'],
   },
   {
     id: 'how-silhoufit-works',
     question: 'How does SilhouFit work?',
-    answer: 'AR try-on is coming soon to the app, and the module is still a working prototype. It will turn on your camera, read body landmarks on your own device and render a 3D garment, scaled to the piece you picked, over the video. It will work on pieces marked AR-ready.',
+    answer: 'Save your measurements, then open AR Try-On on a shirt marked AR-ready. It compares your chest, waist, shoulders and sleeve with each size and recommends one. The module is still a working prototype, and live camera try-on is coming.',
     keywords: ['ar', 'camera', 'pose', '3d', 'virtual'],
   },
   {

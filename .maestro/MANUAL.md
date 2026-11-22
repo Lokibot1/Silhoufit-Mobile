@@ -324,7 +324,7 @@ Needs a rebuilt dev client (the WebView is a native module) and an order that is
 - [ ] Addresses empty state (supersedes the disabled "Add Address" above): there is no Add Address button at all, only the explanation and the website hint.
 
 ## Body Profile and first-time tour (device)
-- [ ] Profile -> Body Profile opens the form; with no saved profile it reads "Your measurements help us suggest the right size. AR try-on is coming soon." and every field is empty; with one saved, every field is prefilled. "Only you can see your measurements" and the cm/kg note are visible.
+- [ ] Profile -> Body Profile opens the form; with no saved profile it reads "Your measurements help us suggest the right size and show how a shirt fits in AR Try-On." and every field is empty; with one saved, every field is prefilled. "Only you can see your measurements" and the cm/kg note are visible.
 - [ ] Number fields open the decimal keypad, digits are right-aligned and line up, the helper shows the range ("60-180 cm"); letters, emoji and a second decimal point never appear; a comma from a regional keypad becomes a point.
 - [ ] The error shows after leaving a field and updates as you type. Odd pairs (inseam 110 with height 170) show an inline note and never block Save. Bust only appears after choosing Female.
 - [ ] Save Measurements stays disabled until something changes, shows a spinner and cannot be double-tapped; success toasts "Measurements saved" and returns to Profile; reopening shows the new values. A new account's first save works (PUT); a later one changes only edited fields (PATCH). Airplane mode keeps the form and shows the error banner.

@@ -14,7 +14,7 @@ import { useReduceMotion } from '@/ui/useReduceMotion'
 
 const SLIDES: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }[] = [
   { icon: 'shirt-outline', title: 'Shop and Find Your Size', body: 'Browse KRAL pieces, filter by category and open any piece for photos, colours and sizes. The size guide shows each size in centimetres.' },
-  { icon: 'body-outline', title: 'Find Your Size', body: 'Save your measurements under Profile, Body Profile to get size advice. Only you can see them. AR try-on is coming soon.' },
+  { icon: 'body-outline', title: 'Find Your Size', body: 'Save your measurements under Profile, Body Profile to get size advice. Only you can see them. AR Try-On uses them to recommend a shirt size and show how it fits.' },
   { icon: 'cube-outline', title: 'Order and Track', body: 'Check out in a few taps, then follow each order from Orders: payment, packing, shipping and delivery.' },
 ]
 
