@@ -1,11 +1,12 @@
 import { StyleSheet, Text } from 'react-native'
 
 import { PressableScale } from './PressableScale'
-import { color, font, radius, space } from './theme'
+import { font, radius, space, themed } from './theme'
 
 // Filter chip: 36px tall with 4px of hit slop above and below so the touch target is 44px (a ScrollView holding chips needs 4px vertical padding or it clips the slop).
 const FONT_CAP = 1.3 // 20px line height x 1.3 stays inside the fixed 36px height
 export function Chip({ label, selected, onPress, testID, accessibilityLabel, disabled, tall, radio }: { radio?: boolean; tall?: boolean; label: string; selected: boolean; onPress: () => void; testID: string; accessibilityLabel?: string; disabled?: boolean }) {
+  const styles = useStyles()
   return (
     <PressableScale
       testID={testID}
@@ -21,7 +22,7 @@ export function Chip({ label, selected, onPress, testID, accessibilityLabel, dis
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   chip: { height: 36, minWidth: 44, paddingHorizontal: space.lg, borderRadius: radius.pill, backgroundColor: color.porcelain, alignItems: 'center', justifyContent: 'center' },
   // Own 44px height instead of hit slop, for chips in a wrapping row (no ScrollView padding to hold the slop).
   tall: { height: undefined, minHeight: 44 },
@@ -30,4 +31,4 @@ const styles = StyleSheet.create({
   selectedText: { color: color.paper },
   off: { opacity: 0.4 },
   offText: { textDecorationLine: 'line-through' },
-})
+}))

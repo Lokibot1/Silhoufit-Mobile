@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View, type TextStyle } from 'react-native'
 
 import { PressableScale } from './PressableScale'
-import { color, radius, space, type } from './theme'
+import { radius, space, themed, useTheme } from './theme'
 
 type Props = {
   label: string
@@ -19,6 +19,8 @@ type Props = {
 
 // KRAL button: soft corners, 48px, uppercase. Primary is Red; secondary is an Obsidian outline that fills when pressed.
 export function Button({ label, onPress, variant = 'primary', testID, accessibilityLabel, accessibilityHint, pending = false, disabled = false, icon, labelStyle }: Props) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const primary = variant === 'primary'
   const off = pending || disabled
   return (
@@ -38,11 +40,11 @@ export function Button({ label, onPress, variant = 'primary', testID, accessibil
       ]}>
       {({ pressed }) =>
         pending ? (
-          <ActivityIndicator color={primary ? color.paper : color.obsidian} />
+          <ActivityIndicator color={primary ? color.onRed : color.obsidian} />
         ) : (
           <View style={styles.row}>
             {icon}
-            <Text style={[type.button, { color: primary || pressed ? color.paper : color.obsidian }, labelStyle]}>{label}</Text>
+            <Text style={[type.button, { color: primary ? color.onRed : pressed ? color.paper : color.obsidian }, labelStyle]}>{label}</Text>
           </View>
         )
       }
@@ -50,7 +52,7 @@ export function Button({ label, onPress, variant = 'primary', testID, accessibil
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   base: { minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, borderRadius: radius.soft },
   primary: { backgroundColor: color.red },
   primaryPressed: { backgroundColor: color.redPress },
@@ -58,4 +60,4 @@ const styles = StyleSheet.create({
   secondaryPressed: { backgroundColor: color.obsidian },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   pending: { opacity: 0.6 },
-})
+}))

@@ -3,7 +3,7 @@ import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { PressableScale } from './PressableScale'
-import { color, space, type } from './theme'
+import { space, themed } from './theme'
 
 const DISMISS_MS = 2500
 // A toast with an action (Undo) stays longer so there is time to read it and reach the button.
@@ -17,6 +17,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState<string | null>(null)
   const [action, setAction] = useState<Action | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const styles = useStyles()
   const insets = useSafeAreaInsets()
 
   useEffect(() => () => clearTimeout(timer.current), [])
@@ -65,10 +66,10 @@ export function useToast(): Show {
   return show
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   host: { position: 'absolute', left: space.lg, right: space.lg },
   toast: { backgroundColor: color.obsidian, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.lg },
   text: { ...type.body, color: color.paper },
   action: { minHeight: 44, minWidth: 44, alignSelf: 'flex-start', justifyContent: 'center', marginTop: space.xs },
   actionText: { ...type.button, color: color.paper, textDecorationLine: 'underline' },
-})
+}))

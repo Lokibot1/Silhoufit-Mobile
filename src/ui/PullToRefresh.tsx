@@ -5,7 +5,7 @@ import Animated, { ReduceMotion, useAnimatedStyle, useDerivedValue, useSharedVal
 import { scheduleOnRN } from 'react-native-worklets'
 
 import { PULL_THRESHOLD, pastThreshold, pullOffset } from './pullMath'
-import { color, hairline, radius, space } from './theme'
+import { radius, space, themed, useTheme } from './theme'
 import { useReduceMotion } from './useReduceMotion'
 
 const SPINNER = 40
@@ -29,6 +29,8 @@ type Props = {
 // Custom pull to refresh (replaces RefreshControl): `<PullToRefresh refreshing onRefresh>{(scroll) => <FlatList {...scroll} />}</PullToRefresh>`.
 // The list follows the finger with progressive resistance, refreshes once pulled past PULL_THRESHOLD, and springs back when done.
 export function PullToRefresh({ refreshing, onRefresh, children }: Props) {
+  const styles = useStyles()
+  const { color } = useTheme()
   const reduce = useReduceMotion()
   const offset = useSharedValue(0)
   const scrollY = useSharedValue(0)
@@ -112,7 +114,7 @@ export function PullToRefresh({ refreshing, onRefresh, children }: Props) {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, hairline }) => StyleSheet.create({
   fill: { flex: 1 },
   spinner: { position: 'absolute', top: 0, alignSelf: 'center', width: SPINNER, height: SPINNER, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: color.paper, ...hairline },
-})
+}))

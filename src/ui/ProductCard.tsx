@@ -7,7 +7,7 @@ import type { ProductListItem } from '@/api/products'
 import { peso, soldLabel } from '@/lib/format'
 import { PressableScale } from './PressableScale'
 import { Skeleton } from './Skeleton'
-import { color, font, radius, space, type } from './theme'
+import { font, radius, space, themed, useTheme } from './theme'
 
 const LOW_STOCK = 5
 const NAME_HEIGHT = 40 // two lines of 20
@@ -60,6 +60,8 @@ export function useCardRows(items: ProductListItem[]): CardRows {
 
 // `action` is one 44px button placed at the right end of the price row (the Wishlist's remove heart). It is a sibling of the card button, not inside it, so screen readers reach both.
 export function ProductCard({ item, onPress, action, rows = ALL_ROWS }: { item: ProductListItem; onPress?: () => void; action?: ReactNode; rows?: CardRows }) {
+  const styles = useStyles()
+  const { color } = useTheme()
   const width = useCardWidth()
   const [priceTop, setPriceTop] = useState<number | null>(null)
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
@@ -114,6 +116,7 @@ export function ProductCard({ item, onPress, action, rows = ALL_ROWS }: { item: 
 
 // Reserves the meta row by default: loaded cards usually have it, and a skeleton without it shifts every row down 24px when they land.
 export function ProductCardSkeleton({ rows = ALL_ROWS }: { rows?: CardRows }) {
+  const styles = useStyles()
   const width = useCardWidth()
   return (
     <View style={[styles.card, { width }]}>
@@ -128,19 +131,19 @@ export function ProductCardSkeleton({ rows = ALL_ROWS }: { rows?: CardRows }) {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   card: { gap: space.xs },
   tile: { backgroundColor: color.porcelain, borderRadius: radius.soft, overflow: 'hidden', marginBottom: space.xs },
   fill: { width: '100%', height: '100%' },
   fallback: { alignItems: 'center', justifyContent: 'center', padding: space.md },
   fallbackText: { ...type.label, textAlign: 'center' },
   badge: { position: 'absolute', left: space.sm, bottom: space.sm, maxWidth: '90%', paddingHorizontal: space.sm, borderRadius: radius.pill, backgroundColor: color.paper },
-  badgeText: { fontFamily: font.medium, fontSize: 14, lineHeight: 20, color: color.red },
+  badgeText: { fontFamily: font.medium, fontSize: 14, lineHeight: 20, color: color.redInk },
   badgeSoldOut: { color: color.obsidian },
   name: { fontFamily: font.regular, fontSize: 14, lineHeight: 20, color: color.obsidian, height: NAME_HEIGHT },
   nameSkeleton: { height: NAME_HEIGHT, justifyContent: 'space-between', marginTop: space.xs },
   // Left-aligned under the name: in a two-column grid the price reads with its own product, not as a column to compare.
-  price: { fontFamily: font.bold, fontSize: 16, lineHeight: PRICE_HEIGHT, color: color.red, ...type.numeric, minHeight: PRICE_HEIGHT },
+  price: { fontFamily: font.bold, fontSize: 16, lineHeight: PRICE_HEIGHT, color: color.redInk, ...type.numeric, minHeight: PRICE_HEIGHT },
   priceBeside: { marginRight: ACTION_SIZE - 12 }, // the 44px target is wider than the 18px heart in it,
   action: { position: 'absolute', right: 0, width: ACTION_SIZE, height: ACTION_SIZE, alignItems: 'center', justifyContent: 'center' },
   soldOut: { color: color.graphite },
@@ -148,4 +151,4 @@ const styles = StyleSheet.create({
   meta: { flexDirection: 'row', alignItems: 'center', gap: space.xs, height: ROW_HEIGHT },
   metaText: { ...type.small, ...type.numeric, color: color.graphite },
   shrink: { flexShrink: 1 },
-})
+}))

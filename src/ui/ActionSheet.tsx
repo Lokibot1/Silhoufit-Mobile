@@ -3,7 +3,7 @@ import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { PressableScale } from './PressableScale'
-import { color, font, radius, space, type } from './theme'
+import { font, radius, space, themed, useTheme } from './theme'
 
 export type SheetOption = { label: string; onPress: () => void; testID: string; destructive?: boolean }
 
@@ -11,6 +11,8 @@ const ANDROID_CLOSE_MS = 300 // Android's Modal has no onDismiss: let its fade f
 
 // A bottom sheet of choices with a Cancel row. An option's action runs once the sheet is gone: a picker presented over a modal that is still closing fails or flickers.
 export function ActionSheet({ visible, title, options, onClose }: { visible: boolean; title: string; options: SheetOption[]; onClose: () => void }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const insets = useSafeAreaInsets()
   const after = useRef<(() => void) | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -49,12 +51,12 @@ export function ActionSheet({ visible, title, options, onClose }: { visible: boo
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: color.scrim },
   sheet: { backgroundColor: color.paper, borderTopLeftRadius: radius.soft, borderTopRightRadius: radius.soft, paddingTop: space.lg, paddingHorizontal: space.lg },
   title: { paddingBottom: space.sm },
   row: { minHeight: 48, justifyContent: 'center', borderTopWidth: 1, borderTopColor: color.porcelain },
   pressed: { backgroundColor: color.porcelain },
-  destructive: { color: color.red },
+  destructive: { color: color.redInk },
   cancel: { fontFamily: font.semibold },
-})
+}))

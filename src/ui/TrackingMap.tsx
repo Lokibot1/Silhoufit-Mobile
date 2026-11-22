@@ -4,7 +4,7 @@ import { WebView } from 'react-native-webview'
 
 import { HeaderIcon } from './HeaderIcon'
 import { Skeleton } from './Skeleton'
-import { color, hairline, space, type } from './theme'
+import { space, themed, useTheme } from './theme'
 
 export const MAP_HEIGHT = 460
 const TIMEOUT_MS = 20_000
@@ -16,6 +16,8 @@ const REFIT = `[800, 2500, 5000].forEach(function (ms) { setTimeout(function () 
 // Touches inside the map pan the map; the page scrolls by dragging anywhere outside it (the page padding and the text around it).
 // The parent keys it by URL: an unchanged link never reloads on a poll.
 export function TrackingMap({ url }: { url: string }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const [attempt, setAttempt] = useState(0)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
@@ -69,10 +71,10 @@ export function TrackingMap({ url }: { url: string }) {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, hairline, type }) => StyleSheet.create({
   box: { height: MAP_HEIGHT, backgroundColor: color.porcelain, ...hairline },
   fill: { flex: 1 },
   overlay: { ...StyleSheet.absoluteFill },
   loadingText: { ...type.small, position: 'absolute', alignSelf: 'center', top: MAP_HEIGHT / 2 - 10 },
   error: { backgroundColor: color.paper, padding: space.lg, gap: space.md, justifyContent: 'center' },
-})
+}))

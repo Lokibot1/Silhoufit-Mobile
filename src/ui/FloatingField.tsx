@@ -3,7 +3,7 @@ import { useEffect, useState, type ComponentRef, type Ref } from 'react'
 import { Animated, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native'
 
 import { PressableScale } from './PressableScale'
-import { color, radius, space, type } from '@/ui/theme'
+import { radius, space, themed, useTheme } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
 type Props = Omit<TextInputProps, 'style' | 'placeholder' | 'accessibilityLabel'> & {
@@ -32,7 +32,7 @@ export function FloatingField({
   value,
   error,
   helper,
-  background = color.paper,
+  background,
   toggleTestID,
   onPress,
   numeric,
@@ -43,6 +43,8 @@ export function FloatingField({
   ref,
   ...input
 }: Props) {
+  const styles = useStyles()
+  const { color } = useTheme()
   const reduceMotion = useReduceMotion()
   const [focused, setFocused] = useState(false)
   const [revealed, setRevealed] = useState(false)
@@ -55,7 +57,8 @@ export function FloatingField({
     Animated.timing(progress, { toValue: floated ? 1 : 0, duration: DURATION, useNativeDriver: true }).start()
   }, [floated, reduceMotion, progress])
 
-  const tint = error ? color.red : focused ? color.obsidian : color.graphite
+  const bg = background ?? color.paper
+  const tint = error ? color.redInk : focused ? color.obsidian : color.graphite
   const message = error ?? helper
   return (
     <View style={[styles.field, !editable && styles.disabled]}>
@@ -92,7 +95,7 @@ export function FloatingField({
             numberOfLines={1}
             style={[
               styles.label,
-              { color: tint, backgroundColor: background }, // always patched: at rest it sits over the empty input, and it must hide the border until it has settled
+              { color: tint, backgroundColor: bg }, // always patched: at rest it sits over the empty input, and it must hide the border until it has settled
               {
                 transform: [
                   { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -(height / 2 - 1)] }) },
@@ -132,7 +135,7 @@ export function FloatingField({
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   field: { gap: space.xs },
   disabled: { opacity: 0.5 },
   input: { ...type.body, minHeight: 56, paddingHorizontal: space.md, paddingVertical: space.lg },
@@ -143,5 +146,5 @@ const styles = StyleSheet.create({
   label: { ...type.body, paddingHorizontal: space.xs, transformOrigin: 'left center' },
   toggle: { position: 'absolute', right: space.xs, top: 6, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   message: { ...type.small, color: color.graphite, minHeight: 20 },
-  messageError: { color: color.red },
-})
+  messageError: { color: color.redInk },
+}))

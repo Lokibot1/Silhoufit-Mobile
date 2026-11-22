@@ -2,10 +2,11 @@ import { useEffect } from 'react'
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
 import type { DimensionValue } from 'react-native'
 
-import { color } from './theme'
+import { useTheme } from './theme'
 
 // A Porcelain block with a slow opacity pulse. Size it to match the content it stands in for.
 export function Skeleton({ width = '100%', height, radius = 0 }: { width?: DimensionValue; height: number; radius?: number }) {
+  const { color } = useTheme()
   const opacity = useSharedValue(1)
   useEffect(() => {
     opacity.value = withRepeat(withTiming(0.5, { duration: 800 }), -1, true)

@@ -2,7 +2,7 @@ import { Alert, Linking, StyleSheet, Text, View } from 'react-native'
 
 import { pickImages, type Photo } from '@/lib/imageUpload'
 import { ActionSheet } from './ActionSheet'
-import { color, space, type } from './theme'
+import { space, themed, useTheme } from './theme'
 import { useToast } from './toast'
 
 type Props = {
@@ -48,6 +48,8 @@ export function PhotoSourceSheet({ visible, onClose, title, onPhotos, square, li
 
 // The bar and the percent for an upload.
 export function UploadProgress({ percent, label, testID }: { percent: number; label: string; testID?: string }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   return (
     <View testID={testID} accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityValue={{ min: 0, max: 100, now: percent }} style={styles.row}>
       <View style={styles.track}>
@@ -58,9 +60,9 @@ export function UploadProgress({ percent, label, testID }: { percent: number; la
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   track: { flex: 1, height: 8, backgroundColor: color.porcelain, overflow: 'hidden' },
   fill: { height: 8, backgroundColor: color.red },
   percent: { width: 44, textAlign: 'right', color: color.graphite },
-})
+}))

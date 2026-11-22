@@ -6,7 +6,7 @@ import { dateOnly } from '@/lib/format'
 import { today } from '@/lib/profileValidation'
 import { Button } from './Button'
 import { FloatingField } from './FloatingField'
-import { color, radius, space, type } from './theme'
+import { radius, space, themed, useTheme } from './theme'
 
 const EARLIEST = new Date(1900, 0, 1)
 const ADULT_AGE = 18
@@ -38,6 +38,8 @@ type Props = {
 
 // A birthday is picked from a calendar, never typed: a dialog on Android, a sheet with an inline calendar on iOS. The input keeps `testID`; the button over it is `<testID>-open`.
 export function BirthdayField({ value, onChange, onClose, label = 'Birthday', error, helper, testID, editable = true }: Props) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState(() => startDate(value))
 
@@ -90,9 +92,9 @@ export function BirthdayField({ value, onChange, onClose, label = 'Birthday', er
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   scrim: { flex: 1, justifyContent: 'center', padding: space.lg, backgroundColor: color.scrim },
   dialog: { backgroundColor: color.paper, borderRadius: radius.soft, padding: space.lg, gap: space.md },
   actions: { flexDirection: 'row', gap: space.md },
   grow: { flex: 1 },
-})
+}))
