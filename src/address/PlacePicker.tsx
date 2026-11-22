@@ -10,7 +10,7 @@ import { Button } from '@/ui/Button'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { font, radius, space, themed, useTheme } from '@/ui/theme'
 
 const TARGET = 44
 const SKELETONS = [0, 1, 2, 3, 4, 5]
@@ -39,6 +39,8 @@ const failureCopy = (failure: unknown) =>
 
 // A field that opens a searchable bottom sheet of PSGC places. The list loads when the sheet opens (the API layer caches it).
 export function PlacePicker<T extends Item>({ testID, label, value, error, disabled, disabledHint, loadKey, load, onPick }: Props<T>) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const [open, setOpen] = useState(false)
   const tint = error ? color.red : color.stonewash
   return (
@@ -80,6 +82,8 @@ export function PlacePicker<T extends Item>({ testID, label, value, error, disab
 type SheetProps<T extends Item> = { title: string; selected: string; testID: string; loadKey: string; load: (signal: AbortSignal) => Promise<T[]>; onClose: () => void; onPick: (item: T) => void }
 
 function Sheet<T extends Item>({ title, selected, testID, loadKey, load, onClose, onPick }: SheetProps<T>) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const insets = useSafeAreaInsets()
   const { height } = useWindowDimensions()
   const list = useRequest(loadKey, load)
@@ -158,7 +162,7 @@ function Sheet<T extends Item>({ title, selected, testID, loadKey, load, onClose
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   field: { gap: space.xs },
   grow: { flex: 1 },
   box: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56, paddingHorizontal: space.md, paddingVertical: space.sm, borderWidth: 1, borderRadius: radius.soft },
@@ -166,7 +170,7 @@ const styles = StyleSheet.create({
   pressed: { backgroundColor: color.porcelain },
   placeholder: { color: color.graphite },
   message: { ...type.small, minHeight: 20 },
-  messageError: { color: color.red },
+  messageError: { color: color.redInk },
   scrim: { flex: 1, justifyContent: 'flex-end', backgroundColor: color.scrim },
   sheet: { backgroundColor: color.paper, paddingHorizontal: space.lg, paddingTop: space.lg, gap: space.md },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md },
@@ -177,4 +181,4 @@ const styles = StyleSheet.create({
   row: { minHeight: TARGET, justifyContent: 'center', paddingHorizontal: space.md, paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: color.porcelain },
   rowOn: { backgroundColor: color.obsidian },
   rowTextOn: { color: color.paper, fontFamily: font.semibold },
-})
+}))

@@ -33,7 +33,7 @@ import { Chip } from '@/ui/Chip'
 import { FloatingField } from '@/ui/FloatingField'
 import { MAP_HEIGHT, MapPicker } from '@/ui/MapPicker'
 import { Skeleton } from '@/ui/Skeleton'
-import { color, space, type } from '@/ui/theme'
+import { space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
@@ -89,6 +89,8 @@ type Props = {
 
 // One form for Add and Edit. A pin is required (the API refuses an address without one); it fills the area fields from OpenStreetMap, which the shopper can still change.
 export function AddressForm({ saved, fromCheckout }: Props) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const { signOut, profile } = useSession()
   const toast = useToast()
   const navigation = useNavigation()
@@ -364,7 +366,7 @@ export function AddressForm({ saved, fromCheckout }: Props) {
             disabled={pending || saved?.address.isDefault}
             onValueChange={(isDefault) => set({ isDefault })}
             trackColor={{ true: color.red, false: color.stonewash }}
-            thumbColor={color.paper}
+            thumbColor={color.onRed}
           />
         </View>
 
@@ -382,7 +384,7 @@ export function AddressForm({ saved, fromCheckout }: Props) {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: color.paper },
   content: { flexGrow: 1, padding: space.lg, gap: space.md, backgroundColor: color.paper },
   group: { gap: space.sm },
@@ -391,11 +393,12 @@ const styles = StyleSheet.create({
   body: { ...type.body, color: color.graphite },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 48 },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
-  invalid: { color: color.red },
-})
+  invalid: { color: color.redInk },
+}))
 
 // Matches the form's layout (title, fields, map, pickers, button) so nothing jumps when it loads.
 export function FormSkeleton() {
+  const styles = useStyles()
   return (
     <View testID="addr-loading" accessible accessibilityLabel="Loading" accessibilityRole="progressbar" style={styles.content}>
       <Skeleton width="30%" height={20} />

@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native'
 import { AddressForm, FormSkeleton } from '@/address/AddressForm'
 import { useSession } from '@/auth/session'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, space } from '@/ui/theme'
+import { space, themed } from '@/ui/theme'
 
 // Keyed by account, so switching accounts starts from a clean form instead of the last shopper's.
 export default function NewAddress() {
@@ -15,6 +15,7 @@ export default function NewAddress() {
 
 // Needs a session; the name is pre-filled from the profile, so it waits for it (a profile that failed to load still lets the form open, just empty).
 function NewAddressScreen() {
+  const styles = useStyles()
   const { session, loading } = useSession()
   const { from } = useLocalSearchParams<{ from?: string }>()
   const opening = useRef(false)
@@ -40,6 +41,6 @@ function NewAddressScreen() {
   return <AddressForm fromCheckout={from === 'checkout'} />
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   message: { flex: 1, padding: space.lg, backgroundColor: color.paper },
-})
+}))

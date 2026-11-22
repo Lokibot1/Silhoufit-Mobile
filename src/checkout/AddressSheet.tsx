@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Address } from '@/api/addresses'
 import { Button } from '@/ui/Button'
 import { PressableScale } from '@/ui/PressableScale'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { font, radius, space, themed, useTheme } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
 import { addressLines } from './AddressLines'
@@ -19,6 +19,8 @@ type Props = { visible: boolean; addresses: Address[]; selectedId: string | null
 
 // Pick where the order is delivered. A pinless address cannot be priced for delivery, so it is shown but disabled with the reason.
 export function AddressSheet({ visible, addresses, selectedId, onSelect, onAdd, onClose }: Props) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const insets = useSafeAreaInsets()
   const { height } = useWindowDimensions()
   const reduceMotion = useReduceMotion()
@@ -77,7 +79,7 @@ export function AddressSheet({ visible, addresses, selectedId, onSelect, onAdd, 
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   scrim: { flex: 1, justifyContent: 'flex-end', backgroundColor: color.scrim },
   fill: { flex: 1 },
   sheet: { backgroundColor: color.paper, paddingHorizontal: space.lg, paddingTop: space.lg, gap: space.md },
@@ -93,6 +95,6 @@ const styles = StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: radius.pill, backgroundColor: color.red },
   name: { ...type.body, fontFamily: font.semibold },
   line: { ...type.small, color: color.graphite },
-  tag: { ...type.small, ...type.numeric, color: color.red },
-  reason: { ...type.small, color: color.red },
-})
+  tag: { ...type.small, ...type.numeric, color: color.redInk },
+  reason: { ...type.small, color: color.redInk },
+}))

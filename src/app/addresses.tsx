@@ -13,7 +13,7 @@ import { PressableScale } from '@/ui/PressableScale'
 import { PullToRefresh } from '@/ui/PullToRefresh'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { font, radius, space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const SKELETONS = [0, 1, 2]
@@ -31,6 +31,8 @@ export default function Addresses() {
 
 // Needs a session; signed out it asks for one. Setting a default is optimistic with a rollback; deleting asks first and then only toasts (confirmed, so no Undo).
 function AddressesScreen() {
+  const styles = useStyles()
+  const { type } = useTheme()
   const { session, loading } = useSession()
   const toast = useToast()
   const userId = session?.user.id
@@ -253,6 +255,8 @@ function AddressesScreen() {
 }
 
 function AddressCard({ address, onDefault, onEdit, onDelete }: { address: Address; onDefault: () => void; onEdit: () => void; onDelete: () => void }) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const lines = addressLines(address)
   const pinned = hasPin(address)
   return (
@@ -299,9 +303,12 @@ function AddressCard({ address, onDefault, onEdit, onDelete }: { address: Addres
   )
 }
 
-const Gap = () => <View style={styles.gap} />
+function Gap() {
+  const styles = useStyles()
+  return <View style={styles.gap} />
+}
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   message: { flex: 1, padding: space.lg, backgroundColor: color.paper },
   empty: { gap: space.md },
@@ -317,7 +324,7 @@ const styles = StyleSheet.create({
   tag: { ...type.small, paddingHorizontal: space.sm, paddingVertical: space.xs, borderRadius: radius.pill, overflow: 'hidden' },
   tagLabel: { backgroundColor: color.porcelain, color: color.graphite },
   tagDefault: { backgroundColor: color.obsidian, color: color.paper },
-  tagPin: { borderWidth: 1, borderColor: color.red, color: color.red },
+  tagPin: { borderWidth: 1, borderColor: color.red, color: color.redInk },
   name: { ...type.body, fontFamily: font.semibold },
   line: { ...type.small, color: color.graphite },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.sm, marginTop: space.sm },
@@ -325,4 +332,4 @@ const styles = StyleSheet.create({
   pressed: { backgroundColor: color.porcelain },
   scrim: { flex: 1, justifyContent: 'center', padding: space.lg, backgroundColor: color.scrim },
   dialog: { backgroundColor: color.paper, borderRadius: radius.soft, padding: space.lg, gap: space.md },
-})
+}))

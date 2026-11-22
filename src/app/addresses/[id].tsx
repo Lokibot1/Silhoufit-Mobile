@@ -9,7 +9,7 @@ import { ApiError, errorMessage } from '@/lib/api'
 import { resolveAddressCodes } from '@/lib/psgcMatch'
 import { useRequest } from '@/lib/useRequest'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, space } from '@/ui/theme'
+import { space, themed } from '@/ui/theme'
 
 // Keyed by account, so switching accounts starts from a clean form instead of the last shopper's.
 export default function EditAddress() {
@@ -19,6 +19,7 @@ export default function EditAddress() {
 
 // Loads the address from the list (there is no single-address call the app needs), then puts its place names back on the PSGC lists.
 function EditAddressScreen() {
+  const styles = useStyles()
   const { session, loading } = useSession()
   const { id } = useLocalSearchParams<{ id: string }>()
   const userId = session?.user.id
@@ -57,6 +58,6 @@ function EditAddressScreen() {
   return <AddressForm saved={found.data} />
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   message: { flex: 1, padding: space.lg, backgroundColor: color.paper },
-})
+}))

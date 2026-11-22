@@ -7,7 +7,7 @@ import { HeaderIcon } from '@/ui/HeaderIcon'
 import { FloatingField } from '@/ui/FloatingField'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
-import { color, space, type } from '@/ui/theme'
+import { space, themed, useTheme } from '@/ui/theme'
 
 const TARGET = 44
 const MIN_QUERY = 3
@@ -24,6 +24,8 @@ const failureCopy = (failure: unknown) =>
 
 // A way to set the pin without the map (screen readers, denied location). It searches only when asked, never while typing, to stay inside OpenStreetMap's usage policy.
 export function PinSearch({ onPick, disabled }: { onPick: (lat: number, lon: number) => void; disabled?: boolean }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const [query, setQuery] = useState('')
   const [state, setState] = useState<State>({ status: 'idle' })
   const running = useRef<AbortController | null>(null)
@@ -95,10 +97,10 @@ export function PinSearch({ onPick, disabled }: { onPick: (lat: number, lon: num
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   group: { gap: space.sm },
   body: { ...type.body, color: color.graphite },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md, gap: space.md },
   row: { minHeight: TARGET, justifyContent: 'center', paddingHorizontal: space.md, paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: color.porcelain },
   pressed: { backgroundColor: color.porcelain },
-})
+}))

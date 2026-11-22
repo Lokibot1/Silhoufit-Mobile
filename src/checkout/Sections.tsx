@@ -11,7 +11,7 @@ import { Button } from '@/ui/Button'
 import { FloatingField } from '@/ui/FloatingField'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { Skeleton } from '@/ui/Skeleton'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { font, radius, space, themed, useTheme } from '@/ui/theme'
 
 import { addressLines } from './AddressLines'
 import { cartWarning } from './cartWarning'
@@ -22,6 +22,8 @@ const IMG_H = 72
 export type Req<T> = { status: 'loading' | 'ready' | 'error'; data?: T; error?: unknown; retry: () => void }
 
 function Card({ title, children, testID }: { title: string; children: ReactNode; testID?: string }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   return (
     <View testID={testID} style={styles.card}>
       <Text accessibilityRole="header" style={type.label}>{title}</Text>
@@ -30,11 +32,13 @@ function Card({ title, children, testID }: { title: string; children: ReactNode;
   )
 }
 
-const Loading = ({ label, children }: { label: string; children: ReactNode }) => (
-  <View accessible accessibilityLabel={label} accessibilityRole="progressbar" style={styles.gap}>{children}</View>
-)
+function Loading({ label, children }: { label: string; children: ReactNode }) {
+  const styles = useStyles()
+  return <View accessible accessibilityLabel={label} accessibilityRole="progressbar" style={styles.gap}>{children}</View>
+}
 
 function Failure({ message, label, testID, onRetry, onPick }: { message: string; label: string; testID: string; onRetry?: () => void; onPick?: () => void }) {
+  const styles = useStyles()
   return (
     <View accessibilityRole="alert" style={styles.gap}>
       <Text style={styles.body}>{message}</Text>
@@ -45,6 +49,7 @@ function Failure({ message, label, testID, onRetry, onPick }: { message: string;
 }
 
 export function AddressSection({ req, selected, onChange, onAdd, disabled = false }: { req: Req<Address[]>; selected: Address | null; onChange: () => void; onAdd: () => void; disabled?: boolean }) {
+  const styles = useStyles()
   const list = req.data ?? []
   let body: ReactNode
   if (req.status === 'loading') {
@@ -87,6 +92,7 @@ export function AddressSection({ req, selected, onChange, onAdd, disabled = fals
 const variantLine = ({ size, color: colour }: CartItem['variant']) => [size && `Size ${size}`, colour].filter(Boolean).join(' / ')
 
 function ItemRow({ item }: { item: CartItem }) {
+  const styles = useStyles()
   const [failed, setFailed] = useState(false)
   const { quantity, lineTotal, variant, product } = item
   const warn = cartWarning(item)
@@ -111,6 +117,7 @@ function ItemRow({ item }: { item: CartItem }) {
 }
 
 export function ItemsSection({ req }: { req: Req<Cart> }) {
+  const styles = useStyles()
   let body: ReactNode
   if (req.status === 'loading') {
     body = (
@@ -146,6 +153,7 @@ function shippingCopy(error: unknown): string {
 
 // `idle`: the fee cannot be asked for yet because the address is still loading or missing.
 export function ShippingSection({ idle, req, onPick }: { idle: 'loading' | 'none' | null; req: Req<ShippingQuote>; onPick: () => void }) {
+  const styles = useStyles()
   let body: ReactNode
   if (idle === 'loading' || (!idle && req.status === 'loading')) {
     body = (
@@ -175,6 +183,7 @@ export const filterNote = (input: string) => input.replace(/[\u0000-\u001F\u007F
 export const cleanNote = (input: string) => filterNote(input).replace(/\s+/g, ' ').trim()
 
 export function NotesSection({ courier, seller, onCourier, onSeller, disabled }: { courier: string; seller: string; onCourier: (text: string) => void; onSeller: (text: string) => void; disabled: boolean }) {
+  const styles = useStyles()
   return (
     <Card title="(Notes)">
       <View>
@@ -189,11 +198,14 @@ export function NotesSection({ courier, seller, onCourier, onSeller, disabled }:
   )
 }
 
-export const PaymentSection = () => (
-  <Card title="(Payment)">
-    <Text style={styles.body}>Pay online on a secure page</Text>
-  </Card>
-)
+export function PaymentSection() {
+  const styles = useStyles()
+  return (
+    <Card title="(Payment)">
+      <Text style={styles.body}>Pay online on a secure page</Text>
+    </Card>
+  )
+}
 
 const money = (value: number) => Math.round(value * 100) / 100
 
@@ -201,6 +213,8 @@ const money = (value: number) => Math.round(value * 100) / 100
 export const totals = (subtotal: number | null, shipping: number | null) => ({ subtotal, shipping, total: subtotal !== null && shipping !== null ? money(subtotal + shipping) : null })
 
 function Amount({ label, value, testID, strong }: { label: string; value: number | null; testID: string; strong?: boolean }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   return (
     <View style={styles.row}>
       <Text style={[type.label, styles.grow]}>{label}</Text>
@@ -219,7 +233,7 @@ export function SummarySection({ subtotal, shipping, total }: ReturnType<typeof 
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   card: { marginHorizontal: space.lg, padding: space.md, gap: space.md, borderWidth: 1, borderColor: color.porcelain, borderRadius: radius.soft, backgroundColor: color.paper },
   gap: { gap: space.sm },
   grow: { flex: 1, minWidth: 0, gap: space.xs },
@@ -233,9 +247,9 @@ const styles = StyleSheet.create({
   fill: { position: 'absolute', width: '100%', height: '100%' },
   fallback: { ...type.small, color: color.graphite, textAlign: 'center' },
   itemName: { fontFamily: font.semibold, fontSize: 14, lineHeight: 20, color: color.obsidian, textTransform: 'uppercase' },
-  warn: { ...type.small, fontFamily: font.medium, color: color.red },
+  warn: { ...type.small, fontFamily: font.medium, color: color.redInk },
   qty: { ...type.small, ...type.numeric, color: color.graphite, textAlign: 'right' },
   lineTotal: { ...type.body, ...type.numeric, textAlign: 'right' },
   value: { ...type.body, ...type.numeric, textAlign: 'right' },
   total: { ...type.h2, ...type.numeric, textAlign: 'right' },
-})
+}))

@@ -17,7 +17,7 @@ import { AddressSection, cleanNote, ItemsSection, NotesSection, PaymentSection, 
 import { Button } from '@/ui/Button'
 import { PressableScale } from '@/ui/PressableScale'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, space, type } from '@/ui/theme'
+import { space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const TARGET = 44
@@ -67,6 +67,8 @@ async function findPlaced(attempt: Attempt, signal: AbortSignal): Promise<Order 
 
 // Review, then place the order. Each section owns its data, so one failing never blanks the page.
 export default function CheckoutScreen() {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const { session, loading, signOut } = useSession()
   const toast = useToast()
   const userId = session?.user.id ?? null
@@ -386,7 +388,7 @@ export default function CheckoutScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   message: { padding: space.lg },
   content: { paddingVertical: space.lg, gap: space.md },
@@ -399,4 +401,4 @@ const styles = StyleSheet.create({
   banner: { gap: space.sm, borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
   noticeScroll: { flexGrow: 0, maxHeight: NOTICE_MAX },
   note: { ...type.small, color: color.graphite },
-})
+}))

@@ -14,7 +14,7 @@ import { PressableScale } from '@/ui/PressableScale'
 import { PullToRefresh } from '@/ui/PullToRefresh'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { font, radius, space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
@@ -27,6 +27,7 @@ const BLOCKED_NOTE = 'Fix the items marked above to check out'
 const variantLine = ({ size, color: colour }: CartItem['variant']) => [size, colour].filter(Boolean).join(' / ')
 
 function StepButton({ symbol, label, testID, disabled, onPress }: { symbol: string; label: string; testID: string; disabled: boolean; onPress: () => void }) {
+  const styles = useStyles()
   return (
     <PressableScale testID={testID} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={[styles.step, disabled && styles.off]}>
       <Text maxFontSizeMultiplier={1.3} style={styles.stepText}>{symbol}</Text>
@@ -45,6 +46,8 @@ type RowProps = {
 }
 
 function CartRow({ item, locked, pending, error, onOpen, onQuantity, onRemove }: RowProps) {
+  const styles = useStyles()
+  const { color } = useTheme()
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
   const { id, quantity, lineTotal, variant, product } = item
   const warn = cartWarning(item)
@@ -104,6 +107,7 @@ function CartRow({ item, locked, pending, error, onOpen, onQuantity, onRemove }:
 
 // Same card chrome and heights as CartRow (image, name 2 lines, variant, price, 46px stepper) and the same bar, so the swap does not shift.
 function CartSkeleton() {
+  const styles = useStyles()
   return (
     <View accessible accessibilityLabel="Loading" accessibilityRole="progressbar" style={styles.skeleton}>
       <View style={styles.skeletonList}>
@@ -152,6 +156,8 @@ const isGone = (failure: unknown) => failure instanceof ApiError && failure.kind
 
 // Needs a session; the Shop and Product pages stay public. Rows reload on every focus, silently after the first load.
 export default function CartScreen() {
+  const styles = useStyles()
+  const { color } = useTheme()
   const { session, loading, signOut } = useSession()
   const userId = session?.user.id ?? null
   const signedIn = userId !== null
@@ -427,7 +433,7 @@ export default function CartScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   listContent: { paddingBottom: space.lg },
   message: { padding: space.lg },
@@ -443,9 +449,9 @@ const styles = StyleSheet.create({
   skeletonInfo: { paddingRight: 0 },
   name: { fontFamily: font.semibold, fontSize: 14, lineHeight: 20, color: color.obsidian, textTransform: 'uppercase' },
   variant: { ...type.small, color: color.graphite },
-  unit: { fontFamily: font.bold, fontSize: 16, lineHeight: 24, color: color.red, ...type.numeric },
-  warn: { ...type.small, fontFamily: font.medium, color: color.red },
-  error: { ...type.small, color: color.red, borderLeftWidth: 4, borderLeftColor: color.red, paddingLeft: space.sm },
+  unit: { fontFamily: font.bold, fontSize: 16, lineHeight: 24, color: color.redInk, ...type.numeric },
+  warn: { ...type.small, fontFamily: font.medium, color: color.redInk },
+  error: { ...type.small, color: color.redInk, borderLeftWidth: 4, borderLeftColor: color.red, paddingLeft: space.sm },
   remove: { position: 'absolute', top: space.xs, right: space.xs, width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
   stepper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: color.stonewash, borderRadius: radius.soft, overflow: 'hidden' },
@@ -464,4 +470,4 @@ const styles = StyleSheet.create({
   count: { ...type.small, ...type.numeric, color: color.graphite },
   subtotal: { ...type.h1, ...type.numeric, textAlign: 'right' },
   note: { ...type.small, color: color.graphite },
-})
+}))
