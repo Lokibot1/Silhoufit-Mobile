@@ -203,7 +203,7 @@ function WishlistScreen() {
   if (items === null) {
     return (
       <View testID="wishlist-loading" accessible accessibilityLabel="Loading" accessibilityRole="progressbar" style={styles.skeletons}>
-        {SKELETONS.map((key) => <ProductCardSkeleton key={key} rows={rows} />)}
+        {SKELETONS.map((key) => <ProductCardSkeleton key={key} />)}
       </View>
     )
   }

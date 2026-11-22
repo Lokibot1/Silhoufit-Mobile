@@ -112,6 +112,7 @@ export function ProductCard({ item, onPress, action, rows = ALL_ROWS }: { item: 
   )
 }
 
+// Reserves the meta row by default: loaded cards usually have it, and a skeleton without it shifts every row down 24px when they land.
 export function ProductCardSkeleton({ rows = ALL_ROWS }: { rows?: CardRows }) {
   const width = useCardWidth()
   return (

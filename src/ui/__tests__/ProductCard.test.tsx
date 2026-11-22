@@ -1,11 +1,11 @@
 import { fireEvent, render, renderHook, screen } from '@testing-library/react-native'
 
 import type { ProductListItem } from '@/api/products'
-import { type CardRows, cardRows, ProductCard, useCardRows } from '../ProductCard'
+import { type CardRows, cardRows, ProductCard, ProductCardSkeleton, useCardRows } from '../ProductCard'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('../PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
-jest.mock('../Skeleton', () => ({ Skeleton: () => null }))
+jest.mock('../Skeleton', () => ({ Skeleton: ({ height }: { height: number }) => jest.requireActual('react').createElement(jest.requireActual('react-native').View, { testID: `skeleton-${height}` }) }))
 
 const base: ProductListItem = { id: 'p1', name: 'Linen Shirt', minPrice: 1250, maxPrice: 1250, totalStock: 20, imageUrl: 'https://x.test/a.jpg', rating: null, reviewCount: 0 }
 
@@ -115,5 +115,12 @@ describe('card rows', () => {
     await rerender(<ProductCard item={full} rows={{ rating: true, sold: false }} />)
     expect(screen.getByText('4.8')).toBeTruthy()
     expect(screen.getByText('371 sold')).toBeTruthy()
+  })
+
+  it('the skeleton reserves the meta bar by default so loaded cards do not shift it, and drops it only when told', async () => {
+    const { rerender } = await render(<ProductCardSkeleton />)
+    expect(screen.getByTestId('skeleton-20')).toBeTruthy()
+    await rerender(<ProductCardSkeleton rows={ROWS_OFF} />)
+    expect(screen.queryByTestId('skeleton-20')).toBeNull()
   })
 })
