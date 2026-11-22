@@ -212,6 +212,8 @@ it('reloads the conversation after a refused send and then offers only Discard',
   expect(await screen.findByTestId('messages-blocked-note')).toBeTruthy()
   expect(screen.getByTestId('message-failed-discard')).toBeTruthy()
   expect(screen.queryByTestId('message-failed-retry')).toBeNull()
+  expect(screen.getByText(/Your messaging is blocked, so this message can't be sent/)).toBeTruthy()
+  expect(screen.queryByText(/sign-in expired/)).toBeNull()
 })
 
 it('clears the failed message when the same text from me arrives later, so Retry cannot post it twice', async () => {

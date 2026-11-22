@@ -225,7 +225,16 @@ export default function MessagesScreen() {
           patch(userId, (s) => (s.unsent ? { unsent: { content, failure: sendFailureCopy(failure), retry: !(failure instanceof ApiError && failure.kind === 'validation') } } : {}))
           // A block that started after this screen loaded: reload the conversation so the composer shows it. A failed reload changes nothing.
           if (failure instanceof ApiError && failure.kind === 'forbidden') {
-            fetchMyConversation(ctl.signal).then((c) => patch(userId, () => ({ blocked: c.blocked, blockedReason: c.blockedReason })), () => {})
+            fetchMyConversation(ctl.signal).then(
+              (c) =>
+                patch(userId, (s) => ({
+                  blocked: c.blocked,
+                  blockedReason: c.blockedReason,
+                  // Signing in again cannot help a blocked customer, so say what actually happened.
+                  ...(c.blocked && s.unsent ? { unsent: { ...s.unsent, failure: "Not sent. Your messaging is blocked, so this message can't be sent.", retry: false } } : {}),
+                })),
+              () => {},
+            )
           }
         },
       )
