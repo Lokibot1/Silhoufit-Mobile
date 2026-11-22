@@ -26,7 +26,7 @@ describe('toMessage', () => {
 describe('requests', () => {
   it('reads the conversation id and the unread flag', async () => {
     mockRequest.mockResolvedValue({ id: 'c1', hasUnreadMessages: true })
-    expect(await fetchMyConversation()).toEqual({ id: 'c1', hasUnreadMessages: true })
+    expect(await fetchMyConversation()).toEqual({ id: 'c1', hasUnreadMessages: true, blocked: false, blockedReason: null })
     expect(mockRequest).toHaveBeenCalledWith('GET', '/chat/my-conversation', undefined, undefined)
   })
   it('treats a missing flag as read and rejects a conversation without an id', async () => {
@@ -34,6 +34,12 @@ describe('requests', () => {
     expect((await fetchMyConversation()).hasUnreadMessages).toBe(false)
     mockRequest.mockResolvedValueOnce({ hasUnreadMessages: true })
     await expect(fetchMyConversation()).rejects.toBeInstanceOf(ApiError)
+  })
+  it('reads the messaging block of the customer', async () => {
+    mockRequest.mockResolvedValueOnce({ id: 'c1', customer: { messagingBlockedAt: '2026-11-04T02:00:00Z', messagingBlockedReason: 'Spam' } })
+    expect(await fetchMyConversation()).toMatchObject({ blocked: true, blockedReason: 'Spam' })
+    mockRequest.mockResolvedValueOnce({ id: 'c1', customer: { messagingBlockedAt: null, messagingBlockedReason: null } })
+    expect(await fetchMyConversation()).toMatchObject({ blocked: false, blockedReason: null })
   })
   it('loads the newest 50 messages and rejects a wrong shape', async () => {
     mockRequest.mockResolvedValueOnce({ data: [raw()], meta: { hasMore: false } })

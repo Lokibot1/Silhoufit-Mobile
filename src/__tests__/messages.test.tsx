@@ -32,7 +32,7 @@ const stop = jest.fn()
 beforeEach(() => {
   jest.clearAllMocks()
   mockSession = { session: { user: { id: 'u1' } }, loading: false }
-  api.fetchMyConversation.mockResolvedValue({ id: 'c1', hasUnreadMessages: false })
+  api.fetchMyConversation.mockResolvedValue({ id: 'c1', hasUnreadMessages: false, blocked: false, blockedReason: null })
   api.fetchMessages.mockResolvedValue([message('m1'), message('m2', { senderId: 'u1', content: 'My question' })])
   api.subscribeToConversation.mockImplementation((_id: string, onMessage: typeof live.onMessage, onStatus: typeof live.onStatus) => {
     live = { onMessage, onStatus }
@@ -171,6 +171,27 @@ it('offers only Discard when the message was refused as invalid', async () => {
   await type('Hello')
   await fireEvent.press(screen.getByTestId('messages-send'))
   expect(await screen.findByTestId('message-failed-discard')).toBeTruthy()
+  expect(screen.queryByTestId('message-failed-retry')).toBeNull()
+})
+
+it('disables the composer and explains the block, with the reason', async () => {
+  api.fetchMyConversation.mockResolvedValue({ id: 'c1', hasUnreadMessages: false, blocked: true, blockedReason: 'Spam' })
+  await render(<MessagesScreen />)
+  expect((await screen.findByTestId('messages-input')).props.editable).toBe(false)
+  expect(screen.getByPlaceholderText('Messaging is blocked')).toBeTruthy()
+  expect(screen.getByText("Your messaging is blocked, so you can't send messages. You can still read replies. Reason: Spam")).toBeTruthy()
+  expect(screen.getByTestId('messages-send')).toBeDisabled()
+  expect(screen.getByText('Text m1')).toBeTruthy()
+})
+
+it('reloads the conversation after a refused send and then offers only Discard', async () => {
+  api.sendMessage.mockRejectedValueOnce(new ApiError('forbidden'))
+  await render(<MessagesScreen />)
+  await type('Hello')
+  api.fetchMyConversation.mockResolvedValue({ id: 'c1', hasUnreadMessages: false, blocked: true, blockedReason: null })
+  await fireEvent.press(screen.getByTestId('messages-send'))
+  expect(await screen.findByTestId('messages-blocked-note')).toBeTruthy()
+  expect(screen.getByTestId('message-failed-discard')).toBeTruthy()
   expect(screen.queryByTestId('message-failed-retry')).toBeNull()
 })
 

@@ -2,7 +2,8 @@ import { ApiError, isRecord, request, str } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 
 export type ChatMessage = { id: string; senderId: string; content: string; createdAt: string }
-export type Conversation = { id: string; hasUnreadMessages: boolean }
+/** blocked: staff stopped this customer from sending; they can still read. blockedReason is the staff's note, if any. */
+export type Conversation = { id: string; hasUnreadMessages: boolean; blocked: boolean; blockedReason: string | null }
 
 export const MAX_MESSAGE_LENGTH = 2000
 
@@ -22,7 +23,8 @@ export async function fetchMyConversation(signal?: AbortSignal): Promise<Convers
   const body = await request('GET', '/chat/my-conversation', undefined, signal)
   const id = isRecord(body) ? str(body.id) : null
   if (!isRecord(body) || !id) throw new ApiError('server')
-  return { id, hasUnreadMessages: body.hasUnreadMessages === true }
+  const customer = isRecord(body.customer) ? body.customer : {}
+  return { id, hasUnreadMessages: body.hasUnreadMessages === true, blocked: str(customer.messagingBlockedAt) !== null, blockedReason: str(customer.messagingBlockedReason) }
 }
 
 // shortcut: only the newest 50 messages, add `?before=` paging if conversations grow long
@@ -51,7 +53,7 @@ export function sendFailureCopy(failure: unknown): string {
     case 'validation':
       return 'Not sent. The message was refused as invalid. Write a new one, up to 2,000 characters.'
     case 'forbidden':
-      return 'Not sent. Your sign-in may have expired. Sign in again, then write it again.'
+      return 'Not sent. Your messaging may be blocked, or your sign-in expired. Sign in again, then write it again; if it keeps failing, contact support.'
     case 'rate-limit':
       return "Not sent. You're sending too fast. Wait a moment, then tap Retry."
     case 'not-found':

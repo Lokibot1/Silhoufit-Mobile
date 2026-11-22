@@ -20,8 +20,8 @@ const WARN_FROM = MAX_MESSAGE_LENGTH - 100
 // failure is null while the message is on its way, else the copy explaining why it was not sent. retry is false when sending it again cannot work.
 type Unsent = { content: string; failure: string | null; retry: boolean }
 type Row = ChatMessage | { unsent: Unsent }
-type Store = { owner: string | null; convId: string | null; messages: ChatMessage[] | null; error: unknown; unsent: Unsent | null }
-const EMPTY: Store = { owner: null, convId: null, messages: null, error: null, unsent: null }
+type Store = { owner: string | null; convId: string | null; messages: ChatMessage[] | null; error: unknown; unsent: Unsent | null; blocked: boolean; blockedReason: string | null }
+const EMPTY: Store = { owner: null, convId: null, messages: null, error: null, unsent: null, blocked: false, blockedReason: null }
 
 // Adds what is new by id (so the echo of our own POST and a refetch never double a message) and keeps oldest first.
 function merge(current: ChatMessage[] | null, incoming: ChatMessage[]) {
@@ -92,7 +92,7 @@ export default function MessagesScreen() {
   const [store, setStore] = useState<Store>(EMPTY)
   // Everything fetched is tagged with its account, so another account never sees it (not even for one render).
   const mine = store.owner === userId ? store : EMPTY
-  const { convId, messages, error, unsent } = mine
+  const { convId, messages, error, unsent, blocked: muted, blockedReason } = mine
   const [text, setText] = useState('')
   const [textOwner, setTextOwner] = useState(userId)
   if (textOwner !== userId) {
@@ -151,7 +151,7 @@ export default function MessagesScreen() {
         const conversation = await fetchMyConversation(signal)
         const list = await fetchMessages(conversation.id, signal)
         if (signal.aborted) return
-        patch(userId, (s) => ({ convId: conversation.id, ...land(s, list, userId), error: null }))
+        patch(userId, (s) => ({ convId: conversation.id, ...land(s, list, userId), error: null, blocked: conversation.blocked, blockedReason: conversation.blockedReason }))
         if (focused.current) markRead(conversation.id)
       } catch (failure) {
         if (signal.aborted) return
@@ -214,7 +214,12 @@ export default function MessagesScreen() {
         (message) => patch(userId, (s) => ({ messages: merge(s.messages, [message]), unsent: null })),
         (failure) => {
           // No unsent left means the echo already showed the message arrived.
-          if (!ctl.signal.aborted) patch(userId, (s) => (s.unsent ? { unsent: { content, failure: sendFailureCopy(failure), retry: !(failure instanceof ApiError && failure.kind === 'validation') } } : {}))
+          if (ctl.signal.aborted) return
+          patch(userId, (s) => (s.unsent ? { unsent: { content, failure: sendFailureCopy(failure), retry: !(failure instanceof ApiError && failure.kind === 'validation') } } : {}))
+          // A block that started after this screen loaded: reload the conversation so the composer shows it. A failed reload changes nothing.
+          if (failure instanceof ApiError && failure.kind === 'forbidden') {
+            fetchMyConversation(ctl.signal).then((c) => patch(userId, () => ({ blocked: c.blocked, blockedReason: c.blockedReason })), () => {})
+          }
         },
       )
       .finally(() => {
@@ -223,7 +228,7 @@ export default function MessagesScreen() {
   }
   const pending = unsent !== null && unsent.failure === null
   // A failed message stays until Retry or Discard, so a new one can never overwrite it.
-  const blocked = unsent !== null
+  const blocked = unsent !== null || muted
   const empty = text.trim() === ''
   const submit = () => {
     if (blocked || empty || inFlight.current) return
@@ -276,7 +281,7 @@ export default function MessagesScreen() {
         inverted
         data={rows}
         keyExtractor={(row) => ('unsent' in row ? 'unsent' : row.id)}
-        renderItem={({ item }) => ('unsent' in item ? <UnsentBubble unsent={item.unsent} onRetry={() => send(item.unsent.content)} onDiscard={discard} /> : <Bubble message={item} mine={item.senderId === userId} live={item.id === liveId} />)}
+        renderItem={({ item }) => ('unsent' in item ? <UnsentBubble unsent={muted ? { ...item.unsent, retry: false } : item.unsent} onRetry={() => send(item.unsent.content)} onDiscard={discard} /> : <Bubble message={item} mine={item.senderId === userId} live={item.id === liveId} />)}
         ItemSeparatorComponent={Gap}
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
@@ -290,6 +295,11 @@ export default function MessagesScreen() {
           this view's own distance from the top of the window (status bar and header), which KeyboardAvoidingView cannot know. */}
       <KeyboardAvoidingView style={styles.screen} behavior="padding" keyboardVerticalOffset={top}>
         <View style={styles.screen}>{content}</View>
+        {ready && muted && (
+          <Text testID="messages-blocked-note" accessibilityRole="alert" style={[type.small, styles.note]}>
+            {`Your messaging is blocked, so you can't send messages. You can still read replies.${blockedReason ? ` Reason: ${blockedReason}` : ''}`}
+          </Text>
+        )}
         {ready && (
           <View style={[styles.composer, { paddingBottom: keyboard ? space.sm : Math.max(insets.bottom, space.sm) }]}>
             <View style={styles.field}>
@@ -297,7 +307,7 @@ export default function MessagesScreen() {
                 ref={input}
                 testID="messages-input"
                 accessibilityLabel="Message"
-                placeholder="Write a message"
+                placeholder={muted ? 'Messaging is blocked' : 'Write a message'}
                 placeholderTextColor={color.graphite}
                 style={styles.input}
                 value={text}
@@ -306,8 +316,9 @@ export default function MessagesScreen() {
                 onBlur={() => setInputFocused(false)}
                 maxLength={MAX_MESSAGE_LENGTH}
                 multiline
+                editable={!muted}
               />
-              {(inputFocused || text.length > 0) && <Text style={[type.small, type.numeric, styles.count, text.length >= WARN_FROM && styles.countWarn]}>{`${text.length}/${MAX_MESSAGE_LENGTH}`}</Text>}
+              {!muted && (inputFocused || text.length > 0) && <Text style={[type.small, type.numeric, styles.count, text.length >= WARN_FROM && styles.countWarn]}>{`${text.length}/${MAX_MESSAGE_LENGTH}`}</Text>}
             </View>
             <PressableScale
               testID="messages-send"
@@ -342,6 +353,7 @@ const styles = StyleSheet.create({
   failureActions: { flexDirection: 'row', gap: space.sm },
   failure: { maxWidth: '85%', gap: space.sm },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, paddingTop: space.sm, paddingHorizontal: space.lg, borderTopWidth: 1, borderTopColor: color.porcelain, backgroundColor: color.paper },
+  note: { padding: space.md, paddingHorizontal: space.lg, color: color.graphite, backgroundColor: color.porcelain },
   field: { flex: 1, gap: space.xs },
   input: { ...type.body, borderWidth: 1, borderColor: color.stonewash, borderRadius: radius.soft, minHeight: 48, maxHeight: 120, paddingHorizontal: space.md, paddingVertical: space.md, backgroundColor: color.paper },
   count: { alignSelf: 'flex-end', color: color.graphite },
