@@ -16,7 +16,7 @@ import { PullToRefresh } from '@/ui/PullToRefresh'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { CHIP_HEIGHT, StatusChip } from '@/ui/StatusChip'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { font, radius, space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const THUMB_W = 56
@@ -37,6 +37,7 @@ const EMPTY_TAB: Record<OrderTab, string> = {
 }
 
 function Thumb({ item }: { item: OrderItem }) {
+  const styles = useStyles()
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
   return (
     <View style={styles.thumb}>
@@ -53,6 +54,8 @@ type CardProps = { order: Order; onOpen: () => void; onTrack: (url: string) => v
 
 // The whole card opens the order; the action button is its sibling, never nested in the pressable.
 function OrderCard({ order, onOpen, onTrack }: CardProps) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const count = itemsLabel(itemCount(order))
   const status = statusLabel(order.status)
   const track = trackingLink(order)
@@ -101,6 +104,7 @@ function OrderCard({ order, onOpen, onTrack }: CardProps) {
 
 // Same card chrome and line heights as OrderCard (number + chip, date, one item, total) so the swap does not shift.
 function OrdersSkeleton() {
+  const styles = useStyles()
   return (
     <View accessible accessibilityLabel="Loading" accessibilityRole="progressbar">
       {[0, 1, 2].map((key) => (
@@ -137,6 +141,7 @@ const isExpired = (failure: unknown) => failure instanceof ApiError && failure.s
 
 // Needs a session; the Shop and Product pages stay public. Reloads on every focus, silently after the first load.
 export default function OrdersScreen() {
+  const styles = useStyles()
   const { session, loading, signOut } = useSession()
   const userId = session?.user.id ?? null
   const signedIn = userId !== null
@@ -362,7 +367,7 @@ export default function OrdersScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   listContent: { paddingTop: space.sm, paddingBottom: space.xxl },
   message: { padding: space.lg },
@@ -385,4 +390,4 @@ const styles = StyleSheet.create({
   rule: { height: 1, backgroundColor: color.porcelain },
   totalLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: space.sm },
   total: { ...type.h2, ...type.numeric, textAlign: 'right' },
-})
+}))

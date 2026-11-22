@@ -10,7 +10,7 @@ import { PressableScale } from '@/ui/PressableScale'
 import { ProductCard, ProductCardSkeleton, useCardRows } from '@/ui/ProductCard'
 import { PullToRefresh } from '@/ui/PullToRefresh'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, space, type } from '@/ui/theme'
+import { space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const SKELETONS = [0, 1, 2, 3]
@@ -27,6 +27,8 @@ export default function Wishlist() {
 
 // Needs a session; signed out it asks for one. Removing is not critical, so there is no confirm: an Undo toast puts the piece back.
 function WishlistScreen() {
+  const styles = useStyles()
+  const { color } = useTheme()
   const { session, loading } = useSession()
   const toast = useToast()
   const userId = session?.user.id
@@ -251,7 +253,7 @@ function WishlistScreen() {
                   accessibilityLabel={`Remove ${item.product.name} from wishlist`}
                   onPress={() => remove(item)}
                   style={styles.remove}>
-                  <Ionicons name="heart" size={18} color={color.red} />
+                  <Ionicons name="heart" size={18} color={color.redInk} />
                 </PressableScale>
               }
             />
@@ -262,9 +264,12 @@ function WishlistScreen() {
   )
 }
 
-const Gap = () => <View style={styles.gap} />
+function Gap() {
+  const styles = useStyles()
+  return <View style={styles.gap} />
+}
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   message: { flex: 1, padding: space.lg, backgroundColor: color.paper },
   skeletons: { flex: 1, overflow: 'hidden', flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: space.lg, paddingTop: space.md, gap: space.md, backgroundColor: color.paper },
@@ -275,4 +280,4 @@ const styles = StyleSheet.create({
   clearText: { ...type.label, color: color.graphite },
   off: { opacity: 0.4 },
   remove: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-})
+}))

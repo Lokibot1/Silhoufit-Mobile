@@ -14,7 +14,7 @@ import { PressableScale } from '@/ui/PressableScale'
 import { ProductCard, ProductCardSkeleton, useCardRows } from '@/ui/ProductCard'
 import { PullToRefresh } from '@/ui/PullToRefresh'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, radius, space, type } from '@/ui/theme'
+import { radius, space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const LIMIT = 12
@@ -32,6 +32,8 @@ const shopError = (failure: unknown) => (failure instanceof ApiError && failure.
 
 // Public: browsing needs no session. The session is read only to badge the cart and messages icons.
 export default function Shop() {
+  const styles = useStyles()
+  const { color } = useTheme()
   const toast = useToast()
   const insets = useSafeAreaInsets()
   const [query, setQuery] = useState('')
@@ -276,9 +278,12 @@ export default function Shop() {
   )
 }
 
-const Gap = () => <View style={styles.gap} />
+function Gap() {
+  const styles = useStyles()
+  return <View style={styles.gap} />
+}
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   band: { backgroundColor: color.paper, borderBottomWidth: 1, borderBottomColor: color.porcelain, paddingBottom: space.sm },
   header: { paddingVertical: space.sm, gap: space.sm },
@@ -300,4 +305,4 @@ const styles = StyleSheet.create({
   gap: { height: space.md },
   footer: { paddingVertical: space.lg, gap: space.md },
   footerText: { ...type.body, color: color.graphite },
-})
+}))

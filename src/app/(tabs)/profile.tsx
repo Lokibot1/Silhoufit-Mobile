@@ -13,7 +13,7 @@ import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { useToast } from '@/ui/toast'
-import { color, hairline, radius, space, type } from '@/ui/theme'
+import { radius, space, themed, useTheme } from '@/ui/theme'
 
 type IconName = ComponentProps<typeof Ionicons>['name']
 
@@ -42,6 +42,8 @@ function MenuRow({ icon, label, onPress, disabled = false, pending = false, divi
   hint?: string
   testID: string
 }) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const off = disabled || pending
   return (
     <PressableScale
@@ -68,6 +70,8 @@ function MenuRow({ icon, label, onPress, disabled = false, pending = false, divi
 
 // Empty state is the signed-out prompt: a signed-in customer always has a profile.
 export default function Profile() {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const { session, profile, loading, error, retry, signOut } = useSession()
   const toast = useToast()
   const [signingOut, setSigningOut] = useState(false)
@@ -238,7 +242,7 @@ export default function Profile() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, hairline }) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: color.paper },
   screen: { padding: space.lg, gap: space.md },
   stack: { gap: space.md, alignItems: 'stretch' },
@@ -261,4 +265,4 @@ const styles = StyleSheet.create({
   pressed: { backgroundColor: color.porcelain },
   // Graphite on Paper is about 13:1 (Stonewash is 3.7:1, too low for text); the Stonewash icon is non-text (3:1 needed).
   off: { color: color.graphite },
-})
+}))

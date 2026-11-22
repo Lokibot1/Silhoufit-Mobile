@@ -13,11 +13,13 @@ import { PressableScale } from '@/ui/PressableScale'
 import { PullToRefresh } from '@/ui/PullToRefresh'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, font, space, type } from '@/ui/theme'
+import { font, space, themed, useTheme } from '@/ui/theme'
 
 const UNREAD_DOT = 8
 
 function NotificationRow({ item, onPress }: { item: NotificationItem; onPress: () => void }) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const unread = !item.readAt
   const time = relativeTime(item.createdAt)
   return (
@@ -40,6 +42,7 @@ function NotificationRow({ item, onPress }: { item: NotificationItem; onPress: (
 
 // Same row chrome as NotificationRow (title, body, time); the body can wrap, so a long one shifts a little.
 function NotificationsSkeleton() {
+  const styles = useStyles()
   return (
     <View accessible accessibilityLabel="Loading" accessibilityRole="progressbar">
       {[0, 1, 2, 3].map((key) => (
@@ -63,6 +66,8 @@ function failureCopy(error: ApiError | null) {
 
 // Try again; after a 429 it waits out the server's Retry-After first, since asking sooner only spends the budget that ran out.
 function LoadError({ error, onRetry }: { error: ApiError | null; onRetry: () => void }) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const [wait, setWait] = useState(error?.kind === 'rate-limit' ? Math.ceil((error.retryAfterMs ?? 15_000) / 1000) : 0)
   useEffect(() => {
     if (wait <= 0) return
@@ -79,6 +84,8 @@ function LoadError({ error, onRetry }: { error: ApiError | null; onRetry: () => 
 }
 
 export default function NotificationsScreen() {
+  const styles = useStyles()
+  const { type } = useTheme()
   const { session, loading } = useSession()
   const signedIn = !!session
   const { count, items, hasNextPage, status, error, loadingMore, unreadOnly, setUnreadOnly, markRead, markAllRead, loadMore, refresh, retry } = useNotifications()
@@ -180,7 +187,7 @@ export default function NotificationsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   listContent: { paddingBottom: space.xxl },
   message: { padding: space.lg },
@@ -188,7 +195,7 @@ const styles = StyleSheet.create({
   toolbar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.md },
   chips: { flexDirection: 'row', gap: space.sm },
   markAll: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
-  markAllText: { fontFamily: font.semibold, color: color.red, textDecorationLine: 'underline' },
+  markAllText: { fontFamily: font.semibold, color: color.redInk, textDecorationLine: 'underline' },
   grow: { flex: 1 },
   row: { gap: space.xs, paddingVertical: space.lg, paddingHorizontal: space.lg, borderBottomWidth: 1, borderBottomColor: color.porcelain },
   pressed: { backgroundColor: color.porcelain },
@@ -196,4 +203,4 @@ const styles = StyleSheet.create({
   // Unread is a square dot and the bold title, so it never rests on colour alone.
   dot: { width: UNREAD_DOT, height: UNREAD_DOT, backgroundColor: color.red },
   read: { fontFamily: font.regular },
-})
+}))

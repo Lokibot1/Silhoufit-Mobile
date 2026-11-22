@@ -10,12 +10,13 @@ import { useChatUnread } from '@/chat/useChatUnread'
 import { useCartCount } from '@/lib/useCartCount'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { font, radius, space, themed, useTheme } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
 // Outline when idle, solid when active, so the current tab reads at a glance.
 const icon = (name: 'storefront' | 'heart' | 'receipt' | 'notifications' | 'person') =>
   function TabIcon({ focused, color: tint }: { focused: boolean; color: ColorValue }) {
+    const { color } = useTheme()
     return <Ionicons name={focused ? name : `${name}-outline`} size={24} color={focused ? color.red : (tint as string)} />
   }
 
@@ -53,6 +54,8 @@ const TITLES: Record<string, string> = { '/wishlist': 'Wishlist', '/orders': 'Or
 
 // Material top tabs have no header, so it is drawn here; the Shop has its own band.
 function TabsHeader() {
+  const styles = useStyles()
+  const { type } = useTheme()
   const { top } = useSafeAreaInsets()
   const pathname = usePathname()
   if (pathname === '/') return null
@@ -69,6 +72,8 @@ function TabsHeader() {
 
 // Bottom bar drawn by hand so it keeps the old look, roles and testIDs on top of the swipeable pager.
 function TabBar({ state, descriptors, emitter, navigateToTab, insets }: MaterialTopTabBarProps) {
+  const styles = useStyles()
+  const { color } = useTheme()
   const { count } = useNotifications({ list: false })
   return (
     <View style={[styles.bar, { paddingBottom: insets.bottom }]}>
@@ -91,7 +96,7 @@ function TabBar({ state, descriptors, emitter, navigateToTab, insets }: Material
                 </View>
               )}
             </View>
-            <TabLabel color={tint}>{options.title ?? route.name}</TabLabel>
+            <TabLabel color={focused ? color.redInk : tint}>{options.title ?? route.name}</TabLabel>
           </PressableScale>
         )
       })}
@@ -100,6 +105,7 @@ function TabBar({ state, descriptors, emitter, navigateToTab, insets }: Material
 }
 
 export default function TabsLayout() {
+  const styles = useStyles()
   const reduce = useReduceMotion()
   return (
     <View style={styles.fill}>
@@ -115,12 +121,12 @@ export default function TabsLayout() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   fill: { flex: 1 },
   header: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg, backgroundColor: color.paper, borderBottomWidth: 1, borderBottomColor: color.porcelain },
   actions: { flexDirection: 'row', alignItems: 'center' },
   bar: { flexDirection: 'row', backgroundColor: color.paper, borderTopWidth: 1, borderTopColor: color.porcelain },
   badge: { position: 'absolute', top: -space.xs, right: -space.md, minWidth: 20, height: 20, paddingHorizontal: space.xs, borderRadius: radius.pill, backgroundColor: color.red, alignItems: 'center', justifyContent: 'center' },
-  badgeText: { fontFamily: font.semibold, fontSize: 14, lineHeight: 20, color: color.paper, ...type.numeric },
+  badgeText: { fontFamily: font.semibold, fontSize: 14, lineHeight: 20, color: color.onRed, ...type.numeric },
   item: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', paddingVertical: space.xs },
-})
+}))
