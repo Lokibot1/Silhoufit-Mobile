@@ -80,6 +80,21 @@ it('shows the skeleton while loading', async () => {
   expect(screen.queryByTestId('order-detail')).toBeNull()
 })
 
+it('shows the seller and rider notes only when present', async () => {
+  api.fetchOrder.mockResolvedValue(order({ sellerNotes: 'Gift wrap please', courierNotes: 'Gate code 1234' }))
+  await render(<OrderScreen />)
+  expect(await screen.findByTestId('order-seller-note')).toHaveTextContent('(Note to Seller)Gift wrap please')
+  expect(screen.getByTestId('order-courier-note')).toHaveTextContent('(Delivery Notes)Gate code 1234')
+})
+
+it('shows no note blocks when the order has none', async () => {
+  api.fetchOrder.mockResolvedValue(order())
+  await render(<OrderScreen />)
+  await screen.findByTestId('order-detail')
+  expect(screen.queryByTestId('order-seller-note')).toBeNull()
+  expect(screen.queryByTestId('order-courier-note')).toBeNull()
+})
+
 it('renders the order: number, status and payment labels, placed time, items, amounts and address', async () => {
   api.fetchOrder.mockResolvedValue(order())
   await render(<OrderScreen />)

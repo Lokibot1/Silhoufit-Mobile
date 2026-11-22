@@ -212,6 +212,20 @@ function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props
         </View>
       )}
 
+      {order.sellerNotes && (
+        <View testID="order-seller-note" style={styles.section}>
+          <Text style={type.label}>(Note to Seller)</Text>
+          <Text style={styles.body}>{order.sellerNotes}</Text>
+        </View>
+      )}
+
+      {order.courierNotes && (
+        <View testID="order-courier-note" style={styles.section}>
+          <Text style={type.label}>(Delivery Notes)</Text>
+          <Text style={styles.body}>{order.courierNotes}</Text>
+        </View>
+      )}
+
       {onTheWay && !mapShown && (
         <View testID="order-tracking" style={styles.section}>
           <Text style={type.label}>(Delivery Tracking)</Text>

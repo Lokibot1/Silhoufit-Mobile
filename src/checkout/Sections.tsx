@@ -8,6 +8,7 @@ import { deliveryProblem, type ShippingQuote } from '@/api/orders'
 import { ApiError, errorMessage } from '@/lib/api'
 import { peso } from '@/lib/format'
 import { Button } from '@/ui/Button'
+import { FloatingField } from '@/ui/FloatingField'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { Skeleton } from '@/ui/Skeleton'
 import { color, font, radius, space, type } from '@/ui/theme'
@@ -168,6 +169,26 @@ export function ShippingSection({ idle, req, onPick }: { idle: 'loading' | 'none
   return <Card title="(Shipping)" testID="checkout-shipping">{body}</Card>
 }
 
+const NOTE_MAX = 200
+/** Emoji are fine in a note; only control characters go. */
+export const filterNote = (input: string) => input.replace(/[\u0000-\u001F\u007F]/g, '').slice(0, NOTE_MAX).replace(/[\uD800-\uDBFF]$/, '')
+export const cleanNote = (input: string) => filterNote(input).replace(/\s+/g, ' ').trim()
+
+export function NotesSection({ courier, seller, onCourier, onSeller, disabled }: { courier: string; seller: string; onCourier: (text: string) => void; onSeller: (text: string) => void; disabled: boolean }) {
+  return (
+    <Card title="(Notes)">
+      <View>
+        <FloatingField testID="checkout-courier-note" label="Delivery notes" helper="Instructions for the rider, like a gate code or where to leave the parcel? (optional)" value={courier} onChangeText={(text) => onCourier(filterNote(text))} editable={!disabled} multiline />
+        <Text testID="checkout-courier-note-count" style={styles.count}>{`${courier.length}/${NOTE_MAX}`}</Text>
+      </View>
+      <View>
+        <FloatingField testID="checkout-seller-note" label="Note to seller" helper="Anything the seller should know? (optional)" value={seller} onChangeText={(text) => onSeller(filterNote(text))} editable={!disabled} multiline />
+        <Text testID="checkout-seller-note-count" style={styles.count}>{`${seller.length}/${NOTE_MAX}`}</Text>
+      </View>
+    </Card>
+  )
+}
+
 export const PaymentSection = () => (
   <Card title="(Payment)">
     <Text style={styles.body}>Pay online on a secure page</Text>
@@ -204,6 +225,7 @@ const styles = StyleSheet.create({
   grow: { flex: 1, minWidth: 0, gap: space.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   body: { ...type.body, color: color.graphite },
+  count: { ...type.small, ...type.numeric, color: color.graphite, textAlign: 'right' },
   small: { ...type.small, color: color.graphite },
   name: { ...type.body, fontFamily: font.semibold },
   item: { flexDirection: 'row', gap: space.md },

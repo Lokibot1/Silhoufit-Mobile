@@ -13,7 +13,7 @@ import { useRequest } from '@/lib/useRequest'
 import { AddressSheet, hasPin } from '@/checkout/AddressSheet'
 import { cartWarning } from '@/checkout/cartWarning'
 import { takeCreated } from '@/checkout/newAddress'
-import { AddressSection, ItemsSection, PaymentSection, ShippingSection, SummarySection, totals } from '@/checkout/Sections'
+import { AddressSection, cleanNote, ItemsSection, NotesSection, PaymentSection, ShippingSection, SummarySection, totals } from '@/checkout/Sections'
 import { Button } from '@/ui/Button'
 import { PressableScale } from '@/ui/PressableScale'
 import { StateMessage } from '@/ui/StateMessage'
@@ -33,7 +33,7 @@ const TIMEOUT_MS = 30_000
 const SKEW_MS = 120_000 // the phone's clock and the server's can differ
 const NOTICE_MAX = 144 // keeps a long notice at 200% text from eating the screen above Place Order
 
-type OrderBody = { addressId: string; cartItemIds: string[]; quotationId: string }
+type OrderBody = { addressId: string; cartItemIds: string[]; quotationId: string; sellerNotes?: string; courierNotes?: string }
 // What a createOrder attempt sent. Kept after a failure that leaves the outcome unknown, until a definite answer is known.
 type Attempt = { body: OrderBody; shown: number | null; since: number; line: string }
 type Notice = { message: string; actions?: { label: string; run: () => void }[] }
@@ -85,6 +85,8 @@ export default function CheckoutScreen() {
   const reloadAddresses = useRef(addresses.retry)
   const owner = useRef(userId)
   const [placing, setPlacing] = useState(false)
+  const [courierNote, setCourierNote] = useState('')
+  const [sellerNote, setSellerNote] = useState('')
   const [notice, setNotice] = useState<Notice | null>(null)
   const [fresh, setFresh] = useState<{ addressId: string; quote: ShippingQuote } | null>(null) // a re-quote taken at Place Order
   useEffect(() => {
@@ -285,7 +287,7 @@ export default function CheckoutScreen() {
           current = next
         }
         sent = {
-          body: { addressId: selected.id, cartItemIds: items.map((item) => item.id), quotationId: current.quotationId },
+          body: { addressId: selected.id, cartItemIds: items.map((item) => item.id), quotationId: current.quotationId, ...(cleanNote(sellerNote) && { sellerNotes: cleanNote(sellerNote) }), ...(cleanNote(courierNote) && { courierNotes: cleanNote(courierNote) }) },
           shown: totals(cart.data.subtotal, current.shippingFee).total,
           since: Date.now(),
           line: [selected.streetAddress, selected.addressLine2, selected.barangay].filter(Boolean).join(', '),
@@ -345,6 +347,7 @@ export default function CheckoutScreen() {
         <AddressSection req={addresses} selected={selected} disabled={placing} onChange={() => setPicking(true)} onAdd={addAddress} />
         <ItemsSection req={cart} />
         <ShippingSection idle={idleShipping} req={shipping} onPick={() => setPicking(true)} />
+        <NotesSection courier={courierNote} seller={sellerNote} onCourier={setCourierNote} onSeller={setSellerNote} disabled={placing} />
         <PaymentSection />
         <SummarySection {...amounts} />
       </ScrollView>

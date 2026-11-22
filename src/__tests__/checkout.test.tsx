@@ -268,6 +268,34 @@ describe('placing the order', () => {
     expect(ordersApi.createOrder).toHaveBeenCalledWith(BODY, expect.anything())
   })
 
+  it('omits blank notes and sends trimmed ones', async () => {
+    await ready()
+    await fireEvent.changeText(screen.getByTestId('checkout-courier-note'), '   ')
+    await fireEvent.changeText(screen.getByTestId('checkout-seller-note'), '  Gift wrap  please  ')
+    await place()
+    await waitFor(() => expect(ordersApi.createOrder).toHaveBeenCalledWith({ ...BODY, sellerNotes: 'Gift wrap please' }, expect.anything()))
+  })
+
+  it('shows a counter and caps each note at 200', async () => {
+    await ready()
+    expect(screen.getByTestId('checkout-seller-note-count')).toHaveTextContent('0/200')
+    await fireEvent.changeText(screen.getByTestId('checkout-seller-note'), 'x'.repeat(250))
+    expect(screen.getByTestId('checkout-seller-note-count')).toHaveTextContent('200/200')
+  })
+
+  it('keeps the notes after a failure and resends them on Try Again', async () => {
+    ordersApi.createOrder.mockRejectedValueOnce(new ApiError('network'))
+    ordersApi.fetchOrdersPage.mockResolvedValue({ items: [], total: 0, page: 1, hasNextPage: false })
+    await ready()
+    await fireEvent.changeText(screen.getByTestId('checkout-courier-note'), 'Gate 1234')
+    await place()
+    await screen.findByTestId('checkout-notice')
+    expect(screen.getByTestId('checkout-courier-note').props.value).toBe('Gate 1234')
+    await fireEvent.press(screen.getByTestId('checkout-notice-action'))
+    await waitFor(() => expect(ordersApi.createOrder).toHaveBeenCalledTimes(2))
+    expect(ordersApi.createOrder.mock.calls[1][0]).toEqual({ ...BODY, courierNotes: 'Gate 1234' })
+  })
+
   it('removes each ordered line (a 404 on one is ignored), then opens the order to pay with a toast', async () => {
     cartApi.fetchCart.mockResolvedValue(cartOf([line('a'), line('b')]))
     cartApi.removeCartItem.mockImplementation(async (id: string) => {

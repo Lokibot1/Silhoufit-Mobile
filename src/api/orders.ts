@@ -17,6 +17,8 @@ export type Order = {
   paidAt: string | null
   cancelledAt: string | null
   cancellationReason: string | null
+  sellerNotes: string | null
+  courierNotes: string | null
   /** The address as it was when the order was placed; null when the API sent none. */
   address: { recipient: string | null; phone: string | null; line: string; city: string } | null
   items: OrderItem[]
@@ -89,6 +91,8 @@ export function toOrder(raw: unknown): Order {
     paidAt: str(raw.paidAt),
     cancelledAt: str(raw.cancelledAt),
     cancellationReason: str(raw.cancellationReason),
+    sellerNotes: str(raw.sellerNotes),
+    courierNotes: str(raw.courierNotes),
     address: a && { recipient: str(a.recipientName), phone: str(a.phone), line: join([a.streetAddress, a.addressLine2, a.barangay]), city: join([a.cityMunicipality, a.province, a.postalCode]) },
     items,
     shipment: s && str(s.status) ? { status: s.status as string, pickupTime: str(s.pickupTime), deliveredAt: str(s.deliveredAt), trackingUrl: str(s.trackingUrl) } : null,
@@ -295,8 +299,8 @@ export async function quoteShipping(addressId: string, signal?: AbortSignal): Pr
   return { quotationId, courier: str(body.courier) ?? 'Courier', shippingFee, expiresAt }
 }
 
-/** POST /orders. The API rejects unknown keys, so the body holds only these (quotationId only when given). */
-export async function createOrder(input: { addressId: string; cartItemIds: string[]; quotationId?: string }, signal?: AbortSignal): Promise<Order> {
-  const { addressId, cartItemIds, quotationId } = input
-  return toOrder(await request('POST', '/orders', { addressId, cartItemIds, ...(quotationId !== undefined && { quotationId }) }, signal))
+/** POST /orders. The API rejects unknown keys, so the body holds only these (quotationId and the notes only when given). */
+export async function createOrder(input: { addressId: string; cartItemIds: string[]; quotationId?: string; sellerNotes?: string; courierNotes?: string }, signal?: AbortSignal): Promise<Order> {
+  const { addressId, cartItemIds, quotationId, sellerNotes, courierNotes } = input
+  return toOrder(await request('POST', '/orders', { addressId, cartItemIds, ...(quotationId !== undefined && { quotationId }), ...(sellerNotes && { sellerNotes }), ...(courierNotes && { courierNotes }) }, signal))
 }

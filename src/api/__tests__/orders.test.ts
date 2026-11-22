@@ -40,6 +40,8 @@ describe('toOrder', () => {
       paidAt: null,
       cancelledAt: null,
       cancellationReason: null,
+      sellerNotes: null,
+      courierNotes: null,
       address: { recipient: 'Ana Cruz', phone: '09171234567', line: '1 Main St, Brgy 1', city: 'Makati, Metro Manila, 1200' },
       items: [{ id: 'i1', name: 'Tee', size: 'M', color: 'Red', quantity: 2, unitPrice: 1250, lineTotal: 2500, imageUrl: 'https://x.test/t.jpg', sku: 'TEE-M-RED' }],
       shipment: null,
@@ -283,6 +285,15 @@ describe('createOrder', () => {
     mockRequest.mockResolvedValue(raw())
     await createOrder({ addressId: 'a1', cartItemIds: ['c1'] })
     expect(mockRequest.mock.calls[0][2]).toStrictEqual({ addressId: 'a1', cartItemIds: ['c1'] })
+  })
+  it('sends the notes when given and leaves out blank ones', async () => {
+    mockRequest.mockResolvedValue(raw())
+    await createOrder({ addressId: 'a1', cartItemIds: ['c1'], sellerNotes: 'Gift wrap', courierNotes: '' })
+    expect(mockRequest.mock.calls[0][2]).toStrictEqual({ addressId: 'a1', cartItemIds: ['c1'], sellerNotes: 'Gift wrap' })
+  })
+  it('reads the notes from the order, null when missing', () => {
+    expect(toOrder(raw({ sellerNotes: 'Hi', courierNotes: 'Gate 1234' }))).toMatchObject({ sellerNotes: 'Hi', courierNotes: 'Gate 1234' })
+    expect(toOrder(raw())).toMatchObject({ sellerNotes: null, courierNotes: null })
   })
   it('rejects a malformed order', async () => {
     mockRequest.mockResolvedValue({})
