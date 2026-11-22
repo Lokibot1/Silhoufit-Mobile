@@ -9,13 +9,14 @@ import { useRequest } from '@/lib/useRequest'
 import { ReviewForm } from '@/review/ReviewForm'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, space } from '@/ui/theme'
+import { space, themed } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const one = (value: string | string[] | undefined) => (typeof value === 'string' ? value.trim() : '')
 
 // Write or edit the review of one product on one order. Opens in the mode the server says: a saved review means edit, a pending one means write.
 export default function ReviewScreen() {
+  const styles = useStyles()
   const params = useLocalSearchParams<{ orderId?: string | string[]; productId?: string | string[]; name?: string | string[] }>()
   const orderId = one(params.orderId)
   const productId = one(params.productId)
@@ -96,7 +97,7 @@ export default function ReviewScreen() {
   return <View style={styles.screen}>{body}</View>
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   content: { flexGrow: 1, padding: space.lg, gap: space.md, backgroundColor: color.paper },
-})
+}))

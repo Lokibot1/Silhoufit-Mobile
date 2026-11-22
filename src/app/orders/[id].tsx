@@ -18,7 +18,7 @@ import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
 import { CHIP_HEIGHT, StatusChip } from '@/ui/StatusChip'
 import { TrackingMap } from '@/ui/TrackingMap'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { font, radius, space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const TARGET = 44
@@ -29,6 +29,7 @@ const variantLine = ({ size, color: colour }: OrderItem) => [size && `Size ${siz
 const isExpired = (failure: unknown) => failure instanceof ApiError && failure.status === 401
 
 function ItemRow({ item }: { item: OrderItem }) {
+  const styles = useStyles()
   const [failed, setFailed] = useState(false)
   return (
     <View style={styles.item}>
@@ -50,6 +51,8 @@ function ItemRow({ item }: { item: OrderItem }) {
 }
 
 function AmountRow({ label, value, testID, strong }: { label: string; value: string; testID?: string; strong?: boolean }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   return (
     <View style={styles.amount}>
       <Text style={[type.label, styles.grow]}>{label}</Text>
@@ -72,6 +75,8 @@ const stamp = (value: string) => {
 // One stage: time on the far left, then marker + connecting line, then label / note on the right. Done is a filled Obsidian square, current a larger Red one, upcoming an outline, cancelled a Red cross.
 // The marker is centred on a zero-width body-style line, so it follows the first text line at any font scale. `next` is the older stage drawn below this one.
 function TimelineRow({ step, next, opacity = 1 }: { step: TimelineStep; next?: TimelineStep; opacity?: number }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const { state } = step
   const stateWord = state === 'cancelled' ? null : state
   const label = [step.label, stateWord, step.at && dateTime(step.at), step.note].filter(Boolean).join(', ')
@@ -106,6 +111,8 @@ const UPDATES_SHOWN = 3
 
 // The courier's updates, newest first (bold). Only the latest few show until asked; nothing renders without updates.
 function DeliveryUpdates({ events }: { events: ShipmentEvent[] }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const [expanded, setExpanded] = useState(false)
   if (events.length === 0) return null
   const hidden = events.length - UPDATES_SHOWN
@@ -129,6 +136,8 @@ function DeliveryUpdates({ events }: { events: ShipmentEvent[] }) {
 type Props = { order: Order; action: 'pay' | 'cancel' | null; failure: string | null; onPay: () => void; onCancel: () => void; onTrack: (url: string) => void }
 
 function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const { address, shipment } = order
   const unpaid = awaitsPayment(order)
   const tracking = trackingLink(order)
@@ -242,6 +251,7 @@ function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props
 
 // Same blocks as OrderDetail (heading, chips, two item rows, amounts, buttons) so the swap does not shift.
 function DetailSkeleton() {
+  const styles = useStyles()
   return (
     <View accessible accessibilityLabel="Loading" accessibilityRole="progressbar" style={styles.content}>
       <Skeleton width={80} height={20} />
@@ -290,6 +300,8 @@ const RELOAD_DEDUPE_MS = 3000
 
 // Needs a session. An order of another account answers 404, which reads as "not found".
 export default function OrderScreen() {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const { id: raw, pay: autoPay } = useLocalSearchParams<{ id: string | string[]; pay?: string }>()
   const id = typeof raw === 'string' ? raw.trim() : ''
   const { session, loading, signOut } = useSession()
@@ -505,7 +517,7 @@ export default function OrderScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   message: { padding: space.lg },
   content: { padding: space.lg, gap: space.md },
@@ -550,4 +562,4 @@ const styles = StyleSheet.create({
   mapLink: { minHeight: TARGET, alignSelf: 'flex-start', justifyContent: 'center' },
   mapLinkText: { ...type.small, fontSize: 12, lineHeight: 16, textDecorationLine: 'underline' },
   headerBack: { minHeight: TARGET, minWidth: TARGET, justifyContent: 'center' },
-})
+}))

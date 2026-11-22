@@ -10,7 +10,7 @@ import { errorMessage } from '@/lib/api'
 import { Button } from '@/ui/Button'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { Skeleton } from '@/ui/Skeleton'
-import { color, space, type } from '@/ui/theme'
+import { space, themed, useTheme } from '@/ui/theme'
 
 const IMG_W = 56
 const IMG_H = 72
@@ -30,6 +30,8 @@ function rowsOf(order: Order, { pending, mine }: Data): Row[] {
 }
 
 function Stars({ value }: { value: number }) {
+  const styles = useStyles()
+  const { color } = useTheme()
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={`${value} out of 5 stars`} style={styles.stars}>
       {[1, 2, 3, 4, 5].map((n) => <Ionicons key={n} name={n <= value ? 'star' : 'star-outline'} size={16} color={n <= value ? color.obsidian : color.stonewash} />)}
@@ -38,6 +40,8 @@ function Stars({ value }: { value: number }) {
 }
 
 function ReviewRow({ row, onOpen }: { row: Row; onOpen: (row: Row) => void }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const [failed, setFailed] = useState(false)
   const [now] = useState(Date.now)
   const { review } = row
@@ -73,6 +77,8 @@ function ReviewRow({ row, onOpen }: { row: Row; onOpen: (row: Row) => void }) {
 
 /** The reviews of a delivered order, a row per product: write the ones still waiting, edit a saved one. It owns its data, so a failure here never touches the order. */
 export function OrderReviews({ order }: { order: Order }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const [state, setState] = useState<{ data: Data | null; error: unknown }>({ data: null, error: null })
   const [attempt, setAttempt] = useState(0)
   const focused = useIsFocused()
@@ -145,7 +151,7 @@ export function OrderReviews({ order }: { order: Order }) {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   section: { gap: space.md },
   row: { flexDirection: 'row', gap: space.md },
   tile: { width: IMG_W, height: IMG_H, backgroundColor: color.porcelain },
@@ -153,4 +159,4 @@ const styles = StyleSheet.create({
   info: { flex: 1, gap: space.xs },
   stars: { flexDirection: 'row', gap: 2 },
   text: { color: color.graphite },
-})
+}))

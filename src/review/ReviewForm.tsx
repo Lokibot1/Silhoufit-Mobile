@@ -13,7 +13,7 @@ import { Button } from '@/ui/Button'
 import { FloatingField } from '@/ui/FloatingField'
 import { PhotoSourceSheet } from '@/ui/PhotoPicker'
 import { PressableScale } from '@/ui/PressableScale'
-import { color, space, type } from '@/ui/theme'
+import { space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
 import { PhotoGrid, type Tile } from './PhotoGrid'
@@ -41,6 +41,8 @@ type Props = {
 }
 
 function Stars({ value, onChange, disabled }: { value: number; onChange: (n: number) => void; disabled: boolean }) {
+  const styles = useStyles()
+  const { color } = useTheme()
   return (
     <View testID="review-rating" accessibilityRole="radiogroup" accessibilityLabel="Rating" style={styles.stars}>
       {[1, 2, 3, 4, 5].map((n) => (
@@ -64,6 +66,8 @@ let nextTile = 0
 
 // Rating, text and up to five photos. New photos upload when the review is submitted; a failed one keeps its place and can be retried.
 export function ReviewForm({ userId, orderId, productId, productName, review, onConflict }: Props) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const { signOut } = useSession()
   const toast = useToast()
   const navigation = useNavigation()
@@ -269,14 +273,14 @@ export function ReviewForm({ userId, orderId, productId, productName, review, on
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: color.paper },
   content: { flexGrow: 1, padding: space.lg, gap: space.md, backgroundColor: color.paper },
   group: { gap: space.sm },
   stars: { flexDirection: 'row', gap: space.xs },
   star: { width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
-  error: { color: color.red },
+  error: { color: color.redInk },
   count: { textAlign: 'right', color: color.graphite },
   hint: { color: color.graphite },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
-})
+}))
