@@ -95,8 +95,23 @@ appId: ${APP_ID}
     timeout: 10000
 - assertVisible:
     id: wishlist-list
+# Clear All: Cancel keeps the list, confirming empties it (this also leaves the account without the piece).
 - tapOn:
-    id: 'wishlist-remove-.+'
+    id: wishlist-clear
+- runFlow:
+    file: subflows/confirm-alert.yaml
+    env:
+      BUTTON: '(?i)Cancel'
+- assertVisible:
+    id: wishlist-list
+- tapOn:
+    id: wishlist-clear
+- runFlow:
+    file: subflows/confirm-alert.yaml
+    env:
+      BUTTON: '(?i)Clear Wishlist'
 - extendedWaitUntil:
-    visible: Removed from wishlist
+    visible: Wishlist cleared
     timeout: 10000
+- assertVisible:
+    id: wishlist-empty

@@ -38,6 +38,11 @@ export async function addWishlistItem(productId: string): Promise<void> {
   await request('POST', '/wishlist', { productId })
 }
 
+/** DELETE /wishlist. Empties the whole list, including pieces hidden because they were archived. */
+export async function clearWishlist(): Promise<void> {
+  await request('DELETE', '/wishlist')
+}
+
 /** DELETE /wishlist/:productId. A piece that is not saved (404) is already the state wanted, so it counts as done. */
 export async function removeWishlistItem(productId: string): Promise<void> {
   try {

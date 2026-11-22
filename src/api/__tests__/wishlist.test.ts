@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { addWishlistItem, fetchWishlist, fetchWishlistIds, removeWishlistItem, toWishlist, toWishlistIds } from '../wishlist'
+import { addWishlistItem, clearWishlist, fetchWishlist, fetchWishlistIds, removeWishlistItem, toWishlist, toWishlistIds } from '../wishlist'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -53,6 +53,13 @@ describe('requests', () => {
     await expect(removeWishlistItem('p1')).resolves.toBeUndefined()
     mockRequest.mockRejectedValueOnce(new ApiError('network'))
     await expect(removeWishlistItem('p1')).rejects.toMatchObject({ kind: 'network' })
+  })
+  it('clears the whole wishlist with DELETE /wishlist and passes a failure through', async () => {
+    mockRequest.mockResolvedValueOnce({ success: true })
+    await clearWishlist()
+    expect(mockRequest).toHaveBeenCalledWith('DELETE', '/wishlist')
+    mockRequest.mockRejectedValueOnce(new ApiError('network'))
+    await expect(clearWishlist()).rejects.toMatchObject({ kind: 'network' })
   })
   it('passes a failed read through', async () => {
     mockRequest.mockRejectedValue(new ApiError('forbidden', undefined, 401))

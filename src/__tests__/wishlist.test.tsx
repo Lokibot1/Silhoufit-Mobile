@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { Alert } from 'react-native'
 
 import { ApiError } from '@/lib/api'
 import Wishlist from '../app/(tabs)/wishlist'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
-jest.mock('@/api/wishlist', () => ({ fetchWishlist: jest.fn(), addWishlistItem: jest.fn(), removeWishlistItem: jest.fn() }))
+jest.mock('@/api/wishlist', () => ({ fetchWishlist: jest.fn(), addWishlistItem: jest.fn(), removeWishlistItem: jest.fn(), clearWishlist: jest.fn() }))
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
@@ -190,6 +191,64 @@ it('opens Sign In once when the session is rejected on load, keeping the Retry s
   expect(await screen.findByText('Your session has expired. Sign in again.')).toBeTruthy()
   expect(router.push).toHaveBeenCalledTimes(1)
   expect(router.push).toHaveBeenCalledWith('/sign-in')
+})
+
+describe('Clear All', () => {
+  const alert = jest.spyOn(Alert, 'alert')
+  const buttons = () => alert.mock.calls[0][2] as { text: string; style?: string; onPress?: () => void }[]
+  const choose = (text: string) => act(async () => buttons().find((b) => b.text === text)?.onPress?.())
+
+  it('is hidden when the wishlist is empty', async () => {
+    wishlist.fetchWishlist.mockResolvedValue([])
+    await render(<Wishlist />)
+    await screen.findByText('Your wishlist is empty')
+    expect(screen.queryByTestId('wishlist-clear')).toBeNull()
+  })
+
+  it('asks first, and Cancel changes nothing', async () => {
+    await render(<Wishlist />)
+    const button = await screen.findByTestId('wishlist-clear')
+    expect(screen.getByLabelText('Clear wishlist')).toBe(button)
+    await fireEvent.press(button)
+    expect(alert.mock.calls[0][0]).toBe('Are you sure?')
+    expect(buttons().map((b) => [b.text, b.style])).toEqual([['Cancel', 'cancel'], ['Clear Wishlist', 'destructive']])
+    await choose('Cancel')
+    expect(wishlist.clearWishlist).not.toHaveBeenCalled()
+    expect(names()).toEqual(['Linen Shirt', 'Wool Hoodie', 'Denim Shorts'])
+  })
+
+  it('clears on confirm: calls the API, empties the list, toasts', async () => {
+    wishlist.clearWishlist.mockResolvedValue(undefined)
+    await render(<Wishlist />)
+    await fireEvent.press(await screen.findByTestId('wishlist-clear'))
+    await choose('Clear Wishlist')
+    expect(wishlist.clearWishlist).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('Your wishlist is empty')).toBeTruthy()
+    expect(mockToast).toHaveBeenCalledWith('Wishlist cleared')
+  })
+
+  it('keeps the list and toasts the reason when clearing fails', async () => {
+    wishlist.clearWishlist.mockRejectedValue(new ApiError('server'))
+    await render(<Wishlist />)
+    await fireEvent.press(await screen.findByTestId('wishlist-clear'))
+    await choose('Clear Wishlist')
+    expect(mockToast).toHaveBeenCalledWith("Couldn't clear your wishlist. The server had a problem. Please try again.")
+    expect(names()).toEqual(['Linen Shirt', 'Wool Hoodie', 'Denim Shorts'])
+    expect(screen.getByTestId('wishlist-clear').props.accessibilityState?.disabled ?? false).toBe(false)
+  })
+
+  it('is disabled while pending and cannot be submitted twice', async () => {
+    let finish: () => void = () => {}
+    wishlist.clearWishlist.mockReturnValue(new Promise<void>((resolve) => { finish = resolve }))
+    await render(<Wishlist />)
+    await fireEvent.press(await screen.findByTestId('wishlist-clear'))
+    await choose('Clear Wishlist')
+    expect(screen.getByTestId('wishlist-clear').props.accessibilityState).toMatchObject({ disabled: true, busy: true })
+    await fireEvent.press(screen.getByTestId('wishlist-clear'))
+    expect(alert).toHaveBeenCalledTimes(1)
+    await act(async () => finish())
+    expect(wishlist.clearWishlist).toHaveBeenCalledTimes(1)
+  })
 })
 
 it('starts clean when the account changes', async () => {

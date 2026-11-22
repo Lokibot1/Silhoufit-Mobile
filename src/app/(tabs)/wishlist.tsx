@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FlatList, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, View } from 'react-native'
 
-import { addWishlistItem, fetchWishlist, removeWishlistItem, type WishlistItem } from '@/api/wishlist'
+import { addWishlistItem, clearWishlist, fetchWishlist, removeWishlistItem, type WishlistItem } from '@/api/wishlist'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { PressableScale } from '@/ui/PressableScale'
 import { ProductCard, ProductCardSkeleton, useCardRows } from '@/ui/ProductCard'
 import { PullToRefresh } from '@/ui/PullToRefresh'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, space } from '@/ui/theme'
+import { color, space, type } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const SKELETONS = [0, 1, 2, 3]
@@ -44,6 +44,8 @@ function WishlistScreen() {
   const focused = useRef(false)
   const toastRef = useRef(toast)
   const working = useRef(new Set<string>())
+  const asking = useRef(false)
+  const [clearing, setClearing] = useState(false)
   const opening = useRef(false)
   // A fast double tap must not stack two screens; allow it again when this screen regains focus.
   // Coming back (say after un-hearting on the product page) also reloads quietly: the list stays on screen meanwhile.
@@ -150,6 +152,40 @@ function WishlistScreen() {
     }
   }
 
+  // One Alert at a time; the lock opens again when it is dismissed or the clear ends.
+  function confirmClear() {
+    if (asking.current) return
+    asking.current = true
+    const release = () => {
+      asking.current = false
+    }
+    Alert.alert(
+      'Are you sure?',
+      'Every piece you saved will be removed from your wishlist.',
+      [
+        { text: 'Cancel', style: 'cancel', onPress: release },
+        { text: 'Clear Wishlist', style: 'destructive', onPress: () => void clearAll().finally(release) },
+      ],
+      { cancelable: true, onDismiss: release },
+    )
+  }
+
+  async function clearAll() {
+    setClearing(true)
+    changes.current++
+    try {
+      await clearWishlist()
+      setItems([])
+      toast('Wishlist cleared')
+    } catch (failure) {
+      if (isForbidden(failure)) openSignIn()
+      else toast(`Couldn't clear your wishlist. ${errorMessage(failure)}`)
+    } finally {
+      changes.current++
+      setClearing(false)
+    }
+  }
+
   if (!loading && !session) {
     return (
       <View style={styles.message}>
@@ -189,6 +225,18 @@ function WishlistScreen() {
           keyExtractor={(item) => item.productId}
           numColumns={2}
           columnWrapperStyle={styles.columns}
+          ListHeaderComponent={
+            <PressableScale
+              testID="wishlist-clear"
+              accessibilityRole="button"
+              accessibilityLabel="Clear wishlist"
+              accessibilityState={{ disabled: clearing, busy: clearing }}
+              disabled={clearing}
+              onPress={confirmClear}
+              style={[styles.clear, clearing && styles.off]}>
+              {clearing ? <ActivityIndicator color={color.graphite} /> : <Text style={styles.clearText}>Clear All</Text>}
+            </PressableScale>
+          }
           ItemSeparatorComponent={Gap}
           contentContainerStyle={styles.content}
           renderItem={({ item }) => (
@@ -223,5 +271,8 @@ const styles = StyleSheet.create({
   content: { padding: space.lg, paddingBottom: space.xl },
   columns: { gap: space.md },
   gap: { height: space.md },
+  clear: { minHeight: 44, minWidth: 44, alignSelf: 'flex-end', alignItems: 'center', justifyContent: 'center' },
+  clearText: { ...type.label, color: color.graphite },
+  off: { opacity: 0.4 },
   remove: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 })
