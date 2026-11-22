@@ -67,6 +67,7 @@ function Gate() {
             headerTintColor: color.obsidian,
           }}
         />
+        <Stack.Screen name="product/try-on/live/[id]" options={{ presentation: 'fullScreenModal', headerShown: false, animation: reduce ? 'none' : 'fade' }} />
         <Stack.Screen
           name="orders/[id]"
           options={{
