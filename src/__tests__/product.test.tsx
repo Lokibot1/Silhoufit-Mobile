@@ -581,3 +581,49 @@ it('toasts a saved piece above the sticky bar', async () => {
   await fireEvent.press(screen.getByTestId('product-wishlist'))
   await waitFor(() => expect(mockToast).toHaveBeenCalledWith('Saved to wishlist'))
 })
+
+describe('AR try-on', () => {
+  it('is hidden when the product is not AR ready', async () => {
+    mockFetch.mockResolvedValue(product({ isArReady: false }))
+    await render(<ProductScreen />)
+    await screen.findByTestId('product-name')
+    expect(screen.queryByTestId('product-try-on')).toBeNull()
+  })
+
+  it('is enabled for an AR ready shirt', async () => {
+    mockFetch.mockResolvedValue(product({ isArReady: true }))
+    await render(<ProductScreen />)
+    const button = await screen.findByRole('button', { name: 'AR Virtual Try-On' })
+    expect(button.props.accessibilityState).toMatchObject({ disabled: false })
+    expect(screen.queryByTestId('product-try-on-hint')).toBeNull()
+  })
+
+  it('is disabled with a reason for an AR ready non-shirt', async () => {
+    mockFetch.mockResolvedValue(product({ isArReady: true, category: 'Hoodie' }))
+    await render(<ProductScreen />)
+    const button = await screen.findByRole('button', { name: 'AR Virtual Try-On' })
+    expect(button.props.accessibilityState).toMatchObject({ disabled: true })
+    expect(screen.getByText('Try-on is only available for shirts right now.')).toBeTruthy()
+    await fireEvent.press(button)
+    expect(router.push).not.toHaveBeenCalled()
+  })
+
+  it('sends a signed-out tap to sign in', async () => {
+    mockUseSession.mockReturnValue({ session: null })
+    mockFetch.mockResolvedValue(product({ isArReady: true }))
+    await render(<ProductScreen />)
+    await fireEvent.press(await screen.findByTestId('product-try-on'))
+    expect(router.push).toHaveBeenCalledTimes(1)
+    expect(router.push).toHaveBeenCalledWith('/sign-in')
+  })
+
+  it('opens the try-on with the selected colour, or without one when none is chosen', async () => {
+    mockFetch.mockResolvedValue(product({ isArReady: true }))
+    await render(<ProductScreen />)
+    await fireEvent.press(await screen.findByTestId('product-try-on'))
+    expect(router.push).toHaveBeenLastCalledWith('/product/try-on/p1')
+    await fireEvent.press(screen.getByTestId('product-swatch-Navy'))
+    await fireEvent.press(screen.getByTestId('product-try-on'))
+    expect(router.push).toHaveBeenLastCalledWith('/product/try-on/p1?color=Navy')
+  })
+})

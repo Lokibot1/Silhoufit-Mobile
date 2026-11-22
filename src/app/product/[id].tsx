@@ -13,6 +13,7 @@ import { peso } from '@/lib/format'
 import { openLegal } from '@/lib/site'
 import { useCartCount } from '@/lib/useCartCount'
 import { useRequest } from '@/lib/useRequest'
+import { canTryOn } from '@/product/arGarment'
 import { SizeGuideSheet } from '@/product/SizeGuideSheet'
 import { WishlistHeart } from '@/product/WishlistHeart'
 import { Button } from '@/ui/Button'
@@ -145,6 +146,12 @@ function ProductView({ product }: { product: Product }) {
     if (opening.current) return
     opening.current = true
     router.push('/sign-in')
+  }
+
+  function tryOn() {
+    if (!session) return signIn()
+    const picked = chosenColor && chosenColor !== NONE ? `?color=${encodeURIComponent(chosenColor)}` : ''
+    router.push(`/product/try-on/${product.id}${picked}`)
   }
 
   // A toast above the sticky bar, like Added to cart.
@@ -299,6 +306,20 @@ function ProductView({ product }: { product: Product }) {
               </View>
             </View>
             {canBuy && <Text testID="product-selection" style={[type.body, type.numeric]}>{`Selected: ${selection ? `${selection} ` : ''}× ${quantity}`}</Text>}
+          </View>
+        )}
+
+        {product.isArReady && (
+          <View style={styles.block}>
+            <Button
+              testID="product-try-on"
+              variant="secondary"
+              label="AR Virtual Try-On"
+              icon={<Ionicons name="camera-outline" size={24} color={color.obsidian} />}
+              disabled={!canTryOn(product)}
+              onPress={tryOn}
+            />
+            {!canTryOn(product) && <Text testID="product-try-on-hint" style={styles.hint}>Try-on is only available for shirts right now.</Text>}
           </View>
         )}
 
