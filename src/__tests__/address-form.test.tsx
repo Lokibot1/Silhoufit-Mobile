@@ -99,11 +99,11 @@ describe('create', () => {
   it('validates on blur, then live as the user types', async () => {
     await render(<AddressForm />)
     await type('addr-phone', '12345')
-    expect(screen.queryByText(/Enter a Philippine number/)).toBeNull()
+    expect(screen.queryByText(/Enter a Philippine mobile number/)).toBeNull()
     await fireEvent(screen.getByTestId('addr-phone'), 'blur')
-    expect(screen.getByText(/Enter a Philippine number/)).toBeTruthy()
+    expect(screen.getByText(/Enter a Philippine mobile number/)).toBeTruthy()
     await type('addr-phone', '09171234567')
-    expect(screen.queryByText(/Enter a Philippine number/)).toBeNull()
+    expect(screen.queryByText(/Enter a Philippine mobile number/)).toBeNull()
   })
 
   it('filters the phone to digits and a plus, shows the count, and filters names and emoji', async () => {

@@ -75,7 +75,7 @@ appId: ${APP_ID}
 - inputText: '12345'
 - tapOn:
     id: addr-street
-- assertVisible: Enter a Philippine number.*
+- assertVisible: Enter a Philippine mobile number.*
 - inputText: '12 Main St'
 - hideKeyboard
 - assertNotVisible: Street address is required.

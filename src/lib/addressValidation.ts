@@ -6,7 +6,7 @@ import { normalizeName, stripEmoji } from './profileValidation'
 // Limits mirror the backend DTO (silhoufit-api/src/addresses/dto/create-address.dto.ts); the phone cap is CLAUDE.md's 13.
 export const ADDRESS_LIMITS = { name: 100, label: 50, street: 255, postal: 4, phone: 13 } as const
 // The server is the authority: this is a copy of PH_PHONE_REGEX (silhoufit-api/src/addresses/dto/address.constants.ts).
-const PH_PHONE_REGEX = /^(?:(?:\+63|0)[\s.-]?9(?:[\s.-]?\d){9}|(?:\+63|0)[\s.-]?[2-8]\d{0,2}(?:[\s.-]?\d{3,4}){2}|\(0[2-8]\d{0,2}\)[\s.-]?(?:\d{3,4}[\s.-]?){1,2}\d{4})$/
+const PH_PHONE_REGEX = /^(?:\+63|0)[\s.-]?9(?:[\s.-]?\d){9}$/
 // A rough box around the country, so a pin cannot land in the ocean or abroad by accident or by a bad message.
 export const PH_BOUNDS = { minLat: 4, maxLat: 22, minLon: 116, maxLon: 127 }
 export const MANILA = { lat: 14.5995, lon: 120.9842 }
@@ -28,7 +28,7 @@ export function filterPhone(input: string): string {
   return ((input.trim().startsWith('+') ? '+' : '') + digits).slice(0, ADDRESS_LIMITS.phone)
 }
 
-/** What is saved: "+63" and the number, whichever way it was typed (0917..., 63917..., +63 917..., (02) 8123-4567). */
+/** What is saved: "+63" and the number, whichever way it was typed (0917..., 63917..., +63 917...). */
 export function normalizePhone(input: string): string {
   const typed = filterPhone(input)
   if (typed.startsWith('+')) return typed
@@ -38,7 +38,7 @@ export function normalizePhone(input: string): string {
 
 export function validatePhone(input: string): string | null {
   if (!filterPhone(input)) return 'Phone number is required.'
-  return PH_PHONE_REGEX.test(normalizePhone(input)) ? null : 'Enter a Philippine number like 0917 123 4567 or +63 917 123 4567.'
+  return PH_PHONE_REGEX.test(normalizePhone(input)) ? null : 'Enter a Philippine mobile number like 0917 123 4567 or +63 917 123 4567.'
 }
 
 export function validateStreet(input: string): string | null {

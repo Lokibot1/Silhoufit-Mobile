@@ -35,10 +35,11 @@ describe('phone', () => {
   it('accepts what the backend regex accepts and says what to do otherwise', () => {
     expect(validatePhone('0917 123 4567')).toBeNull()
     expect(validatePhone('+639171234567')).toBeNull()
-    expect(validatePhone('(02) 8123-4567')).toBeNull()
+    expect(validatePhone('639171234567')).toBeNull()
+    expect(validatePhone('(02) 8123-4567')).toBe('Enter a Philippine mobile number like 0917 123 4567 or +63 917 123 4567.')
     expect(validatePhone('')).toBe('Phone number is required.')
-    expect(validatePhone('12345')).toMatch(/Philippine number/)
-    expect(validatePhone('01171234567')).toMatch(/Philippine number/)
+    expect(validatePhone('12345')).toMatch(/Philippine mobile number/)
+    expect(validatePhone('01171234567')).toMatch(/Philippine mobile number/)
   })
 })
 
