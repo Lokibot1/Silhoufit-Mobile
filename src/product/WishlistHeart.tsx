@@ -8,7 +8,7 @@ import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { useRequest } from '@/lib/useRequest'
 import { PressableScale } from '@/ui/PressableScale'
-import { color } from '@/ui/theme'
+import { useTheme } from '@/ui/theme'
 
 const LOAD_FAILED = "Couldn't load your wishlist. Tap to retry."
 
@@ -24,6 +24,7 @@ export function WishlistHeart({ productId, notify, saved: known, onChange, name,
   name?: string
   testID?: string
 }) {
+  const { color } = useTheme()
   const { session } = useSession()
   const userId = session?.user.id
   // The saved ids load once per account; `picked` is what the shopper chose since, so a tap shows at once and a failure puts it back.
@@ -86,7 +87,7 @@ export function WishlistHeart({ productId, notify, saved: known, onChange, name,
       disabled={!!userId && status === 'loading'}
       onPress={toggle}
       style={styles.button}>
-      <Ionicons name={saved ? 'heart' : 'heart-outline'} size={24} color={unknown ? color.stonewash : saved ? color.red : color.obsidian} />
+      <Ionicons name={saved ? 'heart' : 'heart-outline'} size={24} color={unknown ? color.stonewash : saved ? color.redInk : color.obsidian} />
     </PressableScale>
   )
 }

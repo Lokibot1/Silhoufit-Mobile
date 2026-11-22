@@ -14,11 +14,13 @@ import { Button } from '@/ui/Button'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { font, radius, space, themed, useTheme } from '@/ui/theme'
 
 const IMAGE = 80
 
 function MiniCard({ product }: { product: Product }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const [failed, setFailed] = useState(false)
   const url = product.images[0]?.url
   const prices = product.variants.map((v) => v.price)
@@ -40,6 +42,7 @@ function MiniCard({ product }: { product: Product }) {
 
 // Mirrors the mini card so nothing shifts when the product lands.
 function CardSkeleton() {
+  const styles = useStyles()
   return (
     <View testID="reviews-product-loading" accessible accessibilityLabel="Loading product" accessibilityRole="progressbar" style={styles.card}>
       <Skeleton width={IMAGE} height={IMAGE} />
@@ -53,6 +56,8 @@ function CardSkeleton() {
 }
 
 export default function ProductReviewsScreen() {
+  const styles = useStyles()
+  const { color } = useTheme()
   const { id: raw } = useLocalSearchParams<{ id: string | string[] }>()
   const id = typeof raw === 'string' ? raw.trim() : ''
   const insets = useSafeAreaInsets()
@@ -91,7 +96,7 @@ export default function ProductReviewsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   scroll: { flex: 1 },
   error: { padding: space.lg },
@@ -100,7 +105,7 @@ const styles = StyleSheet.create({
   image: { width: IMAGE, height: IMAGE, borderRadius: radius.soft, overflow: 'hidden', backgroundColor: color.paper },
   fill: { width: '100%', height: '100%' },
   info: { flex: 1, gap: space.xs, justifyContent: 'center' },
-  price: { fontFamily: font.bold, fontSize: 24, lineHeight: 32, color: color.red, ...type.numeric },
+  price: { fontFamily: font.bold, fontSize: 24, lineHeight: 32, color: color.redInk, ...type.numeric },
   headerBack: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
   bar: { paddingHorizontal: space.lg, paddingTop: space.sm, backgroundColor: color.paper, borderTopWidth: 1, borderTopColor: color.porcelain },
-})
+}))

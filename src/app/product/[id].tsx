@@ -21,7 +21,7 @@ import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { font, radius, space, themed, themes, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const LOW_STOCK = 5
@@ -49,6 +49,8 @@ const bySize = (a: string, b: string) => {
 }
 
 function Slide({ url, label, name, width, height }: { url: string | null; label: string; name: string; width: number; height: number }) {
+  const styles = useStyles()
+  const { color } = useTheme()
   const [failed, setFailed] = useState(false)
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={label} style={{ width, height, backgroundColor: color.porcelain }}>
@@ -64,6 +66,7 @@ function Slide({ url, label, name, width, height }: { url: string | null; label:
 }
 
 function Gallery({ product }: { product: Product }) {
+  const styles = useStyles()
   const { width, height } = useWindowDimensions()
   const [index, setIndex] = useState(0)
   const slides: { url: string | null; altText: string | null }[] = product.images.length ? product.images : [{ url: null, altText: null }]
@@ -90,6 +93,8 @@ function Gallery({ product }: { product: Product }) {
 }
 
 function ProductView({ product }: { product: Product }) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const { session } = useSession()
   const toast = useToast()
   const insets = useSafeAreaInsets()
@@ -344,6 +349,7 @@ function ProductView({ product }: { product: Product }) {
 
 // Mirrors the final layout (gallery, price block, one option row, the bar) so nothing shifts when the data lands.
 function ProductSkeleton() {
+  const styles = useStyles()
   const { width, height } = useWindowDimensions()
   const insets = useSafeAreaInsets()
   return (
@@ -374,6 +380,8 @@ function ProductSkeleton() {
 
 // Public: browsing needs no session; only Add to Cart reads it.
 export default function ProductScreen() {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const { id: raw } = useLocalSearchParams<{ id: string | string[] }>()
   const id = typeof raw === 'string' ? raw.trim() : ''
   const { status, data, error, retry } = useRequest(id, (signal) => (id ? fetchProduct(id, signal) : Promise.reject(new ApiError('not-found'))))
@@ -415,7 +423,9 @@ export default function ProductScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed((t) => {
+  const { color, type } = t
+  return StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   fillScreen: { flex: 1 },
   scroll: { flex: 1 },
@@ -437,16 +447,17 @@ const styles = StyleSheet.create({
   guideLink: { minHeight: TARGET, minWidth: TARGET, justifyContent: 'center', alignItems: 'flex-end' },
   guideText: { color: color.obsidian, textDecorationLine: 'underline' },
   priceRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: space.md },
-  price: { fontFamily: font.bold, fontSize: 24, lineHeight: 32, color: color.red, ...type.numeric },
+  price: { fontFamily: font.bold, fontSize: 24, lineHeight: 32, color: color.redInk, ...type.numeric },
   rating: { ...type.small, ...type.numeric, color: color.graphite },
-  stock: { ...type.small, color: color.red },
+  stock: { ...type.small, color: color.redInk },
   soldOut: { color: color.graphite },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   // Two cards a row: each may grow to just under half, so a lone last card stays half width.
   card: { flexBasis: '47%', flexGrow: 1, maxWidth: '49%', minHeight: TARGET + space.sm, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, borderRadius: radius.soft, borderWidth: 1, borderColor: color.porcelain },
   selectedCard: { backgroundColor: color.mint, borderColor: color.green },
   cardName: { flex: 1 },
-  swatchFill: { width: 28, height: 28, borderRadius: radius.pill, borderWidth: 1, borderColor: color.porcelain },
+  // Porcelain vanishes against dark Paper, so dark swatches get a Stonewash ring.
+  swatchFill: { width: 28, height: 28, borderRadius: radius.pill, borderWidth: 1, borderColor: t === themes.light ? color.porcelain : color.stonewash },
   off: { opacity: 0.4 },
   offText: { textDecorationLine: 'line-through' },
   qtyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -463,4 +474,5 @@ const styles = StyleSheet.create({
   bar: { paddingHorizontal: space.lg, paddingTop: space.sm, gap: space.sm, backgroundColor: color.paper, borderTopWidth: 1, borderTopColor: color.porcelain },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   barButton: { flex: 1 },
+})
 })

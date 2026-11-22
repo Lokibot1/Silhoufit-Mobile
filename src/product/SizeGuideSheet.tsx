@@ -9,7 +9,7 @@ import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { font, radius, space, themed, useTheme } from '@/ui/theme'
 import { buildSizeGuide, needsBaseRows, norm, type GuideRow, type GuideVariant } from './sizeGuide'
 
 type Props = { visible: boolean; onClose: () => void; category: string | null; variants: GuideVariant[]; selected: string | null }
@@ -23,6 +23,8 @@ const cm = (n: number) => `${Number(n.toFixed(1))} cm`
 const cardHeight = (lines: number) => 2 * CARD_PAD + LINE + space.sm + lines * LINE
 
 function Card({ row, columns, selected, category }: { row: GuideRow; columns: MeasurementKey[]; selected: boolean; category: string | null }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const source = row.source === 'product' ? 'This piece' : row.source === 'base' ? `Standard${category ? ` for ${category}` : ''}` : ''
   const label = [
     `Size ${row.size}${selected ? ', selected' : ''}`,
@@ -49,6 +51,8 @@ function Card({ row, columns, selected, category }: { row: GuideRow; columns: Me
 }
 
 function Content({ onClose, category, variants, selected }: Omit<Props, 'visible'>) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const base = !!category && needsBaseRows(variants)
   const { status, data, error, retry } = useRequest(`${category}|${base}`, (signal) => (base && category ? fetchCategoryMeasurements(category, signal) : Promise.resolve([])))
   // Nothing stored for the category (404) is not a failure: the guide is just unavailable.
@@ -87,6 +91,8 @@ function Content({ onClose, category, variants, selected }: Omit<Props, 'visible
 
 /** A bottom sheet of garment measurements per size. The content mounts only while open, so nothing is fetched until it is asked for. */
 export function SizeGuideSheet({ visible, onClose, ...rest }: Props) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const insets = useSafeAreaInsets()
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
@@ -106,7 +112,7 @@ export function SizeGuideSheet({ visible, onClose, ...rest }: Props) {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: color.scrim },
   sheet: { maxHeight: '85%', backgroundColor: color.paper },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingLeft: space.lg, paddingRight: space.xs, borderBottomWidth: 1, borderBottomColor: color.porcelain },
@@ -123,4 +129,4 @@ const styles = StyleSheet.create({
   line: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: LINE },
   value: { textAlign: 'right' },
   banner: { gap: space.md, padding: space.md, borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red },
-})
+}))

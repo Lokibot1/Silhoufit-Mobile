@@ -12,7 +12,7 @@ import { HeaderIcon } from '@/ui/HeaderIcon'
 import { Chip } from '@/ui/Chip'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
-import { color, font, radius, space, type } from '@/ui/theme'
+import { font, radius, space, themed, useTheme } from '@/ui/theme'
 import { PhotoViewer } from './PhotoViewer'
 
 const PHOTO = 72
@@ -40,6 +40,8 @@ type State = {
 const INITIAL: State = { status: 'loading', reviews: [], page: 1, totalPages: 1, total: 0, summary: null, more: 'idle', error: null }
 
 function Stars({ value, label, size = 16 }: { value: number; label: string; size?: number }) {
+  const styles = useStyles()
+  const { color } = useTheme()
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={label} style={styles.stars}>
       {[1, 2, 3, 4, 5].map((n) => (
@@ -50,6 +52,8 @@ function Stars({ value, label, size = 16 }: { value: number; label: string; size
 }
 
 function Photo({ url, label, onPress, testID }: { url: string; label: string; onPress: () => void; testID: string }) {
+  const styles = useStyles()
+  const { color } = useTheme()
   const [failed, setFailed] = useState(false)
   return (
     <PressableScale testID={testID} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.photo}>
@@ -59,6 +63,8 @@ function Photo({ url, label, onPress, testID }: { url: string; label: string; on
 }
 
 function ReviewCard({ review, onPhoto }: { review: Review; onPhoto: (photos: string[], start: number, author: string) => void }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   return (
     <View testID={`review-${review.id}`} style={styles.review}>
       <View style={styles.who}>
@@ -91,6 +97,8 @@ function ReviewCard({ review, onPhoto }: { review: Review; onPhoto: (photos: str
 }
 
 function Summary({ summary }: { summary: ReviewSummary }) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   return (
     <View testID="reviews-summary" style={styles.summary}>
       <View style={styles.average}>
@@ -115,6 +123,7 @@ function Summary({ summary }: { summary: ReviewSummary }) {
 }
 
 function ReviewSkeleton() {
+  const styles = useStyles()
   return (
     <View style={styles.review}>
       <View style={styles.who}>
@@ -129,6 +138,7 @@ function ReviewSkeleton() {
 }
 
 function SectionSkeleton() {
+  const styles = useStyles()
   return (
     <View testID="reviews-loading" accessible accessibilityLabel="Loading reviews" accessibilityRole="progressbar" style={styles.stack}>
       <View style={styles.summary}>
@@ -146,6 +156,8 @@ function SectionSkeleton() {
 
 /** A product's reviews: the rating summary, filters, a sort and the reviews a page at a time. It owns its data, so a failure here never touches the rest of the page. */
 export function ProductReviews({ productId }: { productId: string }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const [rating, setRating] = useState(0)
   const [photos, setPhotos] = useState(false)
   const [sort, setSort] = useState(0)
@@ -280,7 +292,7 @@ export function ProductReviews({ productId }: { productId: string }) {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   section: { paddingHorizontal: space.lg, paddingVertical: space.lg, gap: space.md },
   stack: { gap: space.md },
   muted: { color: color.graphite },
@@ -305,4 +317,4 @@ const styles = StyleSheet.create({
   photo: { width: PHOTO, height: PHOTO, borderRadius: radius.soft, overflow: 'hidden', backgroundColor: color.porcelain, alignItems: 'center', justifyContent: 'center' },
   reply: { gap: space.xs, paddingLeft: space.md, borderLeftWidth: 2, borderLeftColor: color.porcelain },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
-})
+}))
