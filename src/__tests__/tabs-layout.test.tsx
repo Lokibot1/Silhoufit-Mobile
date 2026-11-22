@@ -87,23 +87,23 @@ it('has no Cart button in the other headers', async () => {
   expect(screen.queryByTestId('header-cart')).toBeNull()
 })
 
-it('shows no Alerts badge until the unread count is known or while it is 0', async () => {
+it('shows no Notifications badge until the unread count is known or while it is 0', async () => {
   await render(<TabsLayout />)
   expect(screen.queryByTestId('tab-notifications-badge')).toBeNull()
   mockUnread = 0
   await render(<TabsLayout />)
   expect(screen.queryByTestId('tab-notifications-badge')).toBeNull()
-  expect(screen.getByTestId('tab-notifications').props.accessibilityLabel).toBe('Alerts')
+  expect(screen.getByTestId('tab-notifications').props.accessibilityLabel).toBe('Notifications')
 })
 
-it('shows the unread count on the Alerts tab only, capped at 9+, and says it in the label', async () => {
+it('shows the unread count on the Notifications tab only, capped at 9+, and says it in the label', async () => {
   mockUnread = 3
   await render(<TabsLayout />)
   expect(screen.getByTestId('tab-notifications-badge')).toHaveTextContent('3')
-  expect(screen.getByTestId('tab-notifications').props.accessibilityLabel).toBe('Alerts, 3 unread')
+  expect(screen.getByTestId('tab-notifications').props.accessibilityLabel).toBe('Notifications, 3 unread')
   expect(screen.queryByTestId('tab-orders-badge')).toBeNull()
   mockUnread = 12
   await render(<TabsLayout />)
   expect(screen.getByText('9+')).toBeTruthy()
-  expect(screen.getByTestId('tab-notifications').props.accessibilityLabel).toBe('Alerts, 12 unread')
+  expect(screen.getByTestId('tab-notifications').props.accessibilityLabel).toBe('Notifications, 12 unread')
 })

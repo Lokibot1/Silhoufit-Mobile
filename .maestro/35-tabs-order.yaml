@@ -1,6 +1,6 @@
 appId: ${APP_ID}
 ---
-# Five tabs (Shop, Wishlist, Orders, Alerts, Profile): signed out, tap each by testID and assert its own screen.
+# Five tabs (Shop, Wishlist, Orders, Notifications, Profile): signed out, tap each by testID and assert its own screen.
 # This proves all five exist and open the right screen; their visual order is a device check (MANUAL.md).
 # Needs only the backend.
 - runFlow: subflows/launch.yaml

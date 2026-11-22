@@ -23,7 +23,7 @@ const icon = (name: 'storefront' | 'heart' | 'receipt' | 'notifications' | 'pers
 // Deliberate exception to the 14px minimum: five labels must fit a 320px-wide bar, so one line, 12px, and a capped font scale.
 function TabLabel({ children, color: tint }: { children: string; color: ColorValue }) {
   return (
-    <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ color: tint, fontFamily: font.medium, fontSize: 12, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2} style={{ color: tint, fontFamily: font.medium, fontSize: 12, letterSpacing: 0.5, textTransform: 'uppercase' }}>
       {children}
     </Text>
   )
@@ -49,7 +49,7 @@ function HeaderCart() {
   return <HeaderIcon testID="header-cart" name="bag-outline" label="Cart" status={count > 0 ? `${count} ${count === 1 ? 'item' : 'items'}` : undefined} count={count} onPress={() => router.navigate('/cart')} />
 }
 
-// The screen title lives here, not in the content area; the tab label stays short (Alerts) but its screen is Notifications.
+// The screen title lives here, not in the content area; the tab label and its screen are both Notifications.
 const TITLES: Record<string, string> = { '/wishlist': 'Wishlist', '/orders': 'Orders', '/notifications': 'Notifications', '/profile': 'Profile' }
 
 // Material top tabs have no header, so it is drawn here; the Shop has its own band.
@@ -114,7 +114,7 @@ export default function TabsLayout() {
         <TopTabs.Screen name="index" options={{ title: 'Shop', tabBarButtonTestID: 'tab-shop', tabBarIcon: icon('storefront') }} />
         <TopTabs.Screen name="wishlist" options={{ title: 'Wishlist', tabBarButtonTestID: 'tab-wishlist', tabBarIcon: icon('heart') }} />
         <TopTabs.Screen name="orders" options={{ title: 'Orders', tabBarButtonTestID: 'tab-orders', tabBarIcon: icon('receipt') }} />
-        <TopTabs.Screen name="notifications" options={{ title: 'Alerts', tabBarButtonTestID: 'tab-notifications', tabBarIcon: icon('notifications') }} />
+        <TopTabs.Screen name="notifications" options={{ title: 'Notifications', tabBarButtonTestID: 'tab-notifications', tabBarIcon: icon('notifications') }} />
         <TopTabs.Screen name="profile" options={{ title: 'Profile', tabBarButtonTestID: 'tab-profile', tabBarIcon: icon('person') }} />
       </TopTabs>
     </View>
