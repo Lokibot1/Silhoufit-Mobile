@@ -5,6 +5,7 @@ export const color = {
   obsidian: '#161113',
   graphite: '#322D2F',
   green: '#1F6F4A',
+  mint: '#E6F4EC', // Selected option fill
   stonewash: '#85807C',
   porcelain: '#EEECED',
   paper: '#FFFBFD',

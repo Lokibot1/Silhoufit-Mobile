@@ -48,14 +48,6 @@ const bySize = (a: string, b: string) => {
   return ga - gb || na - nb || a.localeCompare(b)
 }
 
-function Strike() {
-  return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.strikeWrap]}>
-      <View style={styles.strike} />
-    </View>
-  )
-}
-
 function Slide({ url, label, name, width, height }: { url: string | null; label: string; name: string; width: number; height: number }) {
   const [failed, setFailed] = useState(false)
   return (
@@ -105,6 +97,7 @@ function ProductView({ product }: { product: Product }) {
   const { variants } = product
   const [pickedColor, setPickedColor] = useState<string | null>(null)
   const [pickedSize, setPickedSize] = useState<string | null>(null)
+  const [quantity, setQuantity] = useState(1)
   const [pending, setPending] = useState(false)
   const [guideOpen, setGuideOpen] = useState(false)
   const [failure, setFailure] = useState<{ variantId: string; message: string } | null>(null)
@@ -135,10 +128,12 @@ function ProductView({ product }: { product: Product }) {
   // A new pick clears a stale 400. A colour or size the other pick cannot have in stock is disabled, so no pair is left invalid.
   function pickColor(c: string) {
     setFailure(null)
+    setQuantity(1)
     setPickedColor(c === chosenColor ? null : c)
   }
   function pickSize(s: string) {
     setFailure(null)
+    setQuantity(1)
     setPickedSize(s === chosenSize ? null : s)
   }
   function signIn() {
@@ -154,7 +149,10 @@ function ProductView({ product }: { product: Product }) {
   const price = variant ? peso(variant.price) : prices.length ? (Math.min(...prices) === Math.max(...prices) ? peso(prices[0]) : `From ${peso(Math.min(...prices))}`) : null
   const stock = allSoldOut ? 'Sold out' : !variant ? null : variant.stock <= 0 ? 'Sold out' : variant.stock <= LOW_STOCK ? `Only ${variant.stock} left` : null
   const missing = [hasColor && !chosenColor && 'a colour', hasSize && !chosenSize && 'a size'].filter(Boolean).join(' and ')
-  const buyLabel = allSoldOut ? 'Sold out' : hasColor && !chosenColor ? 'Choose a Colour' : hasSize && !chosenSize ? 'Choose a Size' : 'Add to Cart'
+  const maxQty = canBuy ? variant.stock : 1
+  const total = variant ? peso(Math.round(variant.price * quantity * 100) / 100) : ''
+  const selection = variant ? [hasColor && optionLabel(colorKey(variant), 'One colour'), hasSize && optionLabel(variant.size ?? NONE, 'One size')].filter(Boolean).join(' / ') : ''
+  const buyLabel = allSoldOut ? 'Sold out' : hasColor && !chosenColor ? 'Choose a Colour' : hasSize && !chosenSize ? 'Choose a Size' : canBuy ? `Add to Cart · ${total}` : 'Add to Cart'
   const choiceHint = !allSoldOut && hasColor && !chosenColor ? 'Select a colour to add this piece to your cart.' : !allSoldOut && hasSize && !chosenSize ? 'Select a size to add this piece to your cart.' : null
   const reviews = `${product.reviewCount} ${product.reviewCount === 1 ? 'review' : 'reviews'}`
   const rated = product.reviewCount > 0 && product.rating !== null
@@ -167,7 +165,7 @@ function ProductView({ product }: { product: Product }) {
     setPending(true)
     setFailure(null)
     try {
-      await addCartItem(variant.id, 1)
+      await addCartItem(variant.id, quantity)
       toast('Added to cart')
       refresh()
     } catch (error) {
@@ -242,20 +240,19 @@ function ProductView({ product }: { product: Product }) {
                 const selected = c === chosenColor
                 const hex = hexOf(c)
                 const name = optionLabel(c, 'One colour')
-                const accessibilityLabel = ok ? `Colour ${name}` : `Colour ${name}, unavailable`
-                if (!hex) return <Chip key={c} testID={`product-swatch-${c}`} label={name} accessibilityLabel={accessibilityLabel} selected={selected} disabled={!ok} onPress={() => pickColor(c)} />
                 return (
                   <PressableScale
                     key={c}
                     testID={`product-swatch-${c}`}
                     accessibilityRole="button"
-                    accessibilityLabel={accessibilityLabel}
+                    accessibilityLabel={ok ? `Colour ${name}` : `Colour ${name}, unavailable`}
                     accessibilityState={{ selected, disabled: !ok }}
                     disabled={!ok}
                     onPress={() => pickColor(c)}
-                    style={[styles.swatch, selected && styles.selectedSwatch, !ok && styles.off]}>
-                    <View style={[styles.swatchFill, { backgroundColor: hex }]} />
-                    {!ok && <Strike />}
+                    style={[styles.card, selected && styles.selectedCard, !ok && styles.off]}>
+                    {hex && <View style={[styles.swatchFill, { backgroundColor: hex }]} />}
+                    <Text numberOfLines={2} style={[type.body, styles.cardName, !ok && styles.offText]}>{name}</Text>
+                    {selected && <Ionicons name="checkmark" size={20} color={color.green} />}
                   </PressableScale>
                 )
               })}
@@ -279,6 +276,24 @@ function ProductView({ product }: { product: Product }) {
               })}
             </View>
             {choiceHint && <Text testID="product-choice-hint" style={styles.hint}>{choiceHint}</Text>}
+          </View>
+        )}
+
+        {variants.length > 0 && (
+          <View style={styles.block}>
+            <View style={styles.qtyRow}>
+              <Text style={type.label}>(Quantity)</Text>
+              <View style={[styles.stepper, !canBuy && styles.off]}>
+                <PressableScale testID="product-qty-minus" accessibilityRole="button" accessibilityLabel="Decrease quantity" accessibilityState={{ disabled: !canBuy || quantity <= 1 }} disabled={!canBuy || quantity <= 1} onPress={() => setQuantity(quantity - 1)} style={[styles.step, quantity <= 1 && styles.off]}>
+                  <Ionicons name="remove" size={24} color={color.obsidian} />
+                </PressableScale>
+                <Text testID="product-qty" accessibilityLabel="Quantity" accessibilityValue={{ min: 1, max: maxQty, now: quantity }} style={[type.body, type.numeric, styles.qty]}>{quantity}</Text>
+                <PressableScale testID="product-qty-plus" accessibilityRole="button" accessibilityLabel="Increase quantity" accessibilityState={{ disabled: !canBuy || quantity >= maxQty }} disabled={!canBuy || quantity >= maxQty} onPress={() => setQuantity(quantity + 1)} style={[styles.step, quantity >= maxQty && styles.off]}>
+                  <Ionicons name="add" size={24} color={color.obsidian} />
+                </PressableScale>
+              </View>
+            </View>
+            {canBuy && <Text testID="product-selection" style={[type.body, type.numeric]}>{`Selected: ${selection ? `${selection} ` : ''}× ${quantity}`}</Text>}
           </View>
         )}
 
@@ -427,12 +442,17 @@ const styles = StyleSheet.create({
   stock: { ...type.small, color: color.red },
   soldOut: { color: color.graphite },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  swatch: { width: TARGET, height: TARGET, borderRadius: radius.pill, borderWidth: 1, borderColor: color.porcelain, alignItems: 'center', justifyContent: 'center' },
-  selectedSwatch: { borderWidth: 2, borderColor: color.obsidian },
+  // Two cards a row: each may grow to just under half, so a lone last card stays half width.
+  card: { flexBasis: '47%', flexGrow: 1, maxWidth: '49%', minHeight: TARGET + space.sm, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, borderRadius: radius.soft, borderWidth: 1, borderColor: color.porcelain },
+  selectedCard: { backgroundColor: color.mint, borderColor: color.green },
+  cardName: { flex: 1 },
   swatchFill: { width: 28, height: 28, borderRadius: radius.pill, borderWidth: 1, borderColor: color.porcelain },
-  off: { opacity: 0.4, overflow: 'hidden' },
-  strikeWrap: { alignItems: 'center', justifyContent: 'center' },
-  strike: { width: 1, height: 64, backgroundColor: color.obsidian, transform: [{ rotate: '45deg' }] },
+  off: { opacity: 0.4 },
+  offText: { textDecorationLine: 'line-through' },
+  qtyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stepper: { flexDirection: 'row', alignItems: 'center', borderRadius: radius.soft, borderWidth: 1, borderColor: color.stonewash },
+  step: { width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
+  qty: { minWidth: TARGET, textAlign: 'center' },
   headerBack: { minHeight: TARGET, minWidth: TARGET, justifyContent: 'center' },
   hint: { ...type.small, color: color.graphite },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },

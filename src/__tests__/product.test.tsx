@@ -111,7 +111,7 @@ it('adds the selected variant once and toasts', async () => {
   expect(mockAdd).toHaveBeenCalledTimes(1)
   expect(mockAdd).toHaveBeenCalledWith('v1', 1)
   expect(mockRefresh).toHaveBeenCalledTimes(1)
-  expect(screen.getByRole('button', { name: 'Add to Cart', busy: false })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Add to Cart · ₱1,250.00', busy: false })).toBeTruthy()
 })
 
 it('adds once on a double tap', async () => {
@@ -193,7 +193,7 @@ it('keeps the button disabled and names the missing choice until a variant is ch
   expect(screen.getByTestId('product-choice-hint')).toHaveTextContent('Select a size to add this piece to your cart.')
   expect(button().props.accessibilityHint).toBe('Choose a size first')
   await fireEvent.press(screen.getByTestId('product-size-M'))
-  expect(screen.getByRole('button', { name: 'Add to Cart', disabled: false })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Add to Cart · ₱1,250.00', disabled: false })).toBeTruthy()
   expect(screen.queryByTestId('product-choice-hint')).toBeNull()
 })
 
@@ -308,10 +308,14 @@ describe('variant options', () => {
     expect(await screen.findByTestId('product-swatch-Navy')).toHaveTextContent('Navy')
   })
 
-  it('uses the first valid hex of a colour and keeps a swatch (no text) for it', async () => {
+  it('shows the colour name on its card and marks only the selected card', async () => {
     mockFetch.mockResolvedValue(product({ variants: [{ ...v('v1', 'Navy', 'M', 5), colorHex: 'bad' }, v('v2', 'Navy', 'L', 5), v('v3', 'Red', 'M', 5)] }))
     await render(<ProductScreen />)
-    expect(await screen.findByTestId('product-swatch-Navy')).not.toHaveTextContent('Navy')
+    expect(await screen.findByTestId('product-swatch-Navy')).toHaveTextContent('Navy')
+    expect(screen.getByTestId('product-swatch-Navy').props.accessibilityState.selected).toBe(false)
+    await fireEvent.press(screen.getByTestId('product-swatch-Navy'))
+    expect(screen.getByTestId('product-swatch-Navy').props.accessibilityState.selected).toBe(true)
+    expect(screen.getByTestId('product-swatch-Red').props.accessibilityState.selected).toBe(false)
   })
 
   it('disables a colour that has no stock in the chosen size, so no invalid pair can be picked', async () => {
@@ -330,6 +334,61 @@ describe('variant options', () => {
     await render(<ProductScreen />)
     await screen.findByTestId('product-name')
     expect(screen.getAllByTestId(/^product-size-/).map((n) => n.props.testID)).toEqual(['XXS', 'S', 'm', 'XL', '2', '10', 'Free'].map((s) => `product-size-${s}`))
+  })
+})
+
+describe('quantity', () => {
+  const qty = () => screen.getByTestId('product-qty')
+  const press = (id: string) => fireEvent.press(screen.getByTestId(id))
+
+  it('is disabled until a variant is chosen, then starts at 1 with minus disabled', async () => {
+    mockFetch.mockResolvedValue(product())
+    await render(<ProductScreen />)
+    await screen.findByTestId('product-name')
+    expect(screen.getByTestId('product-qty-plus').props.accessibilityState.disabled).toBe(true)
+    expect(screen.queryByTestId('product-selection')).toBeNull()
+    await pickNavyM()
+    expect(qty()).toHaveTextContent('1')
+    expect(screen.getByTestId('product-qty-minus').props.accessibilityState.disabled).toBe(true)
+    expect(screen.getByTestId('product-qty-plus').props.accessibilityState.disabled).toBe(false)
+    expect(screen.getByTestId('product-selection')).toHaveTextContent('Selected: Navy / M × 1')
+  })
+
+  it('caps at the variant stock and announces the range', async () => {
+    mockFetch.mockResolvedValue(product())
+    await render(<ProductScreen />)
+    await fireEvent.press(await screen.findByTestId('product-swatch-Red'))
+    await press('product-size-M')
+    await press('product-qty-plus')
+    await press('product-qty-plus')
+    await press('product-qty-plus')
+    expect(qty()).toHaveTextContent('3')
+    expect(qty().props.accessibilityValue).toEqual({ min: 1, max: 3, now: 3 })
+    expect(screen.getByTestId('product-qty-plus').props.accessibilityState.disabled).toBe(true)
+    await press('product-qty-minus')
+    expect(qty()).toHaveTextContent('2')
+  })
+
+  it('resets to 1 when the variant changes', async () => {
+    mockFetch.mockResolvedValue(product())
+    await render(<ProductScreen />)
+    await pickNavyM()
+    await press('product-qty-plus')
+    expect(qty()).toHaveTextContent('2')
+    await press('product-swatch-Red')
+    expect(qty()).toHaveTextContent('1')
+  })
+
+  it('totals the price in the button label and adds the chosen quantity', async () => {
+    mockFetch.mockResolvedValue(product())
+    mockAdd.mockResolvedValue({})
+    await render(<ProductScreen />)
+    await pickNavyM()
+    await press('product-qty-plus')
+    await press('product-qty-plus')
+    expect(screen.getByRole('button', { name: 'Add to Cart · ₱3,750.00' })).toBeTruthy()
+    await press('product-add-to-cart')
+    await waitFor(() => expect(mockAdd).toHaveBeenCalledWith('v1', 3))
   })
 })
 
