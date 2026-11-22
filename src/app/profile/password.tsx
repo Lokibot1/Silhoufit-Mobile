@@ -11,7 +11,7 @@ import { FloatingField } from '@/ui/FloatingField'
 import { PasswordChecklist } from '@/ui/PasswordChecklist'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, font, space, type } from '@/ui/theme'
+import { font, space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
@@ -28,6 +28,8 @@ const FAILURE: Record<Failure, { title: string; body: string }> = {
 
 // Its own screen, linked from Edit Profile: the profile form saves once, this one re-checks the current password first.
 export default function ChangePassword() {
+  const styles = useStyles()
+  const { type } = useTheme()
   const { session, loading } = useSession()
   const toast = useToast()
   const [current, setCurrent] = useState('')
@@ -190,9 +192,9 @@ export default function ChangePassword() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   content: { flexGrow: 1, padding: space.lg, gap: space.lg, backgroundColor: color.paper },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md, gap: space.xs },
   bold: { fontFamily: font.semibold },
-})
+}))

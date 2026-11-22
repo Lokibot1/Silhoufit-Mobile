@@ -8,7 +8,7 @@ import { stripEmoji } from '@/lib/profileValidation'
 import { Button } from '@/ui/Button'
 import { FloatingField } from '@/ui/FloatingField'
 import { KralLogo } from '@/ui/KralLogo'
-import { color, space, type } from '@/ui/theme'
+import { space, themed, useTheme } from '@/ui/theme'
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
 // Identical for every address: the screen must never reveal whether an account exists.
@@ -21,6 +21,8 @@ const FAILURE: Record<MailErrorKind, string> = {
 }
 
 export default function ForgotPassword() {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string>()
   const [touched, setTouched] = useState(false)
@@ -109,8 +111,8 @@ export default function ForgotPassword() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   content: { padding: space.lg, gap: space.lg },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
-})
+}))

@@ -10,7 +10,7 @@ import { FloatingField } from '@/ui/FloatingField'
 import { GoogleMark } from '@/ui/GoogleMark'
 import { KralLogo } from '@/ui/KralLogo'
 import { PressableScale } from '@/ui/PressableScale'
-import { color, space, type } from '@/ui/theme'
+import { space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
@@ -18,6 +18,8 @@ type Field = 'email' | 'password'
 const validators = { email: validateEmail, password: validateLoginPassword }
 
 export default function SignIn() {
+  const styles = useStyles()
+  const { type } = useTheme()
   const { signIn } = useSession()
   const toast = useToast()
   const navigation = useNavigation()
@@ -176,7 +178,7 @@ export default function SignIn() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   content: { padding: space.lg, gap: space.lg },
   divider: { flexDirection: 'row', alignItems: 'center', gap: space.md },
@@ -185,4 +187,4 @@ const styles = StyleSheet.create({
   switch: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   forgotText: { textDecorationLine: 'underline' },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
-})
+}))

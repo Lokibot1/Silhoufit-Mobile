@@ -14,7 +14,7 @@ import { Chip } from '@/ui/Chip'
 import { FloatingField } from '@/ui/FloatingField'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, space, type } from '@/ui/theme'
+import { space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
@@ -42,6 +42,8 @@ function failureCopy(failure: unknown): string {
 }
 
 function Form({ saved: initial }: { saved: BodyProfile | null }) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const { signOut } = useSession()
   const toast = useToast()
   const navigation = useNavigation()
@@ -196,6 +198,7 @@ function Form({ saved: initial }: { saved: BodyProfile | null }) {
 }
 
 function Loader() {
+  const styles = useStyles()
   const { status, data, error, retry } = useRequest('body-profile', fetchBodyProfile)
   const { signOut } = useSession()
   const opening = useRef(false)
@@ -242,6 +245,7 @@ function Loader() {
 
 // Needs a session; the four states are the skeleton, the load error, the first-time form (empty) and the saved form.
 export default function BodyProfileScreen() {
+  const styles = useStyles()
   const { session, loading } = useSession()
   const opening = useRef(false)
 
@@ -274,7 +278,7 @@ export default function BodyProfileScreen() {
   return <Loader />
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type }) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: color.paper },
   content: { flexGrow: 1, padding: space.lg, gap: space.md, backgroundColor: color.paper },
   copy: { ...type.body, color: color.graphite },
@@ -283,4 +287,4 @@ const styles = StyleSheet.create({
   group: { gap: space.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   banner: { gap: space.sm, borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
-})
+}))

@@ -11,7 +11,7 @@ import { Button } from '@/ui/Button'
 import { FloatingField } from '@/ui/FloatingField'
 import { PasswordChecklist } from '@/ui/PasswordChecklist'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, font, space, type } from '@/ui/theme'
+import { font, space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
@@ -23,6 +23,8 @@ const FAILURE: Record<Exclude<SetPasswordErrorKind, 'same' | 'weak' | 'expired'>
 }
 
 export default function ResetPassword() {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const { state, retry } = useEmailLink(RESET_REDIRECT)
   const { session, profile, signOut } = useSession()
   const toast = useToast()
@@ -175,10 +177,10 @@ export default function ResetPassword() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   center: { flex: 1, backgroundColor: color.paper, alignItems: 'center', justifyContent: 'center' },
   content: { padding: space.lg, gap: space.lg },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md, gap: space.xs },
   bold: { fontFamily: font.semibold },
-})
+}))

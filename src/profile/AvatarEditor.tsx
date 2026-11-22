@@ -10,7 +10,7 @@ import { Avatar } from '@/ui/Avatar'
 import { Button } from '@/ui/Button'
 import { PhotoSourceSheet, UploadProgress } from '@/ui/PhotoPicker'
 import { PressableScale } from '@/ui/PressableScale'
-import { color, radius, space, type } from '@/ui/theme'
+import { radius, space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 const expired = (failure: unknown) => (failure instanceof UploadError && failure.kind === 'unauthorized') || (failure instanceof ApiError && failure.status === 401)
@@ -24,6 +24,8 @@ type Phase = 'uploading' | 'saving' | null
 
 // The profile photo on Edit Profile: tap it for the sheet, the photo uploads at once and saves to the profile; the form's own Save is separate.
 export function AvatarEditor({ me, disabled, onBusy }: { me: Me; disabled: boolean; onBusy: (busy: boolean) => void }) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const { update, signOut } = useSession()
   const toast = useToast()
   const [sheet, setSheet] = useState(false)
@@ -131,7 +133,7 @@ export function AvatarEditor({ me, disabled, onBusy }: { me: Me; disabled: boole
           style={styles.avatar}>
           <Avatar name={name} url={me.avatarUrl} />
           <View style={styles.badge}>
-            <Ionicons name="camera" size={14} color={color.paper} />
+            <Ionicons name="camera" size={14} color={color.onRed} />
           </View>
         </PressableScale>
         <View style={styles.info}>
@@ -160,11 +162,11 @@ export function AvatarEditor({ me, disabled, onBusy }: { me: Me; disabled: boole
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   wrap: { gap: space.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   avatar: { width: 56, height: 56 },
   badge: { position: 'absolute', right: -space.xs, bottom: -space.xs, width: 24, height: 24, borderRadius: radius.pill, backgroundColor: color.red, alignItems: 'center', justifyContent: 'center' },
   info: { flex: 1, gap: space.sm },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
-})
+}))

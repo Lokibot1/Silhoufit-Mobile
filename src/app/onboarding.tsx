@@ -9,7 +9,7 @@ import { saveOnboarding, type OnboardingChoice } from '@/onboarding/status'
 import { Button } from '@/ui/Button'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
-import { color, hairline, radius, space, type } from '@/ui/theme'
+import { radius, space, themed, useTheme } from '@/ui/theme'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
 const SLIDES: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }[] = [
@@ -20,6 +20,8 @@ const SLIDES: { icon: keyof typeof Ionicons.glyphMap; title: string; body: strin
 
 // Closes the tour. A first run records the choice without waiting for the network, so Skip never hangs; a replay records nothing.
 export default function Onboarding() {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const { session } = useSession()
   const { replay } = useLocalSearchParams<{ replay?: string }>()
   const reduce = useReduceMotion()
@@ -98,14 +100,14 @@ export default function Onboarding() {
             <Button testID="onboarding-finish" label="Get Started" onPress={() => close('completed')} />
           </View>
         ) : (
-          <HeaderIcon testID="onboarding-next" name="arrow-forward" label="Next" tint={color.red} onPress={() => goTo(index + 1)} />
+          <HeaderIcon testID="onboarding-next" name="arrow-forward" label="Next" tint={color.redInk} onPress={() => goTo(index + 1)} />
         )}
       </View>
     </View>
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, hairline }) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: color.paper },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg, minHeight: 56 },
   skip: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.md },
@@ -118,4 +120,4 @@ const styles = StyleSheet.create({
   dotOn: { width: 24, backgroundColor: color.obsidian },
   actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md, padding: space.lg },
   grow: { flex: 1 },
-})
+}))

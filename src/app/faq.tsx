@@ -7,11 +7,13 @@ import { FAQ, filterFaq, type FaqLink } from '@/faq/faqData'
 import { openLegal } from '@/lib/site'
 import { PressableScale } from '@/ui/PressableScale'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, hairline, radius, space, type } from '@/ui/theme'
+import { radius, space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 // Static content: no loading or error state. Empty is a search with no match.
 export default function Faq() {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const toast = useToast()
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<string | null>(null)
@@ -100,7 +102,7 @@ export default function Faq() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, type, hairline }) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: color.paper },
   screen: { padding: space.lg, gap: space.md },
   grow: { flex: 1 },
@@ -117,5 +119,5 @@ const styles = StyleSheet.create({
   pressed: { backgroundColor: color.porcelain },
   answer: { gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.md },
   link: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' },
-  linkText: { color: color.red, textDecorationLine: 'underline' },
-})
+  linkText: { color: color.redInk, textDecorationLine: 'underline' },
+}))

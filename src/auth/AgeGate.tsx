@@ -5,7 +5,7 @@ import { ActivityIndicator, BackHandler, StyleSheet, View } from 'react-native'
 import { useSession } from '@/auth/session'
 import { Button } from '@/ui/Button'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, space } from '@/ui/theme'
+import { space, themed, useTheme } from '@/ui/theme'
 
 const AGE_PATH = '/auth/age'
 
@@ -15,6 +15,8 @@ const AGE_PATH = '/auth/age'
  * Staff roles are exempt.
  */
 export function AgeGate() {
+  const styles = useStyles()
+  const { color } = useTheme()
   const { session, profile, error, retry, signOut } = useSession()
   const pathname = usePathname()
   const needsAge = profile?.role === 'customer' && profile.birthday === null
@@ -47,8 +49,8 @@ export function AgeGate() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   cover: { ...StyleSheet.absoluteFill, backgroundColor: color.paper },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: space.lg, gap: space.lg },
-})
+}))

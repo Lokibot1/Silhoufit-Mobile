@@ -10,12 +10,14 @@ import { UNDERAGE_MESSAGE, validateAdultBirthday } from '@/lib/signUpValidation'
 import { Button } from '@/ui/Button'
 import { BirthdayField } from '@/ui/BirthdayField'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, space, type } from '@/ui/theme'
+import { space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
 // Shown once after a first Google sign-in, which gives no birthday: the web asks the same before letting a new account in.
 export default function Age() {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const { session, loading, signOut, update } = useSession()
   const toast = useToast()
   const navigation = useNavigation()
@@ -113,9 +115,9 @@ export default function Age() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   center: { flex: 1, backgroundColor: color.paper, alignItems: 'center', justifyContent: 'center' },
   content: { padding: space.lg, gap: space.lg },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
-})
+}))

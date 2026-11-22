@@ -26,7 +26,7 @@ import { GoogleMark } from '@/ui/GoogleMark'
 import { KralLogo } from '@/ui/KralLogo'
 import { PasswordChecklist } from '@/ui/PasswordChecklist'
 import { PressableScale } from '@/ui/PressableScale'
-import { color, font, hairline, space, type } from '@/ui/theme'
+import { font, space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
@@ -61,6 +61,8 @@ const INLINE: Partial<Record<SignUpErrorKind, { field: 'password' | 'email'; mes
 }
 
 export default function SignUp() {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const toast = useToast()
   const navigation = useNavigation()
   const [values, setValues] = useState(EMPTY)
@@ -287,7 +289,7 @@ export default function SignUp() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color, hairline }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   content: { padding: space.lg, gap: space.lg },
   consent: { gap: space.xs },
@@ -298,10 +300,10 @@ const styles = StyleSheet.create({
   links: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.xl },
   link: { minHeight: 44, justifyContent: 'center' },
   linkText: { textDecorationLine: 'underline' },
-  consentError: { color: color.red, minHeight: 20 },
+  consentError: { color: color.redInk, minHeight: 20 },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md, gap: space.xs },
   bold: { fontFamily: font.semibold },
   divider: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   rule: { flex: 1, height: 1, backgroundColor: color.porcelain },
   switch: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-})
+}))

@@ -5,10 +5,12 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { CONFIRM_REDIRECT } from '@/auth/email'
 import { useEmailLink } from '@/auth/useEmailLink'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, space } from '@/ui/theme'
+import { space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 
 export default function ConfirmEmail() {
+  const styles = useStyles()
+  const { color } = useTheme()
   const { state, callback, retry } = useEmailLink(CONFIRM_REDIRECT)
   const toast = useToast()
   const welcomed = useRef(false) // the toast function changes on every toast, so the effect must not repeat
@@ -64,7 +66,7 @@ export default function ConfirmEmail() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   center: { flex: 1, backgroundColor: color.paper, alignItems: 'center', justifyContent: 'center' },
   content: { flex: 1, backgroundColor: color.paper, padding: space.lg, gap: space.lg },
-})
+}))

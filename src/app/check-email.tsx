@@ -8,7 +8,7 @@ import { stripEmoji } from '@/lib/profileValidation'
 import { Button } from '@/ui/Button'
 import { FloatingField } from '@/ui/FloatingField'
 import { KralLogo } from '@/ui/KralLogo'
-import { color, font, space, type } from '@/ui/theme'
+import { font, space, themed, useTheme } from '@/ui/theme'
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
 const COOLDOWN_MS = 60_000
@@ -21,6 +21,8 @@ const NETWORK = "We couldn't send the link. The connection dropped before we got
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 
 export default function CheckEmail() {
+  const styles = useStyles()
+  const { color, type } = useTheme()
   const params = useLocalSearchParams<{ email?: string }>()
   // Only the address typed into sign-up in this session is echoed; a deep link's own param is ignored.
   const known = typeof params.email === 'string' && params.email === signedUpEmail() ? params.email : ''
@@ -130,9 +132,9 @@ export default function CheckEmail() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   content: { padding: space.lg, gap: space.lg },
   bold: { fontFamily: font.semibold },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
-})
+}))

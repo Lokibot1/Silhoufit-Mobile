@@ -15,7 +15,7 @@ import { Chip } from '@/ui/Chip'
 import { FloatingField } from '@/ui/FloatingField'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
-import { color, space, type } from '@/ui/theme'
+import { space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
@@ -57,6 +57,8 @@ function failureCopy(failure: unknown): string {
 }
 
 function Form({ me }: { me: Me }) {
+  const styles = useStyles()
+  const { type } = useTheme()
   const { session, signOut, update } = useSession()
   const toast = useToast()
   const navigation = useNavigation()
@@ -266,6 +268,7 @@ function Form({ me }: { me: Me }) {
 
 // Needs a session and a loaded profile; the four states are the skeleton, the profile error, the sign-in prompt and the form.
 export default function EditProfile() {
+  const styles = useStyles()
   const { session, profile, loading, error, retry } = useSession()
   const opening = useRef(false)
 
@@ -304,10 +307,10 @@ export default function EditProfile() {
   )
 }
 
-const styles = StyleSheet.create({
+const useStyles = themed(({ color }) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: color.paper },
   content: { flexGrow: 1, padding: space.lg, gap: space.md, backgroundColor: color.paper },
   group: { gap: space.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   banner: { borderWidth: 1, borderColor: color.stonewash, borderLeftWidth: 4, borderLeftColor: color.red, padding: space.md },
-})
+}))
