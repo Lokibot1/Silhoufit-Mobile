@@ -2,6 +2,7 @@ import { ApiError, errorMessage, isHttps, isRecord, num, request, str } from '@/
 
 // Status values stay plain strings: one the API adds later reads as a neutral label and offers no actions.
 export type OrderItem = { id: string; name: string; size: string | null; color: string | null; quantity: number; unitPrice: number; lineTotal: number; imageUrl: string | null; sku: string | null }
+export type ShipmentEvent = { id: string; status: string; at: string }
 export type Order = {
   id: string
   orderNumber: string
@@ -20,6 +21,8 @@ export type Order = {
   address: { recipient: string | null; phone: string | null; line: string; city: string } | null
   items: OrderItem[]
   shipment: { status: string; pickupTime: string | null; deliveredAt: string | null; trackingUrl: string | null } | null
+  /** The courier's delivery updates, newest first. */
+  shipmentEvents: ShipmentEvent[]
 }
 export type OrdersPage = { items: Order[]; total: number; page: number; hasNextPage: boolean }
 
@@ -44,6 +47,20 @@ function toItem(raw: unknown): OrderItem {
     imageUrl: str(raw.imageUrl),
     sku: str(raw.variantSku),
   }
+}
+
+/** The updates of an order, newest first. A row that cannot be read is skipped, so one bad row never hides the order. */
+function toShipmentEvents(raw: unknown): ShipmentEvent[] {
+  if (!Array.isArray(raw)) return []
+  const events: ShipmentEvent[] = []
+  for (const e of raw) {
+    if (!isRecord(e)) continue
+    const id = str(e.id)
+    const status = str(e.courierStatus) ?? str(e.eventType)
+    const at = str(e.eventTimestamp) ?? str(e.createdAt)
+    if (id && status && at && !Number.isNaN(Date.parse(at))) events.push({ id, status, at })
+  }
+  return events.sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
 }
 
 /** One order from a GET /orders or /orders/:id body; throws ApiError('server') on a wrong shape. */
@@ -75,6 +92,7 @@ export function toOrder(raw: unknown): Order {
     address: a && { recipient: str(a.recipientName), phone: str(a.phone), line: join([a.streetAddress, a.addressLine2, a.barangay]), city: join([a.cityMunicipality, a.province, a.postalCode]) },
     items,
     shipment: s && str(s.status) ? { status: s.status as string, pickupTime: str(s.pickupTime), deliveredAt: str(s.deliveredAt), trackingUrl: str(s.trackingUrl) } : null,
+    shipmentEvents: toShipmentEvents(raw.shipmentEvents),
   }
 }
 
@@ -160,6 +178,16 @@ const SHIPMENT: Record<string, string> = {
 export const statusLabel = (status: string) => STATUS[status] ?? humanize(status)
 export const paymentLabel = (status: string) => PAYMENT[status] ?? humanize(status)
 export const shipmentLabel = (status: string) => SHIPMENT[status] ?? humanize(status)
+const EVENT: Record<string, string> = {
+  ...SHIPMENT,
+  ORDER_STATUS_CHANGED: 'Delivery status updated',
+  DRIVER_ASSIGNED: 'Driver assigned',
+  ORDER_REPLACED: 'New rider booked',
+  REJECTED: 'Rider declined',
+  EXPIRED: 'Booking expired',
+}
+/** A readable line for one delivery update; an unknown status is spelled out rather than hidden. */
+export const eventLabel = (status: string) => EVENT[status] ?? humanize(status)
 
 /** The API takes a payment, or a cancellation, only for an order still unpaid (waiting, or its last payment failed). Never for a paid one. */
 export const awaitsPayment = ({ status, paymentStatus }: Pick<Order, 'status' | 'paymentStatus'>) =>
@@ -234,7 +262,7 @@ export const isClosed = ({ status }: Pick<Order, 'status'>) => CLOSED.includes(s
 
 /** What a customer can see change on an order; two reads with the same signature need no re-render. */
 export const orderSignature = (o: Order) =>
-  [o.id, o.status, o.paymentStatus, o.total, o.updatedAt, o.paidAt, o.cancelledAt, o.cancellationReason, o.shipment?.status, o.shipment?.pickupTime, o.shipment?.deliveredAt, o.shipment?.trackingUrl].join('|')
+  [o.id, o.status, o.paymentStatus, o.total, o.updatedAt, o.paidAt, o.cancelledAt, o.cancellationReason, o.shipment?.status, o.shipment?.pickupTime, o.shipment?.deliveredAt, o.shipment?.trackingUrl, o.shipmentEvents[0]?.id].join('|')
 export const ordersSignature = (orders: Order[]) => orders.map(orderSignature).join('\n')
 
 const ADDRESS_CODES = ['OUT_OF_SERVICE_AREA', 'ROUTE_TOO_FAR', 'INVALID_MARKET', 'INVALID_DELIVERY_ROUTE', 'INCOMPLETE_ADDRESS']

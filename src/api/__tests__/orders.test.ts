@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { awaitsPayment, cancelOrder, isClosed, orderSignature, ordersSignature, createCheckoutSession, createOrder, deliveryProblem, quoteShipping, fetchAllOrders, fetchOrder, fetchOrdersPage, matchesTab, ORDER_TABS, buildTimeline, tabCounts, trackingLink, paymentLabel, shipmentLabel, statusLabel, toOrder, toOrdersPage } from '../orders'
+import { awaitsPayment, cancelOrder, isClosed, orderSignature, ordersSignature, createCheckoutSession, createOrder, deliveryProblem, eventLabel, quoteShipping, fetchAllOrders, fetchOrder, fetchOrdersPage, matchesTab, ORDER_TABS, buildTimeline, tabCounts, trackingLink, paymentLabel, shipmentLabel, statusLabel, toOrder, toOrdersPage } from '../orders'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -43,6 +43,7 @@ describe('toOrder', () => {
       address: { recipient: 'Ana Cruz', phone: '09171234567', line: '1 Main St, Brgy 1', city: 'Makati, Metro Manila, 1200' },
       items: [{ id: 'i1', name: 'Tee', size: 'M', color: 'Red', quantity: 2, unitPrice: 1250, lineTotal: 2500, imageUrl: 'https://x.test/t.jpg', sku: 'TEE-M-RED' }],
       shipment: null,
+      shipmentEvents: [],
     })
   })
   it('parses a minimal order and fills what it can', () => {
@@ -58,6 +59,24 @@ describe('toOrder', () => {
   it('keeps a shipment with its times and ignores one with no status', () => {
     expect(toOrder(raw({ shipment: { status: 'ON_GOING', pickupTime: '2026-11-15T01:00:00Z', deliveredAt: null, trackingUrl: 'https://t.test/1' } })).shipment).toEqual({ status: 'ON_GOING', pickupTime: '2026-11-15T01:00:00Z', deliveredAt: null, trackingUrl: 'https://t.test/1' })
     expect(toOrder(raw({ shipment: { courier: 'x' } })).shipment).toBeNull()
+  })
+  it('reads shipmentEvents newest first, skips a bad row, and is empty when missing', () => {
+    const events = [
+      { id: 'a', courierStatus: 'ASSIGNING_DRIVER', eventTimestamp: '2026-11-15T01:00:00Z' },
+      { id: 'b', eventType: 'DRIVER_ASSIGNED', createdAt: '2026-11-15T03:00:00Z' },
+      { id: 'c', courierStatus: 'ON_GOING', eventTimestamp: 'not a date' },
+      'junk',
+      { courierStatus: 'X', eventTimestamp: '2026-11-15T02:00:00Z' },
+    ]
+    expect(toOrder(raw({ shipmentEvents: events })).shipmentEvents).toEqual([
+      { id: 'b', status: 'DRIVER_ASSIGNED', at: '2026-11-15T03:00:00Z' },
+      { id: 'a', status: 'ASSIGNING_DRIVER', at: '2026-11-15T01:00:00Z' },
+    ])
+    expect(toOrder(raw()).shipmentEvents).toEqual([])
+    expect(toOrder(raw({ shipmentEvents: 'x' })).shipmentEvents).toEqual([])
+  })
+  it('labels events, falling back to a spelled-out status', () => {
+    expect([eventLabel('DRIVER_ASSIGNED'), eventLabel('ON_GOING'), eventLabel('SOME_NEW')]).toEqual(['Driver assigned', 'Driver on the way', 'Some new'])
   })
   it('throws ApiError(server) on a bad shape', () => {
     for (const bad of [null, 'x', [], {}, raw({ items: undefined }), raw({ id: undefined }), raw({ totalAmount: 'abc' }), raw({ status: undefined }), raw({ createdAt: undefined }), raw({ items: [{ id: 'i' }] })]) {
@@ -280,6 +299,7 @@ describe('live poll helpers', () => {
     expect(orderSignature(toOrder(raw()))).toBe(orderSignature(base))
     expect(orderSignature(toOrder(raw({ status: 'PAID', paymentStatus: 'PAID' })))).not.toBe(orderSignature(base))
     expect(orderSignature(toOrder(raw({ shipment: { status: 'ON_GOING', pickupTime: null, deliveredAt: null, trackingUrl: null } })))).not.toBe(orderSignature(base))
+    expect(orderSignature(toOrder(raw({ shipmentEvents: [{ id: 'e1', courierStatus: 'ON_GOING', eventTimestamp: '2026-11-15T01:00:00Z' }] })))).not.toBe(orderSignature(base))
     expect(ordersSignature([base, base])).toBe(ordersSignature([toOrder(raw()), toOrder(raw())]))
     expect(ordersSignature([base])).not.toBe(ordersSignature([base, base]))
   })

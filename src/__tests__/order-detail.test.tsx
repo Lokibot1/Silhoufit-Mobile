@@ -53,6 +53,7 @@ const order = (over: Record<string, unknown> = {}) => ({
   address: { recipient: 'Ana Cruz', phone: '09171234567', line: '1 Main St, Brgy 1', city: 'Makati, Metro Manila, 1200' },
   items: [{ id: 'i1', name: 'Linen Tee', size: 'M', color: 'Red', quantity: 2, unitPrice: 550, lineTotal: 1100, imageUrl: null }],
   shipment: null,
+  shipmentEvents: [],
   ...over,
 })
 const paid = (over: Record<string, unknown> = {}) => order({ status: 'PAID', paymentStatus: 'PAID', paidAt: '2026-11-14T06:00:00.000Z', ...over })
@@ -286,6 +287,42 @@ describe('delivery tracking', () => {
     await render(<OrderScreen />)
     await fireEvent.press(await screen.findByTestId('order-track-delivery'))
     await waitFor(() => expect(mockToast).toHaveBeenCalledWith("Couldn't open the tracking page. Try again."))
+  })
+})
+
+describe('delivery updates', () => {
+  const ev = (n: number) => ({ id: `e${n}`, status: 'ON_GOING', at: `2026-11-15T0${n}:30:00.000Z` })
+  const shipment = (trackingUrl: string | null) => ({ status: 'ON_GOING', pickupTime: null, deliveredAt: null, trackingUrl })
+  const show = async (shipmentEvents: unknown[], url: string | null = 'https://share.lalamove.test/1') => {
+    api.fetchOrder.mockResolvedValue(paid({ status: 'DISPATCHED', shipment: shipment(url), shipmentEvents }))
+    await render(<OrderScreen />)
+    await screen.findByTestId('order-detail')
+  }
+
+  it('shows nothing without events', async () => {
+    await show([])
+    expect(screen.queryByTestId('delivery-updates')).toBeNull()
+  })
+  it('shows the latest 3 with 12-hour times, then View more expands and View less collapses', async () => {
+    await show([ev(1), ev(2), ev(3), ev(4), ev(5)].reverse())
+    expect(screen.queryByTestId('delivery-update-e5')).toBeTruthy()
+    expect(screen.queryByTestId('delivery-update-e3')).toBeTruthy()
+    expect(screen.queryByTestId('delivery-update-e2')).toBeNull()
+    expect(screen.getByTestId('delivery-update-e5')).toHaveTextContent(/Nov 15, 2026, 1:30 PM/)
+    const toggle = screen.getByTestId('delivery-updates-toggle')
+    expect(toggle).toHaveTextContent('View more (2)')
+    expect(toggle.props.accessibilityState).toEqual({ expanded: false })
+    await fireEvent.press(toggle)
+    expect(screen.queryByTestId('delivery-update-e1')).toBeTruthy()
+    expect(screen.getByTestId('delivery-updates-toggle')).toHaveTextContent('View less')
+    await fireEvent.press(screen.getByTestId('delivery-updates-toggle'))
+    expect(screen.queryByTestId('delivery-update-e1')).toBeNull()
+  })
+  it('has no toggle for 3 or fewer, and shows in the pending-link variant too', async () => {
+    await show([ev(1), ev(2)], null)
+    expect(screen.getByTestId('order-tracking-pending')).toBeTruthy()
+    expect(screen.getByTestId('delivery-update-e2')).toBeTruthy()
+    expect(screen.queryByTestId('delivery-updates-toggle')).toBeNull()
   })
 })
 

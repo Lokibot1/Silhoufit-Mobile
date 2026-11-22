@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, AppState, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { awaitsPayment, buildTimeline, cancelOrder, createCheckoutSession, fetchOrder, isClosed, orderSignature, paymentLabel, shipmentLabel, statusLabel, trackingLink, type Order, type OrderItem, type TimelineStep } from '@/api/orders'
+import { awaitsPayment, buildTimeline, cancelOrder, createCheckoutSession, eventLabel, fetchOrder, isClosed, orderSignature, paymentLabel, shipmentLabel, statusLabel, trackingLink, type Order, type OrderItem, type ShipmentEvent, type TimelineStep } from '@/api/orders'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { dateTime, peso } from '@/lib/format'
@@ -102,6 +102,30 @@ function TimelineRow({ step, next, opacity = 1 }: { step: TimelineStep; next?: T
   )
 }
 
+const UPDATES_SHOWN = 3
+
+// The courier's updates, newest first (bold). Only the latest few show until asked; nothing renders without updates.
+function DeliveryUpdates({ events }: { events: ShipmentEvent[] }) {
+  const [expanded, setExpanded] = useState(false)
+  if (events.length === 0) return null
+  const hidden = events.length - UPDATES_SHOWN
+  return (
+    <View testID="delivery-updates" style={styles.updates}>
+      {(expanded ? events : events.slice(0, UPDATES_SHOWN)).map((event, i) => (
+        <View key={event.id} accessible accessibilityLabel={`${eventLabel(event.status)}, ${dateTime(event.at)}`} testID={`delivery-update-${event.id}`}>
+          <Text style={i === 0 ? styles.recipient : styles.body}>{eventLabel(event.status)}</Text>
+          <Text style={[styles.variant, type.numeric]}>{dateTime(event.at)}</Text>
+        </View>
+      ))}
+      {hidden > 0 && (
+        <PressableScale testID="delivery-updates-toggle" accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setExpanded((open) => !open)} style={styles.mapLink}>
+          <Text style={styles.mapLinkText}>{expanded ? 'View less' : `View more (${hidden})`}</Text>
+        </PressableScale>
+      )}
+    </View>
+  )
+}
+
 type Props = { order: Order; action: 'pay' | 'cancel' | null; failure: string | null; onPay: () => void; onCancel: () => void; onTrack: (url: string) => void }
 
 function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props) {
@@ -133,6 +157,7 @@ function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props
             <View style={styles.trackBody}>
               <Text style={type.label}>(Delivery Tracking)</Text>
               {shipment && <Text style={type.h2}>{shipmentLabel(shipment.status)}</Text>}
+              <DeliveryUpdates events={order.shipmentEvents} />
               <PressableScale testID="order-track-delivery" accessibilityRole="link" onPress={() => onTrack(tracking)} style={styles.mapLink}>
                 <Text style={styles.mapLinkText}>Map not showing? Open it in your browser</Text>
               </PressableScale>
@@ -192,6 +217,7 @@ function OrderDetail({ order, action, failure, onPay, onCancel, onTrack }: Props
           <Text style={type.label}>(Delivery Tracking)</Text>
           {shipment && <Text style={styles.body}>{`Courier: ${shipmentLabel(shipment.status)}`}</Text>}
           <Text testID="order-tracking-pending" style={styles.body}>Tracking link isn&apos;t available yet. It appears once the courier assigns a driver.</Text>
+          <DeliveryUpdates events={order.shipmentEvents} />
         </View>
       )}
 
@@ -506,6 +532,7 @@ const styles = StyleSheet.create({
   line: { flex: 1, width: 2, backgroundColor: color.porcelain },
   lineDone: { backgroundColor: color.obsidian },
   stepGap: { paddingBottom: space.lg },
+  updates: { gap: space.sm },
   mapLink: { minHeight: TARGET, alignSelf: 'flex-start', justifyContent: 'center' },
   mapLinkText: { ...type.small, fontSize: 12, lineHeight: 16, textDecorationLine: 'underline' },
   headerBack: { minHeight: TARGET, minWidth: TARGET, justifyContent: 'center' },
