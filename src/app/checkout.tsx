@@ -358,14 +358,14 @@ export default function CheckoutScreen() {
         </View>
         {hint && <Text testID="checkout-bar-hint" accessibilityLiveRegion="polite" style={styles.note}>{hint}</Text>}
         {notice && (
-          <ScrollView testID="checkout-notice-scroll" style={styles.noticeScroll} nestedScrollEnabled>
-            <View testID="checkout-notice" accessibilityRole="alert" style={styles.banner}>
+          <View testID="checkout-notice" accessibilityRole="alert" style={styles.banner}>
+            <ScrollView testID="checkout-notice-scroll" style={styles.noticeScroll} nestedScrollEnabled>
               <Text style={type.body}>{notice.message}</Text>
-              {notice.actions?.map((action, i) => (
-                <Button key={action.label} testID={i === 0 ? 'checkout-notice-action' : `checkout-notice-action-${i + 1}`} variant="secondary" label={action.label} disabled={placing} onPress={action.run} />
-              ))}
-            </View>
-          </ScrollView>
+            </ScrollView>
+            {notice.actions?.map((action, i) => (
+              <Button key={action.label} testID={i === 0 ? 'checkout-notice-action' : `checkout-notice-action-${i + 1}`} variant="secondary" label={action.label} disabled={placing} onPress={action.run} />
+            ))}
+          </View>
         )}
         <Button testID="checkout-place-order" label="Place Order" pending={placing} disabled={!canPlace} accessibilityHint={hint ?? undefined} onPress={() => void place()} />
       </View>
