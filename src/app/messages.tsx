@@ -92,8 +92,10 @@ function MessagesSkeleton() {
 export default function MessagesScreen() {
   const styles = useStyles()
   const { color, type } = useTheme()
-  const { session, loading } = useSession()
+  const { session, profile, loading } = useSession()
   const userId = session?.user.id ?? null
+  const customer = profile?.role === 'customer'
+  const staff = profile != null && !customer
   const toast = useToast()
   const insets = useSafeAreaInsets()
   const [store, setStore] = useState<Store>(EMPTY)
@@ -175,14 +177,14 @@ export default function MessagesScreen() {
     useCallback(() => {
       focused.current = true
       opening.current = false
-      if (!userId) return () => { focused.current = false }
+      if (!userId || !customer) return () => { focused.current = false }
       const ctl = new AbortController()
       void load(ctl.signal)
       return () => {
         focused.current = false
         ctl.abort()
       }
-    }, [userId, load]),
+    }, [userId, customer, load]),
   )
 
   useEffect(() => {
@@ -278,7 +280,13 @@ export default function MessagesScreen() {
   const rows: Row[] = [...(unsent ? [{ unsent }] : []), ...[...(messages ?? [])].reverse()]
   const ready = userId !== null && messages !== null
   let content
-  if (loading || (userId && !messages && !error)) content = <MessagesSkeleton />
+  if (staff) {
+    content = (
+      <View style={styles.message}>
+        <StateMessage title="Messages is for customers" message="Staff accounts reply to customers from the staff inbox on the web." actionLabel="Go Back" onAction={() => router.back()} testID="messages-staff-back" />
+      </View>
+    )
+  } else if (loading || (userId && !messages && !error)) content = <MessagesSkeleton />
   else if (!userId) {
     content = (
       <View style={styles.message}>

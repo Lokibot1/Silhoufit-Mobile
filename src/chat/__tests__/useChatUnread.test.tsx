@@ -5,9 +5,9 @@ import { useChatUnread } from '../useChatUnread'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/api/chat', () => ({ fetchMyConversation: jest.fn() }))
-jest.mock('@/auth/session', () => ({ useSession: () => mockSession }))
+jest.mock('@/auth/session', () => ({ useSession: () => ({ profile: { role: 'customer' }, ...mockSession }) }))
 jest.mock('expo-router', () => ({ useFocusEffect: jest.fn((cb) => jest.requireActual('react').useEffect(cb, [cb])) }))
-let mockSession: { session: { user: { id: string } } | null } = { session: null }
+let mockSession: { session: { user: { id: string } } | null; profile?: { role: string } } = { session: null }
 const mockFetch: jest.Mock = jest.requireMock('@/api/chat').fetchMyConversation
 
 function Probe() {
@@ -21,6 +21,13 @@ beforeEach(() => {
 })
 
 it('is false and fetches nothing when signed out', async () => {
+  await render(<Probe />)
+  expect(shown()).toBe('false')
+  expect(mockFetch).not.toHaveBeenCalled()
+})
+
+it('fetches nothing for a staff account', async () => {
+  mockSession = { session: { user: { id: 's1' } }, profile: { role: 'admin' } }
   await render(<Probe />)
   expect(shown()).toBe('false')
   expect(mockFetch).not.toHaveBeenCalled()
