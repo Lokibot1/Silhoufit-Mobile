@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { fetchNotifications, fetchUnreadCount, markAllNotificationsRead, markNotificationRead, notificationOrderId, onNotificationsChanged, toNotification } from '../notifications'
+import { fetchNotifications, fetchUnreadCount, markAllNotificationsRead, markNotificationRead, notificationOpensMessages, notificationOrderId, onNotificationsChanged, toNotification } from '../notifications'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -30,6 +30,11 @@ describe('toNotification', () => {
     expect(notificationOrderId(toNotification(raw())!)).toBe('o1')
     expect(notificationOrderId(toNotification(raw({ data: null }))!)).toBeNull()
     expect(notificationOrderId(toNotification(raw({ data: { orderId: 7 } }))!)).toBeNull()
+  })
+  it('opens Messages for a messaging block or unblock only', () => {
+    expect(notificationOpensMessages(toNotification(raw({ type: 'MESSAGING_BLOCKED', data: null }))!)).toBe(true)
+    expect(notificationOpensMessages(toNotification(raw({ type: 'MESSAGING_UNBLOCKED' }))!)).toBe(true)
+    expect(notificationOpensMessages(toNotification(raw({ type: 'ORDER_PAID' }))!)).toBe(false)
   })
 })
 

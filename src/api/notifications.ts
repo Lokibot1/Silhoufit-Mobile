@@ -65,3 +65,6 @@ export async function markAllNotificationsRead(): Promise<void> {
 
 /** The order a notification is about, when it names one. */
 export const notificationOrderId = (n: NotificationItem) => (typeof n.data?.orderId === 'string' && n.data.orderId ? n.data.orderId : null)
+
+/** A messaging block or unblock leads to Messages, where the notice and its reason already show. */
+export const notificationOpensMessages = (n: NotificationItem) => n.type === 'MESSAGING_BLOCKED' || n.type === 'MESSAGING_UNBLOCKED'

@@ -2,7 +2,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FlatList, StyleSheet, Text, View } from 'react-native'
 
-import { notificationOrderId, type NotificationItem } from '@/api/notifications'
+import { notificationOpensMessages, notificationOrderId, type NotificationItem } from '@/api/notifications'
 import { useNotifications } from '@/api/useNotifications'
 import { useSession } from '@/auth/session'
 import type { ApiError } from '@/lib/api'
@@ -27,7 +27,7 @@ function NotificationRow({ item, onPress }: { item: NotificationItem; onPress: (
       testID={`notification-row-${item.id}`}
       accessibilityRole="button"
       accessibilityLabel={`${unread ? 'Unread, ' : ''}${item.title}${item.body ? `, ${item.body}` : ''}, ${time}`}
-      disabled={!unread && !notificationOrderId(item)}
+      disabled={!unread && !notificationOrderId(item) && !notificationOpensMessages(item)}
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
       <View style={styles.line}>
@@ -105,6 +105,12 @@ export default function NotificationsScreen() {
   }
   const open = (item: NotificationItem) => {
     void markRead(item.id)
+    if (notificationOpensMessages(item)) {
+      if (opening.current) return
+      opening.current = true
+      router.push('/messages')
+      return
+    }
     const orderId = notificationOrderId(item)
     if (!orderId || opening.current) return
     opening.current = true

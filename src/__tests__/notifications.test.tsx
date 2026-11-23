@@ -107,6 +107,23 @@ it('a row without an order only marks it read', async () => {
   expect(mockPush).not.toHaveBeenCalled()
 })
 
+it('opens Messages and marks a messaging block read when tapped, once even on a double tap', async () => {
+  api.fetchNotifications.mockResolvedValue(pageOf([note('a', { type: 'MESSAGING_BLOCKED', data: { blocked: true, reason: 'Spam' } })]))
+  await render(<NotificationsScreen />)
+  const row = await screen.findByTestId('notification-row-a')
+  await fireEvent.press(row)
+  await fireEvent.press(row)
+  expect(mockPush).toHaveBeenCalledTimes(1)
+  expect(mockPush).toHaveBeenCalledWith('/messages')
+  expect(api.markNotificationRead).toHaveBeenCalledWith('a')
+})
+
+it('keeps a read messaging unblock tappable', async () => {
+  api.fetchNotifications.mockResolvedValue(pageOf([note('a', { type: 'MESSAGING_UNBLOCKED', data: null, readAt: '2026-11-14T06:00:00.000Z' })]))
+  await render(<NotificationsScreen />)
+  expect((await screen.findByTestId('notification-row-a')).props.accessibilityState?.disabled).toBeFalsy()
+})
+
 it('shows the unread count on the filter chip, and the unread filter asks for unreadOnly=true', async () => {
   api.fetchNotifications.mockResolvedValue(pageOf([note('a')]))
   await render(<NotificationsScreen />)
