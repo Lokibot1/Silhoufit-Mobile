@@ -95,7 +95,6 @@ export default function MessagesScreen() {
   const { session, profile, loading } = useSession()
   const userId = session?.user.id ?? null
   const customer = profile?.role === 'customer'
-  const staff = profile != null && !customer
   const toast = useToast()
   const insets = useSafeAreaInsets()
   const [store, setStore] = useState<Store>(EMPTY)
@@ -280,13 +279,7 @@ export default function MessagesScreen() {
   const rows: Row[] = [...(unsent ? [{ unsent }] : []), ...[...(messages ?? [])].reverse()]
   const ready = userId !== null && messages !== null
   let content
-  if (staff) {
-    content = (
-      <View style={styles.message}>
-        <StateMessage title="Messages is for customers" message="Staff accounts reply to customers from the staff inbox on the web." actionLabel="Go Back" onAction={() => router.back()} testID="messages-staff-back" />
-      </View>
-    )
-  } else if (loading || (userId && !messages && !error)) content = <MessagesSkeleton />
+  if (loading || (userId && !messages && !error)) content = <MessagesSkeleton />
   else if (!userId) {
     content = (
       <View style={styles.message}>

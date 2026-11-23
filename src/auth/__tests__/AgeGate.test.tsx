@@ -53,7 +53,6 @@ it('blocks hardware back while the age step is required', async () => {
 
 it.each([
   ['a customer with a birthday', { ...base, profile: customer('1995-05-15') }],
-  ['staff with no birthday', { ...base, profile: { role: 'staff', birthday: null } }],
   ['a signed-out visitor', { ...base, session: null, profile: null }],
 ])('does nothing for %s', async (_name, value) => {
   mockSession = value
@@ -90,5 +89,18 @@ it('clears the gate once the birthday is saved', async () => {
   mockSession = { ...base, profile: customer('1995-05-15') }
   await rerender(<AgeGate />)
   expect(backListeners).toHaveLength(0)
+  expect(screen.queryByTestId('gate-cover')).toBeNull()
+})
+
+it.each(['staff', 'admin', 'superadmin'])('signs a %s account out and keeps the customers-only notice until dismissed', async (role) => {
+  mockSession = { ...base, profile: { role, birthday: null } }
+  const { rerender } = await render(<AgeGate />)
+  expect(mockSignOut).toHaveBeenCalledTimes(1)
+  expect(replace).not.toHaveBeenCalled()
+  expect(screen.getByText('SilhouFit mobile is for customers')).toBeTruthy()
+  mockSession = { ...base, session: null, profile: null }
+  await rerender(<AgeGate />)
+  expect(screen.getByText('SilhouFit mobile is for customers')).toBeTruthy()
+  await fireEvent.press(screen.getByText('Back to Sign In'))
   expect(screen.queryByTestId('gate-cover')).toBeNull()
 })

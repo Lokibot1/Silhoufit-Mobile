@@ -14,7 +14,7 @@ jest.mock('@/api/chat', () => ({
   subscribeToConversation: jest.fn(),
 }))
 jest.mock('@/auth/session', () => ({ useSession: () => ({ profile: { role: 'customer' }, ...mockSession }) }))
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() }, useFocusEffect: jest.fn((cb) => jest.requireActual('react').useEffect(cb, [cb])) }))
+jest.mock('expo-router', () => ({ router: { push: jest.fn() }, useFocusEffect: jest.fn((cb) => jest.requireActual('react').useEffect(cb, [cb])) }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }))
@@ -22,7 +22,6 @@ const mockToast = jest.fn()
 let mockSession: { session: { user: { id: string } } | null; loading: boolean; profile?: { role: string } } = { session: null, loading: false }
 const api = jest.requireMock('@/api/chat')
 const mockPush: jest.Mock = jest.requireMock('expo-router').router.push
-const mockBack: jest.Mock = jest.requireMock('expo-router').router.back
 
 const message = (id: string, over: Record<string, unknown> = {}) => ({ id, senderId: 'staff1', content: `Text ${id}`, createdAt: '2026-11-14T05:49:00.000Z', ...over })
 const never = () => new Promise(() => {})
@@ -70,17 +69,6 @@ it('shows the sign-in prompt when signed out and fetches nothing', async () => {
   expect(api.fetchMyConversation).not.toHaveBeenCalled()
   expect(api.subscribeToConversation).not.toHaveBeenCalled()
   expect(screen.queryByTestId('messages-input')).toBeNull()
-})
-
-it('tells a staff account Messages is for customers, fetches nothing, and Go Back leaves', async () => {
-  mockSession = { session: { user: { id: 's1' } }, loading: false, profile: { role: 'staff' } }
-  await render(<MessagesScreen />)
-  expect(screen.getByText('Messages is for customers')).toBeTruthy()
-  expect(screen.getByText('Staff accounts reply to customers from the staff inbox on the web.')).toBeTruthy()
-  expect(api.fetchMyConversation).not.toHaveBeenCalled()
-  expect(screen.queryByTestId('messages-input')).toBeNull()
-  await fireEvent.press(screen.getByTestId('messages-staff-back'))
-  expect(mockBack).toHaveBeenCalled()
 })
 
 it('shows the error with a Retry that loads the messages', async () => {
