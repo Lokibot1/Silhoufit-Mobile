@@ -107,6 +107,24 @@ describe('writing a review', () => {
     expect(screen.getByText(/too short.*at least 10 characters/)).toBeTruthy()
   })
 
+  it('says some words were hidden when the saved comment differs from what was sent', async () => {
+    api.createReview.mockResolvedValue({ id: 'r1', comment: '****' + LONG.slice(4) })
+    await render(<ReviewForm {...base} />)
+    await fill()
+    await submit()
+    await flush()
+    expect(mockToast).toHaveBeenCalledWith("Review posted. Some words were hidden because they aren't allowed. You can edit your review for 30 days.")
+  })
+
+  it('keeps the plain toast when the saved comment is unchanged', async () => {
+    api.createReview.mockResolvedValue({ id: 'r1', comment: LONG })
+    await render(<ReviewForm {...base} />)
+    await fill()
+    await submit()
+    await flush()
+    expect(mockToast).toHaveBeenCalledWith('Review posted')
+  })
+
   it('posts a review without photos and leaves with a toast', async () => {
     await render(<ReviewForm {...base} />)
     await fill()
@@ -319,6 +337,15 @@ describe('editing a review', () => {
     expect(screen.getByTestId('review-photo-2')).toBeTruthy()
     expect(screen.getByTestId('review-submit').props.accessibilityState.disabled).toBe(true)
     expect(mockPrevent.enabled).toBe(false)
+  })
+
+  it('says some words were hidden when the saved comment differs from what was sent', async () => {
+    api.updateReview.mockResolvedValue({ id: 'r1', comment: '**** soft and true to size.' })
+    await render(<ReviewForm {...base} review={saved} />)
+    await fireEvent.press(screen.getByTestId('review-photo-1-remove'))
+    await submit()
+    await flush()
+    expect(mockToast).toHaveBeenCalledWith("Review updated. Some words were hidden because they aren't allowed.")
   })
 
   it('sends the kept photos, drops a removed one, adds a new one, and deletes only the removed file once saved', async () => {

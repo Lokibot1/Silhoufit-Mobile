@@ -121,6 +121,13 @@ describe('createReview and updateReview', () => {
     await updateReview('r1', { rating: 3, comment: 'Changed my mind.', imageUrls: [] })
     expect(mockRequest).toHaveBeenLastCalledWith('PATCH', '/reviews/r1', { rating: 3, comment: 'Changed my mind.', imageUrls: [] }, undefined)
   })
+  it('returns the saved review, with its comment as the server stored it', async () => {
+    mockRequest.mockResolvedValue(review({ orderId: 'o1', productId: 'p1', comment: 'This is **** good.' }))
+    expect(await createReview('o1', 'p1', { rating: 4, comment: 'This is darn good.' })).toMatchObject({ id: 'r1', orderId: 'o1', comment: 'This is **** good.' })
+    expect(await updateReview('r1', { rating: 4, comment: 'This is darn good.' })).toMatchObject({ id: 'r1', comment: 'This is **** good.' })
+    mockRequest.mockResolvedValue({})
+    expect(await createReview('o1', 'p1', { rating: 4, comment: 'Fine.' })).toBeNull()
+  })
   it('passes a 409 through', async () => {
     mockRequest.mockRejectedValue(new ApiError('conflict', 'already reviewed', 409))
     await expect(createReview('o1', 'p1', { rating: 5, comment: 'Lovely fit.' })).rejects.toMatchObject({ kind: 'conflict' })

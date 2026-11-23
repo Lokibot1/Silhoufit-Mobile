@@ -140,12 +140,12 @@ export async function fetchOrderReviews(orderId: string, signal?: AbortSignal): 
 
 export type ReviewBody = { rating: number; comment: string; imageUrls?: string[]; orderItemId?: string }
 
-/** POST /orders/:orderId/products/:productId/reviews. A 409 means this product is already reviewed on the order. */
-export async function createReview(orderId: string, productId: string, body: ReviewBody, signal?: AbortSignal): Promise<void> {
-  await request('POST', `/orders/${encodeURIComponent(orderId)}/products/${encodeURIComponent(productId)}/reviews`, body, signal)
+/** POST /orders/:orderId/products/:productId/reviews. A 409 means this product is already reviewed on the order. Returns the saved review, whose comment may have profanity masked. */
+export async function createReview(orderId: string, productId: string, body: ReviewBody, signal?: AbortSignal): Promise<MyReview | null> {
+  return toMine(await request('POST', `/orders/${encodeURIComponent(orderId)}/products/${encodeURIComponent(productId)}/reviews`, body, signal))
 }
 
-/** PATCH /reviews/:id. `imageUrls` replaces every photo the review has. */
-export async function updateReview(id: string, body: Omit<ReviewBody, 'orderItemId'>, signal?: AbortSignal): Promise<void> {
-  await request('PATCH', `/reviews/${encodeURIComponent(id)}`, body, signal)
+/** PATCH /reviews/:id. `imageUrls` replaces every photo the review has. Returns the saved review. */
+export async function updateReview(id: string, body: Omit<ReviewBody, 'orderItemId'>, signal?: AbortSignal): Promise<MyReview | null> {
+  return toMine(await request('PATCH', `/reviews/${encodeURIComponent(id)}`, body, signal))
 }

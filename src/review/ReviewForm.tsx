@@ -194,13 +194,14 @@ export function ReviewForm({ userId, orderId, productId, productName, review, on
       }
       const body = { rating, comment: text.trim() }
       goTo('saving')
-      if (review) await updateReview(review.id, { ...body, imageUrls: urls })
-      else await createReview(orderId, productId, { ...body, ...(urls.length > 0 && { imageUrls: urls }) })
+      const result = review ? await updateReview(review.id, { ...body, imageUrls: urls }) : await createReview(orderId, productId, { ...body, ...(urls.length > 0 && { imageUrls: urls }) })
       saved.current = true
       // Photos taken off the review are no use to anyone now.
       if (review) review.photos.filter((url) => !urls.includes(url)).forEach((url) => void deleteUploaded(url, userId, REVIEW_BUCKET))
       notifyReviewsChanged()
-      toast(review ? 'Review updated' : 'Review posted')
+      const masked = !!result?.comment && result.comment !== body.comment
+      if (review) toast(masked ? "Review updated. Some words were hidden because they aren't allowed." : 'Review updated')
+      else toast(masked ? "Review posted. Some words were hidden because they aren't allowed. You can edit your review for 30 days." : 'Review posted')
       setFinished(true) // stays pending until this screen unmounts, so the button cannot be tapped twice
     } catch (reason) {
       const wasSaving = phaseNow.current === 'saving'
