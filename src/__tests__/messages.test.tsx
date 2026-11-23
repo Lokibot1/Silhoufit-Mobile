@@ -608,6 +608,44 @@ describe('leaving with unsent photos', () => {
     expect(mockDispatch).toHaveBeenCalledWith(action)
   })
 
+  // All photos uploaded, the message request out and unanswered; settle() ends it.
+  const inFlight = async () => {
+    uploadsOk()
+    let settle!: { resolve: (m: unknown) => void; reject: (e: unknown) => void }
+    api.sendMessage.mockReturnValue(new Promise((resolve, reject) => (settle = { resolve, reject })))
+    const view = await render(<MessagesScreen />)
+    await attach(pic(1))
+    await fireEvent.press(screen.getByTestId('messages-send'))
+    await waitFor(() => expect(api.sendMessage).toHaveBeenCalled())
+    return { view, settle }
+  }
+
+  it('does not intercept leaving once the message is in flight, and the send is not aborted', async () => {
+    const { view } = await inFlight()
+    expect(mockGuard.prevent).toBe(false)
+    await act(async () => view.unmount())
+    expect(api.sendMessage.mock.calls[0][2].aborted).toBe(false)
+    expect(imageUpload.deleteUploaded).not.toHaveBeenCalled()
+  })
+
+  it('deletes the uploads when the send fails after the user left, without touching the unmounted screen', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const { view, settle } = await inFlight()
+    await act(async () => view.unmount())
+    await act(async () => settle.reject(new ApiError('network')))
+    expect(imageUpload.deleteUploaded).toHaveBeenCalledWith('https://x/1.jpg', 'u1', 'attachments')
+    expect(error).not.toHaveBeenCalled()
+  })
+
+  it('leaves nothing to clean up when the send succeeds after the user left', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const { view, settle } = await inFlight()
+    await act(async () => view.unmount())
+    await act(async () => settle.resolve(sent()))
+    expect(imageUpload.deleteUploaded).not.toHaveBeenCalled()
+    expect(error).not.toHaveBeenCalled()
+  })
+
   it('lets a clean screen go', async () => {
     await render(<MessagesScreen />)
     await screen.findByTestId('message-m1')

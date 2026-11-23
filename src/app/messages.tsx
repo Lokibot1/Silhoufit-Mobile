@@ -197,6 +197,9 @@ export default function MessagesScreen() {
   const opening = useRef(false)
   const inFlight = useRef(false)
   const sending = useRef<AbortController | null>(null)
+  // True once all photos are uploaded and the message is on its way: leaving then lets the send finish instead of aborting it. gone: the screen has unmounted.
+  const posting = useRef(false)
+  const gone = useRef(false)
   const retrying = useRef<AbortController | null>(null)
   const latest = useRef<ChatMessage[] | null>(null)
   const announced = useRef(new Set<string>())
@@ -206,13 +209,14 @@ export default function MessagesScreen() {
     loaded.current = messages !== null
     latest.current = messages
   })
-  useEffect(
-    () => () => {
-      sending.current?.abort()
+  useEffect(() => {
+    gone.current = false
+    return () => {
+      gone.current = true
+      if (!posting.current) sending.current?.abort()
       retrying.current?.abort()
-    },
-    [],
-  )
+    }
+  }, [])
   // Track the keyboard so the composer drops the safe-area padding while it is open (it sits right on the keys then).
   useEffect(() => {
     const [show, hide] = Platform.OS === 'ios' ? (['keyboardWillShow', 'keyboardWillHide'] as const) : (['keyboardDidShow', 'keyboardDidHide'] as const)
@@ -221,7 +225,7 @@ export default function MessagesScreen() {
   }, [])
 
   const patch = useCallback((uid: string, change: (s: Store) => Partial<Store>) => {
-    if (userRef.current !== uid) return
+    if (gone.current || userRef.current !== uid) return
     setStore((s) => {
       const base = s.owner === uid ? s : { ...EMPTY, owner: uid }
       return { ...base, ...change(base) }
@@ -292,6 +296,7 @@ export default function MessagesScreen() {
   const send = (content: string, photos: Photo[] = [], done: NewAttachment[] = []) => {
     if (!userId || inFlight.current) return
     inFlight.current = true
+    posting.current = false
     setMasked(false)
     const ctl = (sending.current = new AbortController())
     const uploaded = [...done]
@@ -305,17 +310,20 @@ export default function MessagesScreen() {
         // Keeps the screen's view of what is in storage current, so leaving mid-upload can delete it.
         if (!ctl.signal.aborted) patch(userId, (s) => (s.unsent ? { unsent: { ...s.unsent, uploaded: [...uploaded] } } : {}))
       }
+      posting.current = true
       return sendMessage(content, uploaded, ctl.signal)
     })()
       .then(
         (message) => {
           // The server masks profane words, so saved text that differs from what was sent means some were hidden.
-          if (userRef.current === userId) setMasked(message.content !== content)
+          if (!gone.current && userRef.current === userId) setMasked(message.content !== content)
           patch(userId, (s) => ({ messages: merge(s.messages, [message]), unsent: null }))
         },
         (failure) => {
           // No unsent left means the echo already showed the message arrived.
           if (ctl.signal.aborted) return
+          // The user left while it was sending: nothing will ever carry these photos, so they go (best effort).
+          if (gone.current) return uploaded.forEach((a) => void deleteUploaded(a.url, userId, CHAT_BUCKET))
           const upload = failure instanceof UploadError
           // A refused file or text cannot succeed again: its uploads are no use, so they go (best effort). A dropped connection keeps them for Retry.
           const refused = upload ? failure.kind === 'invalid' : failure instanceof ApiError && failure.kind === 'validation'
@@ -357,9 +365,9 @@ export default function MessagesScreen() {
     unsent?.uploaded.forEach((a) => void deleteUploaded(a.url, userId, CHAT_BUCKET))
     patch(userId, () => ({ unsent: null }))
   }
-  // Leaving with photos in storage that no message carries (failed send) or still on their way asks first; the header back, swipe-back and the Android back button all pass through here.
-  // Text-only unsent messages and a clean screen leave freely. Discard and leave stops the upload, deletes what was uploaded (best effort) and then lets the navigation go.
-  usePreventRemove(unsent !== null && (unsent.uploaded.length > 0 || (unsent.failure === null && unsent.photos.length > 0)), ({ data }) =>
+  // Leaving with photos in storage that no message carries (failed send) or still uploading asks first; the header back, swipe-back and the Android back button all pass through here.
+  // Text-only unsent messages, a clean screen and a message already on its way (all photos uploaded) leave freely; that send finishes in the background. Discard and leave stops the upload, deletes what was uploaded (best effort) and then lets the navigation go.
+  usePreventRemove(unsent !== null && (unsent.failure === null ? unsent.uploaded.length < unsent.photos.length : unsent.uploaded.length > 0), ({ data }) =>
     Alert.alert(
       'Discard unsent photos?',
       "Your message with photos hasn't been sent. If you leave now, the photos are discarded.",
