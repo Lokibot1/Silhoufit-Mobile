@@ -217,6 +217,17 @@ it('disables the composer and explains the block, with the reason', async () => 
   expect(screen.getByText('Text m1')).toBeTruthy()
 })
 
+it('opens the team email from Contact us on the blocked notice, and toasts the address when there is no email app', async () => {
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValueOnce().mockRejectedValueOnce(new Error('no app'))
+  api.fetchMyConversation.mockResolvedValue({ id: 'c1', hasUnreadMessages: false, blocked: true, blockedReason: null })
+  await render(<MessagesScreen />)
+  const link = await screen.findByTestId('messages-contact-us')
+  await fireEvent.press(link)
+  expect(open).toHaveBeenCalledWith('mailto:team@silhoufit.dev')
+  await fireEvent.press(link)
+  await waitFor(() => expect(mockToast).toHaveBeenCalledWith('No email app found. Write to team@silhoufit.dev.'))
+})
+
 it('reloads the conversation after a refused send and then offers only Discard', async () => {
   api.sendMessage.mockRejectedValueOnce(new ApiError('forbidden'))
   await render(<MessagesScreen />)

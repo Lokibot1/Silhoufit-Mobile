@@ -10,6 +10,7 @@ import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { dateTime } from '@/lib/format'
 import { checkImage, CHAT_BUCKET, deleteUploaded, UploadError, uploadErrorMessage, uploadPhoto, type Photo } from '@/lib/imageUpload'
+import { CONTACT_EMAIL } from '@/lib/site'
 import { PhotoViewer } from '@/product/PhotoViewer'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PhotoSourceSheet, UploadProgress } from '@/ui/PhotoPicker'
@@ -457,6 +458,11 @@ export default function MessagesScreen() {
             {`Your messaging is blocked, so you can't send messages. You can still read replies.${blockedReason ? ` Reason: ${blockedReason}` : ''}`}
           </Text>
         )}
+        {ready && muted && (
+          <PressableScale testID="messages-contact-us" accessibilityRole="link" accessibilityLabel="Contact us about your blocked messaging" onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`).catch(() => toast(`No email app found. Write to ${CONTACT_EMAIL}.`))} style={styles.noteLink}>
+            <Text style={[type.small, styles.noteLinkText]}>Think this is a mistake? Contact us</Text>
+          </PressableScale>
+        )}
         {ready && masked && (
           <Text testID="messages-masked-note" accessibilityRole="alert" style={[type.small, styles.note]}>
             Some words were hidden. Repeated use of this language can lead to your messaging being blocked or your account banned.
@@ -555,6 +561,8 @@ const useStyles = themed(({ color, type }) => StyleSheet.create({
   remove: { position: 'absolute', top: 0, right: 0, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: color.scrim },
   progress: { width: '85%' },
   note: { padding: space.md, paddingHorizontal: space.lg, color: color.graphite, backgroundColor: color.porcelain },
+  noteLink: { minHeight: 44, justifyContent: 'center', paddingHorizontal: space.lg, backgroundColor: color.porcelain },
+  noteLinkText: { color: color.obsidian, fontFamily: font.semibold, textDecorationLine: 'underline' },
   field: { flex: 1, gap: space.xs },
   input: { ...type.body, borderWidth: 1, borderColor: color.stonewash, borderRadius: radius.soft, minHeight: 48, maxHeight: 120, paddingHorizontal: space.md, paddingVertical: space.md, backgroundColor: color.paper },
   count: { alignSelf: 'flex-end', color: color.graphite },
