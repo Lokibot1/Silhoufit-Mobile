@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
-import { router, useFocusEffect } from 'expo-router'
+import { router, useFocusEffect, useNavigation, usePreventRemove } from 'expo-router'
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react'
-import { AccessibilityInfo, ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TextInput, View } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, Alert, FlatList, Keyboard, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { fetchMessages, fetchMyConversation, markRead, MAX_ATTACHMENTS, MAX_MESSAGE_LENGTH, sendFailureCopy, sendMessage, subscribeToConversation, type Attachment, type ChatMessage, type NewAttachment } from '@/api/chat'
@@ -166,6 +166,7 @@ export default function MessagesScreen() {
   const userId = session?.user.id ?? null
   const customer = profile?.role === 'customer'
   const toast = useToast()
+  const navigation = useNavigation()
   const insets = useSafeAreaInsets()
   const [store, setStore] = useState<Store>(EMPTY)
   // Everything fetched is tagged with its account, so another account never sees it (not even for one render).
@@ -301,6 +302,8 @@ export default function MessagesScreen() {
         const onProgress = (percent: number) => patch(userId, (s) => (s.unsent ? { unsent: { ...s.unsent, percent: Math.round((i * 100 + percent) / photos.length) } } : {}))
         const url = await uploadPhoto(photo, { userId, bucket: CHAT_BUCKET, onProgress, signal: ctl.signal })
         uploaded.push({ url, fileName: photo.name.slice(0, 255), mimeType: photo.type, ...(photo.size ? { sizeBytes: photo.size } : {}) })
+        // Keeps the screen's view of what is in storage current, so leaving mid-upload can delete it.
+        if (!ctl.signal.aborted) patch(userId, (s) => (s.unsent ? { unsent: { ...s.unsent, uploaded: [...uploaded] } } : {}))
       }
       return sendMessage(content, uploaded, ctl.signal)
     })()
@@ -354,6 +357,27 @@ export default function MessagesScreen() {
     unsent?.uploaded.forEach((a) => void deleteUploaded(a.url, userId, CHAT_BUCKET))
     patch(userId, () => ({ unsent: null }))
   }
+  // Leaving with photos in storage that no message carries (failed send) or still on their way asks first; the header back, swipe-back and the Android back button all pass through here.
+  // Text-only unsent messages and a clean screen leave freely. Discard and leave stops the upload, deletes what was uploaded (best effort) and then lets the navigation go.
+  usePreventRemove(unsent !== null && (unsent.uploaded.length > 0 || (unsent.failure === null && unsent.photos.length > 0)), ({ data }) =>
+    Alert.alert(
+      'Discard unsent photos?',
+      "Your message with photos hasn't been sent. If you leave now, the photos are discarded.",
+      [
+        { text: 'Stay', style: 'cancel' },
+        {
+          text: 'Discard and leave',
+          style: 'destructive',
+          onPress: () => {
+            sending.current?.abort()
+            discard()
+            navigation.dispatch(data.action)
+          },
+        },
+      ],
+      { cancelable: true },
+    ),
+  )
   // Keeps the photos that pass the check (and fit under the limit); a toast says what was left out and why.
   const addPhotos = (picked: Photo[]) => {
     const room = MAX_ATTACHMENTS - photos.length

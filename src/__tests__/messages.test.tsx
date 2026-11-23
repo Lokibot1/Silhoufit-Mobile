@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { AccessibilityInfo, Linking, Platform, StyleSheet } from 'react-native'
+import { AccessibilityInfo, Alert, Linking, Platform, StyleSheet } from 'react-native'
 
 import { ApiError } from '@/lib/api'
 import { UploadError } from '@/lib/imageUpload'
@@ -15,13 +15,23 @@ jest.mock('@/api/chat', () => ({
   subscribeToConversation: jest.fn(),
 }))
 jest.mock('@/auth/session', () => ({ useSession: () => ({ profile: { role: 'customer' }, ...mockSession }) }))
-jest.mock('expo-router', () => ({ router: { push: jest.fn() }, useFocusEffect: jest.fn((cb) => jest.requireActual('react').useEffect(cb, [cb])) }))
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn() },
+  useFocusEffect: jest.fn((cb) => jest.requireActual('react').useEffect(cb, [cb])),
+  useNavigation: () => ({ dispatch: mockDispatch }),
+  usePreventRemove: (prevent: boolean, callback: (e: unknown) => void) => {
+    mockGuard.prevent = prevent
+    mockGuard.callback = callback
+  },
+}))
 jest.mock('@/lib/imageUpload', () => ({ ...jest.requireActual('@/lib/imageUpload'), pickImages: jest.fn(), uploadPhoto: jest.fn(), deleteUploaded: jest.fn() }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
 jest.mock('expo-image', () => ({ Image: ({ onError }: { onError?: () => void }) => jest.requireActual('react').createElement('Image', { testID: 'tile-image', onError }) }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }))
 const mockToast = jest.fn()
+const mockDispatch = jest.fn()
+const mockGuard: { prevent: boolean; callback: ((e: unknown) => void) | null } = { prevent: false, callback: null }
 let mockSession: { session: { user: { id: string } } | null; loading: boolean; profile?: { role: string } } = { session: null, loading: false }
 const api = jest.requireMock('@/api/chat')
 const imageUpload = jest.requireMock('@/lib/imageUpload')
@@ -540,4 +550,76 @@ it('drops the unsent photo message when its echo arrives (matched by text and ph
   expect(screen.getByTestId('message-unsent')).toBeTruthy()
   await act(async () => live.onMessage(sent('m10')))
   expect(screen.queryByTestId('message-unsent')).toBeNull()
+})
+
+describe('leaving with unsent photos', () => {
+  const action = { type: 'GO_BACK' }
+  const leave = async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
+    await act(async () => mockGuard.callback!({ data: { action } }))
+    return alert
+  }
+  const failedWithUpload = async () => {
+    uploadsOk()
+    api.sendMessage.mockRejectedValueOnce(new ApiError('network'))
+    await render(<MessagesScreen />)
+    await attach(pic(1))
+    await fireEvent.press(screen.getByTestId('messages-send'))
+    await screen.findByTestId('message-failed-retry')
+  }
+  afterEach(() => jest.restoreAllMocks())
+
+  it('asks first when a failed message holds uploaded photos, and Stay keeps everything', async () => {
+    await failedWithUpload()
+    expect(mockGuard.prevent).toBe(true)
+    const alert = await leave()
+    expect(alert).toHaveBeenCalledWith('Discard unsent photos?', "Your message with photos hasn't been sent. If you leave now, the photos are discarded.", expect.any(Array), { cancelable: true })
+    const buttons = alert.mock.calls[0][2]!
+    expect(buttons.map((b) => b.text)).toEqual(['Stay', 'Discard and leave'])
+    expect(buttons[0].style).toBe('cancel')
+    expect(imageUpload.deleteUploaded).not.toHaveBeenCalled()
+    expect(mockDispatch).not.toHaveBeenCalled()
+    expect(screen.getByTestId('message-unsent')).toBeTruthy()
+  })
+
+  it('Discard and leave deletes the uploaded photos, drops the message and continues the navigation', async () => {
+    await failedWithUpload()
+    const alert = await leave()
+    await act(async () => alert.mock.calls[0][2]![1].onPress!())
+    expect(imageUpload.deleteUploaded).toHaveBeenCalledWith('https://x/1.jpg', 'u1', 'attachments')
+    expect(mockDispatch).toHaveBeenCalledWith(action)
+    expect(screen.queryByTestId('message-unsent')).toBeNull()
+  })
+
+  it('asks while photos are uploading, and Discard and leave stops the upload', async () => {
+    let signal: AbortSignal | undefined
+    imageUpload.uploadPhoto.mockImplementation((_p: unknown, o: { signal: AbortSignal }) => {
+      signal = o.signal
+      return never()
+    })
+    await render(<MessagesScreen />)
+    await attach(pic(1))
+    await fireEvent.press(screen.getByTestId('messages-send'))
+    await screen.findByLabelText('Uploading photos')
+    expect(mockGuard.prevent).toBe(true)
+    const alert = await leave()
+    await act(async () => alert.mock.calls[0][2]![1].onPress!())
+    expect(signal!.aborted).toBe(true)
+    expect(mockDispatch).toHaveBeenCalledWith(action)
+  })
+
+  it('lets a clean screen go', async () => {
+    await render(<MessagesScreen />)
+    await screen.findByTestId('message-m1')
+    expect(mockGuard.prevent).toBe(false)
+  })
+
+  it('lets a failed text-only message go', async () => {
+    api.sendMessage.mockRejectedValueOnce(new ApiError('network'))
+    await render(<MessagesScreen />)
+    await type('Hello')
+    await fireEvent.press(screen.getByTestId('messages-send'))
+    await screen.findByTestId('message-failed-retry')
+    expect(mockGuard.prevent).toBe(false)
+  })
 })
