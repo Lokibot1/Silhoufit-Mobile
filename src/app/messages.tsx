@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'rea
 import { AccessibilityInfo, ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { fetchMessages, fetchMyConversation, markRead, MAX_MESSAGE_LENGTH, sendFailureCopy, sendMessage, subscribeToConversation, type ChatMessage } from '@/api/chat'
+import { fetchMessages, fetchMyConversation, markRead, MAX_MESSAGE_LENGTH, sendFailureCopy, sendMessage, subscribeToConversation, type Attachment, type ChatMessage } from '@/api/chat'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { dateTime } from '@/lib/format'
@@ -39,14 +39,23 @@ function land(s: Store, incoming: ChatMessage[], uid: string): Partial<Store> {
   return { messages: merge(s.messages, incoming), ...(went ? { unsent: null } : {}) }
 }
 
+// "Photo", "Photos", "Video"... for what a message carries, so an attachment-only message still reads as something.
+function attachmentLabel(attachments: Attachment[]) {
+  const videos = attachments.filter((a) => a.type === 'VIDEO').length
+  const photos = attachments.length - videos
+  return [photos && (photos > 1 ? 'Photos' : 'Photo'), videos && (videos > 1 ? 'Videos' : 'Video')].filter(Boolean).join(', ')
+}
+
 function Bubble({ message, mine, live }: { message: ChatMessage; mine: boolean; live: boolean }) {
   const styles = useStyles()
   const { color, type } = useTheme()
   const time = dateTime(message.createdAt)
+  const kinds = attachmentLabel(message.attachments)
+  const shown = message.content || kinds
   return (
-    <View testID={`message-${message.id}`} accessible accessibilityLiveRegion={live ? 'polite' : 'none'} accessibilityLabel={`${mine ? 'You' : 'KRAL'}, ${message.content}, ${time}`} style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
+    <View testID={`message-${message.id}`} accessible accessibilityLiveRegion={live ? 'polite' : 'none'} accessibilityLabel={`${mine ? 'You' : 'KRAL'}, ${message.content && kinds ? `${message.content}, ${kinds}` : shown}, ${time}`} style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
       {!mine && <Text style={type.label}>KRAL</Text>}
-      <Text style={[type.body, mine && { color: color.paper }]}>{message.content}</Text>
+      <Text style={[type.body, mine && { color: color.paper }]}>{shown}</Text>
       <Text style={[type.small, type.numeric, { color: mine ? color.porcelain : color.graphite }]}>{time}</Text>
     </View>
   )
@@ -199,7 +208,7 @@ export default function MessagesScreen() {
           if (!announced.current.has(message.id) && !latest.current?.some((known) => known.id === message.id)) {
             announced.current.add(message.id)
             setLiveId(message.id)
-            if (Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(`KRAL said: ${message.content}`)
+            if (Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(`KRAL said: ${message.content || attachmentLabel(message.attachments)}`)
           }
         }
       },

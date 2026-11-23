@@ -23,7 +23,7 @@ let mockSession: { session: { user: { id: string } } | null; loading: boolean; p
 const api = jest.requireMock('@/api/chat')
 const mockPush: jest.Mock = jest.requireMock('expo-router').router.push
 
-const message = (id: string, over: Record<string, unknown> = {}) => ({ id, senderId: 'staff1', content: `Text ${id}`, createdAt: '2026-11-14T05:49:00.000Z', ...over })
+const message = (id: string, over: Record<string, unknown> = {}) => ({ id, senderId: 'staff1', content: `Text ${id}`, createdAt: '2026-11-14T05:49:00.000Z', attachments: [], ...over })
 const never = () => new Promise(() => {})
 // The live channel as the screen sees it: the callbacks it passed to subscribeToConversation.
 let live: { onMessage: (m: unknown) => void; onStatus: (s: string) => void }
@@ -346,4 +346,20 @@ it('drops the previous account’s messages when the account changes', async () 
   await view.rerender(<MessagesScreen />)
   await waitFor(() => expect(screen.queryByTestId('message-m1')).toBeNull())
   expect(screen.getByRole('progressbar')).toBeTruthy()
+})
+
+it('shows an attachment-only message instead of failing the list', async () => {
+  api.fetchMessages.mockResolvedValue([message('m1'), message('m5', { content: '', attachments: [{ id: 'a1', url: 'https://x/a.jpg', type: 'IMAGE', fileName: 'a.jpg' }] })])
+  await render(<MessagesScreen />)
+  expect(await screen.findByTestId('message-m5')).toBeTruthy()
+  expect(screen.getByText('Photo')).toBeTruthy()
+  expect(screen.getByTestId('message-m5').props.accessibilityLabel).toMatch(/^KRAL, Photo,/)
+  expect(screen.queryByText("Couldn't load your messages")).toBeNull()
+})
+
+it('delivers an attachment-only message live', async () => {
+  await render(<MessagesScreen />)
+  await screen.findByTestId('message-m1')
+  await act(async () => live.onMessage(message('m6', { content: '', attachments: [{ id: 'a1', url: 'https://x/v.mp4', type: 'VIDEO', fileName: null }] })))
+  expect(screen.getByText('Video')).toBeTruthy()
 })

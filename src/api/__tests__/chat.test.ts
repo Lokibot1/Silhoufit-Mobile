@@ -17,9 +17,18 @@ beforeEach(() => {
 })
 
 describe('toMessage', () => {
-  it('keeps the fields the screen needs', () => expect(toMessage(raw())).toEqual({ id: 'm1', senderId: 'u1', content: 'Hi', createdAt: '2026-11-14T05:00:00.000Z' }))
+  it('keeps the fields the screen needs', () => expect(toMessage(raw())).toEqual({ id: 'm1', senderId: 'u1', content: 'Hi', createdAt: '2026-11-14T05:00:00.000Z', attachments: [] }))
   it.each(['id', 'senderId', 'content', 'createdAt'])('rejects a message without %s', (key) => expect(() => toMessage(raw({ [key]: undefined }))).toThrow(ApiError))
   it('rejects an unreadable time', () => expect(() => toMessage(raw({ createdAt: 'later' }))).toThrow(ApiError))
+  it('accepts an attachment-only message and reads its attachments in order', () => {
+    const attachments = [{ id: 'a1', url: 'https://x/a.jpg', type: 'IMAGE', fileName: 'a.jpg', mimeType: 'image/jpeg', sizeBytes: 5, displayOrder: 0 }, { id: 'a2', url: 'https://x/b.mp4', type: 'VIDEO', fileName: null }]
+    expect(toMessage(raw({ content: '', attachments })).attachments).toEqual([{ id: 'a1', url: 'https://x/a.jpg', type: 'IMAGE', fileName: 'a.jpg' }, { id: 'a2', url: 'https://x/b.mp4', type: 'VIDEO', fileName: null }])
+  })
+  it('rejects an empty message without attachments, even when its attachments are garbage', () => {
+    expect(() => toMessage(raw({ content: '' }))).toThrow(ApiError)
+    expect(() => toMessage(raw({ content: '', attachments: [{ id: 'a', type: 'IMAGE' }, { id: 'b', url: 'u', type: 'PDF' }, 7] }))).toThrow(ApiError)
+  })
+  it.each([undefined, null, 'x', {}])('treats attachments %p as none', (attachments) => expect(toMessage(raw({ attachments })).attachments).toEqual([]))
   it.each([null, 'x', 42])('rejects %p', (body) => expect(() => toMessage(body)).toThrow(ApiError))
 })
 

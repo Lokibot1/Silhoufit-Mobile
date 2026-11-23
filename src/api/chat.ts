@@ -1,21 +1,36 @@
 import { ApiError, isRecord, request, str } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 
-export type ChatMessage = { id: string; senderId: string; content: string; createdAt: string }
+export type Attachment = { id: string; url: string; type: 'IMAGE' | 'VIDEO'; fileName: string | null }
+/** content is '' for a message that is only attachments. */
+export type ChatMessage = { id: string; senderId: string; content: string; createdAt: string; attachments: Attachment[] }
 /** blocked: staff stopped this customer from sending; they can still read. blockedReason is the staff's note, if any. */
 export type Conversation = { id: string; hasUnreadMessages: boolean; blocked: boolean; blockedReason: string | null }
 
 export const MAX_MESSAGE_LENGTH = 2000
+
+// Tolerant: a missing or garbage list is none, and an item without a url or with an unknown type is skipped.
+function toAttachments(raw: unknown): Attachment[] {
+  if (!Array.isArray(raw)) return []
+  return raw.flatMap((item) => {
+    if (!isRecord(item)) return []
+    const id = str(item.id)
+    const url = str(item.url)
+    if (!id || !url || (item.type !== 'IMAGE' && item.type !== 'VIDEO')) return []
+    return [{ id, url, type: item.type, fileName: str(item.fileName) }]
+  })
+}
 
 /** One message from the API or a Realtime broadcast; throws ApiError('server') on a wrong shape. */
 export function toMessage(raw: unknown): ChatMessage {
   if (!isRecord(raw)) throw new ApiError('server')
   const id = str(raw.id)
   const senderId = str(raw.senderId)
-  const content = str(raw.content)
+  const content = typeof raw.content === 'string' ? raw.content : null
+  const attachments = toAttachments(raw.attachments)
   const createdAt = str(raw.createdAt)
-  if (!id || !senderId || !content || !createdAt || Number.isNaN(Date.parse(createdAt))) throw new ApiError('server')
-  return { id, senderId, content, createdAt }
+  if (!id || !senderId || content === null || (!content && !attachments.length) || !createdAt || Number.isNaN(Date.parse(createdAt))) throw new ApiError('server')
+  return { id, senderId, content, createdAt, attachments }
 }
 
 /** GET /chat/my-conversation. The customer's one thread; the server creates it the first time it is asked for. */
