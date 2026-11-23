@@ -1,13 +1,15 @@
 import { Ionicons } from '@expo/vector-icons'
+import { Image } from 'expo-image'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react'
-import { AccessibilityInfo, ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { fetchMessages, fetchMyConversation, markRead, MAX_MESSAGE_LENGTH, sendFailureCopy, sendMessage, subscribeToConversation, type Attachment, type ChatMessage } from '@/api/chat'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { dateTime } from '@/lib/format'
+import { PhotoViewer } from '@/product/PhotoViewer'
 import { HeaderIcon } from '@/ui/HeaderIcon'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
@@ -46,16 +48,58 @@ function attachmentLabel(attachments: Attachment[]) {
   return [photos && (photos > 1 ? 'Photos' : 'Photo'), videos && (videos > 1 ? 'Videos' : 'Video')].filter(Boolean).join(', ')
 }
 
+// A fixed-size photo tile (no layout shift) that opens the full photo; a photo that will not load becomes a plain placeholder.
+function PhotoTile({ url, label, testID, onOpen }: { url: string; label: string; testID: string; onOpen: () => void }) {
+  const styles = useStyles()
+  const { color } = useTheme()
+  const [failed, setFailed] = useState(false)
+  return (
+    <PressableScale testID={testID} accessibilityRole="button" accessibilityLabel={failed ? `${label}, couldn't be loaded` : `${label}, view full size`} onPress={onOpen} style={styles.tile}>
+      {failed ? <Ionicons name="image-outline" size={24} color={color.graphite} /> : <Image source={{ uri: url }} accessible={false} contentFit="cover" onError={() => setFailed(true)} style={styles.fill} />}
+    </PressableScale>
+  )
+}
+
+// Photos open in the viewer; videos open in the phone's own player (no player is bundled in the app).
+function Attachments({ message, mine }: { message: ChatMessage; mine: boolean }) {
+  const styles = useStyles()
+  const { color, type } = useTheme()
+  const toast = useToast()
+  const [viewing, setViewing] = useState<number | null>(null)
+  const photos = message.attachments.filter((a) => a.type === 'IMAGE')
+  const videos = message.attachments.filter((a) => a.type === 'VIDEO')
+  return (
+    <View style={styles.tiles}>
+      {photos.map((a, i) => (
+        <PhotoTile key={a.id} url={a.url} testID={`message-${message.id}-photo-${i}`} label={`Photo ${i + 1} of ${photos.length}`} onOpen={() => setViewing(i)} />
+      ))}
+      {videos.map((a, i) => (
+        <PressableScale
+          key={a.id}
+          testID={`message-${message.id}-video-${i}`}
+          accessibilityRole="button"
+          accessibilityLabel={videos.length > 1 ? `Play video ${i + 1} of ${videos.length}` : 'Play video'}
+          onPress={() => Linking.openURL(a.url).catch(() => toast("Couldn't open this video. Check your connection and try again."))}
+          style={styles.tile}>
+          <Ionicons name="play-circle-outline" size={24} color={color.obsidian} />
+          <Text style={[type.small, { color: color.obsidian }]}>Play video</Text>
+        </PressableScale>
+      ))}
+      <PhotoViewer photos={photos.map((a) => a.url)} start={viewing} author={mine ? 'you' : 'KRAL'} onClose={() => setViewing(null)} />
+    </View>
+  )
+}
+
 function Bubble({ message, mine, live }: { message: ChatMessage; mine: boolean; live: boolean }) {
   const styles = useStyles()
   const { color, type } = useTheme()
   const time = dateTime(message.createdAt)
   const kinds = attachmentLabel(message.attachments)
-  const shown = message.content || kinds
   return (
-    <View testID={`message-${message.id}`} accessible accessibilityLiveRegion={live ? 'polite' : 'none'} accessibilityLabel={`${mine ? 'You' : 'KRAL'}, ${message.content && kinds ? `${message.content}, ${kinds}` : shown}, ${time}`} style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
+    <View testID={`message-${message.id}`} accessible={!kinds} accessibilityLiveRegion={live ? 'polite' : 'none'} accessibilityLabel={`${mine ? 'You' : 'KRAL'}, ${[message.content, kinds].filter(Boolean).join(', ')}, ${time}`} style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
       {!mine && <Text style={type.label}>KRAL</Text>}
-      <Text style={[type.body, mine && { color: color.paper }]}>{shown}</Text>
+      {message.content !== '' && <Text style={[type.body, mine && { color: color.paper }]}>{message.content}</Text>}
+      {kinds !== '' && <Attachments message={message} mine={mine} />}
       <Text style={[type.small, type.numeric, { color: mine ? color.porcelain : color.graphite }]}>{time}</Text>
     </View>
   )
@@ -393,6 +437,9 @@ const useStyles = themed(({ color, type }) => StyleSheet.create({
   mine: { alignSelf: 'flex-end', backgroundColor: color.obsidian },
   theirs: { alignSelf: 'flex-start', backgroundColor: color.porcelain },
   sending: { opacity: 0.6 },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  tile: { width: 96, height: 96, alignItems: 'center', justifyContent: 'center', gap: space.xs, borderRadius: radius.soft, overflow: 'hidden', backgroundColor: color.porcelain },
+  fill: { width: '100%', height: '100%' },
   unsent: { alignItems: 'flex-end', gap: space.sm },
   failureActions: { flexDirection: 'row', gap: space.sm },
   failure: { maxWidth: '85%', gap: space.sm },

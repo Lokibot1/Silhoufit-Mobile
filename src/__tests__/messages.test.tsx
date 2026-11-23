@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { AccessibilityInfo, StyleSheet } from 'react-native'
+import { AccessibilityInfo, Linking, StyleSheet } from 'react-native'
 
 import { ApiError } from '@/lib/api'
 import MessagesScreen from '../app/messages'
@@ -16,6 +16,7 @@ jest.mock('@/api/chat', () => ({
 jest.mock('@/auth/session', () => ({ useSession: () => ({ profile: { role: 'customer' }, ...mockSession }) }))
 jest.mock('expo-router', () => ({ router: { push: jest.fn() }, useFocusEffect: jest.fn((cb) => jest.requireActual('react').useEffect(cb, [cb])) }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
+jest.mock('expo-image', () => ({ Image: ({ onError }: { onError?: () => void }) => jest.requireActual('react').createElement('Image', { testID: 'tile-image', onError }) }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }))
 const mockToast = jest.fn()
@@ -352,7 +353,7 @@ it('shows an attachment-only message instead of failing the list', async () => {
   api.fetchMessages.mockResolvedValue([message('m1'), message('m5', { content: '', attachments: [{ id: 'a1', url: 'https://x/a.jpg', type: 'IMAGE', fileName: 'a.jpg' }] })])
   await render(<MessagesScreen />)
   expect(await screen.findByTestId('message-m5')).toBeTruthy()
-  expect(screen.getByText('Photo')).toBeTruthy()
+  expect(screen.getByTestId('message-m5-photo-0')).toBeTruthy()
   expect(screen.getByTestId('message-m5').props.accessibilityLabel).toMatch(/^KRAL, Photo,/)
   expect(screen.queryByText("Couldn't load your messages")).toBeNull()
 })
@@ -361,5 +362,38 @@ it('delivers an attachment-only message live', async () => {
   await render(<MessagesScreen />)
   await screen.findByTestId('message-m1')
   await act(async () => live.onMessage(message('m6', { content: '', attachments: [{ id: 'a1', url: 'https://x/v.mp4', type: 'VIDEO', fileName: null }] })))
-  expect(screen.getByText('Video')).toBeTruthy()
+  expect(screen.getByTestId('message-m6-video-0')).toBeTruthy()
+})
+
+const photo = (id: string) => ({ id, url: `https://x/${id}.jpg`, type: 'IMAGE', fileName: `${id}.jpg` })
+
+it('shows photos as tiles that open a full-size viewer with a close button', async () => {
+  api.fetchMessages.mockResolvedValue([message('m7', { content: 'Look', attachments: [photo('a1'), photo('a2')] })])
+  await render(<MessagesScreen />)
+  expect(await screen.findByText('Look')).toBeTruthy()
+  expect(screen.getByTestId('message-m7-photo-1').props.accessibilityLabel).toBe('Photo 2 of 2, view full size')
+  expect(screen.queryByTestId('photo-viewer')).toBeNull()
+  await fireEvent.press(screen.getByTestId('message-m7-photo-1'))
+  expect(screen.getByTestId('photo-viewer')).toBeTruthy()
+  await fireEvent.press(screen.getByTestId('photo-viewer-close'))
+  expect(screen.queryByTestId('photo-viewer')).toBeNull()
+})
+
+it('swaps a photo that fails to load for a placeholder tile', async () => {
+  api.fetchMessages.mockResolvedValue([message('m7', { content: '', attachments: [photo('a1')] })])
+  await render(<MessagesScreen />)
+  await fireEvent(await screen.findByTestId('tile-image'), 'error')
+  expect(screen.queryByTestId('tile-image')).toBeNull()
+  expect(screen.getByTestId('message-m7-photo-0').props.accessibilityLabel).toBe("Photo 1 of 1, couldn't be loaded")
+})
+
+it('opens a video in the phone player and toasts when it cannot', async () => {
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValueOnce().mockRejectedValueOnce(new Error('no app'))
+  api.fetchMessages.mockResolvedValue([message('m8', { content: '', attachments: [{ id: 'v1', url: 'https://x/v.mp4', type: 'VIDEO', fileName: null }] })])
+  await render(<MessagesScreen />)
+  const play = await screen.findByLabelText('Play video')
+  await fireEvent.press(play)
+  expect(open).toHaveBeenCalledWith('https://x/v.mp4')
+  await fireEvent.press(play)
+  await waitFor(() => expect(mockToast).toHaveBeenCalledWith("Couldn't open this video. Check your connection and try again."))
 })
