@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker'
 
-import { checkImage, deleteUploaded, isAbort, pickImages, toPhoto, uploadPhoto, UploadError, uploadErrorMessage, type Photo } from '../imageUpload'
+import { CHAT_BUCKET, checkImage, deleteUploaded, isAbort, pickImages, toPhoto, uploadPhoto, UploadError, uploadErrorMessage, type Photo } from '../imageUpload'
 
 const mockSession = jest.fn()
 const mockRemove = jest.fn()
@@ -149,6 +149,18 @@ describe('uploadPhoto', () => {
     xhr.finish(200)
     expect(await promise).toBe(xhr.url.replace('/object/', '/object/public/'))
     expect(onProgress.mock.calls.map(([p]) => p)).toEqual([25, 100])
+  })
+
+  it('uploads chat photos into the attachments bucket under the user folder, and deleteUploaded cleans them there', async () => {
+    const promise = uploadPhoto(photo(), { userId: 'u1', bucket: CHAT_BUCKET })
+    await tick()
+    const xhr = FakeXhr.last
+    expect(CHAT_BUCKET).toBe('attachments')
+    expect(xhr.url).toMatch(/\/object\/attachments\/u1\/[0-9a-f-]{36}\.jpg$/)
+    xhr.finish(200)
+    const url = await promise
+    await deleteUploaded(url, 'u1', CHAT_BUCKET)
+    expect(mockRemove).toHaveBeenCalledWith([expect.stringMatching(/^u1\/[0-9a-f-]{36}\.jpg$/)])
   })
 
   it('names every file differently', async () => {

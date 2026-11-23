@@ -6,6 +6,7 @@ import { supabase } from './supabase'
 // The web app's rules: jpeg, png or webp up to 5 MB, stored as {userId}/{uuid}.{ext} in a public bucket the user writes to under their own folder.
 export const AVATAR_BUCKET = 'avatars'
 export const REVIEW_BUCKET = 'reviews'
+export const CHAT_BUCKET = 'attachments'
 export const IMAGE_MAX_BYTES = 5 * 1024 * 1024
 const QUALITY = 0.8
 const UPLOAD_TIMEOUT_MS = 120_000

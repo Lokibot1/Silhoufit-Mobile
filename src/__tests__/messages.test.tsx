@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { AccessibilityInfo, Linking, StyleSheet } from 'react-native'
+import { AccessibilityInfo, Linking, Platform, StyleSheet } from 'react-native'
 
 import { ApiError } from '@/lib/api'
+import { UploadError } from '@/lib/imageUpload'
 import MessagesScreen from '../app/messages'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
@@ -15,6 +16,7 @@ jest.mock('@/api/chat', () => ({
 }))
 jest.mock('@/auth/session', () => ({ useSession: () => ({ profile: { role: 'customer' }, ...mockSession }) }))
 jest.mock('expo-router', () => ({ router: { push: jest.fn() }, useFocusEffect: jest.fn((cb) => jest.requireActual('react').useEffect(cb, [cb])) }))
+jest.mock('@/lib/imageUpload', () => ({ ...jest.requireActual('@/lib/imageUpload'), pickImages: jest.fn(), uploadPhoto: jest.fn(), deleteUploaded: jest.fn() }))
 jest.mock('@/ui/Skeleton', () => ({ Skeleton: () => null }))
 jest.mock('expo-image', () => ({ Image: ({ onError }: { onError?: () => void }) => jest.requireActual('react').createElement('Image', { testID: 'tile-image', onError }) }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
@@ -22,6 +24,7 @@ jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({
 const mockToast = jest.fn()
 let mockSession: { session: { user: { id: string } } | null; loading: boolean; profile?: { role: string } } = { session: null, loading: false }
 const api = jest.requireMock('@/api/chat')
+const imageUpload = jest.requireMock('@/lib/imageUpload')
 const mockPush: jest.Mock = jest.requireMock('expo-router').router.push
 
 const message = (id: string, over: Record<string, unknown> = {}) => ({ id, senderId: 'staff1', content: `Text ${id}`, createdAt: '2026-11-14T05:49:00.000Z', attachments: [], ...over })
@@ -102,7 +105,7 @@ it('sends a message, clears the input and shows it once', async () => {
   await type('  Hello  ')
   await fireEvent.press(screen.getByTestId('messages-send'))
   expect(await screen.findByTestId('message-m3')).toBeTruthy()
-  expect(api.sendMessage).toHaveBeenCalledWith('Hello', expect.any(AbortSignal))
+  expect(api.sendMessage).toHaveBeenCalledWith('Hello', [], expect.any(AbortSignal))
   expect(screen.getByTestId('messages-input').props.value).toBe('')
   expect(screen.queryByTestId('message-unsent')).toBeNull()
 })
@@ -137,7 +140,7 @@ it('keeps a failed message inline with "Not sent" and Retry sends it again', asy
   expect(await screen.findByTestId('message-m3')).toBeTruthy()
   expect(screen.queryByTestId('message-failed-retry')).toBeNull()
   expect(api.sendMessage).toHaveBeenCalledTimes(2)
-  expect(api.sendMessage).toHaveBeenLastCalledWith('Hello', expect.any(AbortSignal))
+  expect(api.sendMessage).toHaveBeenLastCalledWith('Hello', [], expect.any(AbortSignal))
 })
 
 it('does not send twice while a send is pending', async () => {
@@ -396,4 +399,145 @@ it('opens a video in the phone player and toasts when it cannot', async () => {
   expect(open).toHaveBeenCalledWith('https://x/v.mp4')
   await fireEvent.press(play)
   await waitFor(() => expect(mockToast).toHaveBeenCalledWith("Couldn't open this video. Check your connection and try again."))
+})
+
+// Photos in the composer.
+const sheetGone = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 350)) }) // Android waits for the sheet's fade before opening a picker
+const pic = (n: number, over = {}) => ({ uri: `file:///c/${n}.jpg`, name: `${n}.jpg`, ext: 'jpg', type: 'image/jpeg', size: 1000 + n, ...over })
+const attach = async (...photos: ReturnType<typeof pic>[]) => {
+  imageUpload.pickImages.mockResolvedValueOnce({ status: 'picked', photos })
+  const android = jest.replaceProperty(Platform, 'OS', 'android')
+  await fireEvent.press(await screen.findByTestId('messages-attach'))
+  await fireEvent.press(screen.getByTestId('photo-library'))
+  await sheetGone()
+  android.restore()
+  await screen.findByTestId('messages-photo-remove-0')
+}
+const sent = (id = 'm3', over = {}) => message(id, { senderId: 'u1', content: '', attachments: [{ id: 'a1', url: 'https://x/1.jpg', type: 'IMAGE', fileName: '1.jpg' }], ...over })
+const uploadsOk = () => imageUpload.uploadPhoto.mockImplementation(async (p: { name: string }) => `https://x/${p.name}`)
+
+it('attaches photos from the library, lets one be removed, and sends them with no text', async () => {
+  uploadsOk()
+  api.sendMessage.mockResolvedValue(sent())
+  await render(<MessagesScreen />)
+  expect(await screen.findByTestId('messages-send')).toBeDisabled()
+  await attach(pic(1), pic(2))
+  expect(imageUpload.pickImages).toHaveBeenCalledWith('library', { square: undefined, limit: 5 })
+  await fireEvent.press(screen.getByTestId('messages-photo-remove-0'))
+  expect(screen.queryByTestId('messages-photo-remove-1')).toBeNull()
+  expect(screen.getByTestId('messages-send')).toBeEnabled()
+  await fireEvent.press(screen.getByTestId('messages-send'))
+  expect(await screen.findByTestId('message-m3')).toBeTruthy()
+  expect(imageUpload.uploadPhoto).toHaveBeenCalledTimes(1)
+  expect(imageUpload.uploadPhoto).toHaveBeenCalledWith(expect.objectContaining({ name: '2.jpg' }), expect.objectContaining({ userId: 'u1', bucket: 'attachments', signal: expect.any(AbortSignal) }))
+  expect(api.sendMessage).toHaveBeenCalledWith('', [{ url: 'https://x/2.jpg', fileName: '2.jpg', mimeType: 'image/jpeg', sizeBytes: 1002 }], expect.any(AbortSignal))
+  expect(screen.queryByTestId('messages-photo-remove-0')).toBeNull()
+})
+
+it('refuses a photo of the wrong type with what, why and next, and limits the picker to the room left', async () => {
+  await render(<MessagesScreen />)
+  await attach(pic(1), pic(2, { type: 'image/gif', ext: 'gif', name: '2.gif' }))
+  expect(mockToast).toHaveBeenCalledWith("2.gif wasn't added. Only JPG, PNG or WebP photos work, so choose a different photo.")
+  expect(screen.queryByTestId('messages-photo-remove-1')).toBeNull()
+  imageUpload.pickImages.mockResolvedValueOnce({ status: 'cancelled' })
+  const android = jest.replaceProperty(Platform, 'OS', 'android')
+  await fireEvent.press(screen.getByTestId('messages-attach'))
+  await fireEvent.press(screen.getByTestId('photo-library'))
+  await sheetGone()
+  android.restore()
+  expect(imageUpload.pickImages).toHaveBeenLastCalledWith('library', { square: undefined, limit: 4 })
+})
+
+it('keeps at most five photos and disables Attach at the limit', async () => {
+  await render(<MessagesScreen />)
+  await attach(pic(1), pic(2), pic(3), pic(4), pic(5), pic(6))
+  expect(screen.getByTestId('messages-photo-remove-4')).toBeTruthy()
+  expect(screen.queryByTestId('messages-photo-remove-5')).toBeNull()
+  expect(mockToast).toHaveBeenCalledWith(expect.stringMatching(/^Only 5 photos fit in one message/))
+  expect(screen.getByTestId('messages-attach')).toBeDisabled()
+})
+
+it('shows the upload progress on the unsent message', async () => {
+  imageUpload.uploadPhoto.mockImplementation((_p: unknown, o: { onProgress: (n: number) => void }) => {
+    o.onProgress(40)
+    return never()
+  })
+  await render(<MessagesScreen />)
+  await attach(pic(1))
+  await fireEvent.press(screen.getByTestId('messages-send'))
+  expect(await screen.findByLabelText('Uploading photos')).toBeTruthy()
+  expect(screen.getByText('40%')).toBeTruthy()
+  expect(api.sendMessage).not.toHaveBeenCalled()
+})
+
+it('retries from the photo that failed without uploading the finished ones again', async () => {
+  imageUpload.uploadPhoto.mockResolvedValueOnce('https://x/1.jpg').mockRejectedValueOnce(new UploadError('network')).mockResolvedValueOnce('https://x/2.jpg')
+  api.sendMessage.mockResolvedValue(sent())
+  await render(<MessagesScreen />)
+  await attach(pic(1), pic(2))
+  await fireEvent.press(screen.getByTestId('messages-send'))
+  expect(await screen.findByText(/^Not sent\. We couldn't upload your photo\. The connection dropped/)).toBeTruthy()
+  await fireEvent.press(screen.getByTestId('message-failed-retry'))
+  expect(await screen.findByTestId('message-m3')).toBeTruthy()
+  expect(imageUpload.uploadPhoto).toHaveBeenCalledTimes(3)
+  expect(imageUpload.uploadPhoto.mock.calls[2][0].name).toBe('2.jpg')
+  expect(api.sendMessage).toHaveBeenCalledWith('', [expect.objectContaining({ url: 'https://x/1.jpg' }), expect.objectContaining({ url: 'https://x/2.jpg' })], expect.any(AbortSignal))
+  expect(imageUpload.deleteUploaded).not.toHaveBeenCalled()
+})
+
+it('keeps the uploads when the send fails on the network, so Retry posts without uploading again', async () => {
+  uploadsOk()
+  api.sendMessage.mockRejectedValueOnce(new ApiError('network')).mockResolvedValueOnce(sent())
+  await render(<MessagesScreen />)
+  await attach(pic(1))
+  await fireEvent.press(screen.getByTestId('messages-send'))
+  await fireEvent.press(await screen.findByTestId('message-failed-retry'))
+  expect(await screen.findByTestId('message-m3')).toBeTruthy()
+  expect(imageUpload.uploadPhoto).toHaveBeenCalledTimes(1)
+  expect(imageUpload.deleteUploaded).not.toHaveBeenCalled()
+})
+
+it('deletes the uploads when the server refuses the message, with no Retry', async () => {
+  uploadsOk()
+  api.sendMessage.mockRejectedValueOnce(new ApiError('validation'))
+  await render(<MessagesScreen />)
+  await attach(pic(1))
+  await fireEvent.press(screen.getByTestId('messages-send'))
+  expect(await screen.findByTestId('message-failed-discard')).toBeTruthy()
+  expect(screen.queryByTestId('message-failed-retry')).toBeNull()
+  expect(imageUpload.deleteUploaded).toHaveBeenCalledWith('https://x/1.jpg', 'u1', 'attachments')
+})
+
+it('explains a refused file and offers no Retry', async () => {
+  imageUpload.uploadPhoto.mockRejectedValueOnce(new UploadError('invalid'))
+  await render(<MessagesScreen />)
+  await attach(pic(1))
+  await fireEvent.press(screen.getByTestId('messages-send'))
+  expect(await screen.findByText(/^Not sent\. We couldn't upload your photo\. The server didn't accept this file\. Choose a JPG, PNG or WebP photo under 5 MB/)).toBeTruthy()
+  expect(screen.queryByTestId('message-failed-retry')).toBeNull()
+  expect(api.sendMessage).not.toHaveBeenCalled()
+})
+
+it('deletes the uploads of a discarded message', async () => {
+  uploadsOk()
+  api.sendMessage.mockRejectedValueOnce(new ApiError('network'))
+  await render(<MessagesScreen />)
+  await attach(pic(1))
+  await fireEvent.press(screen.getByTestId('messages-send'))
+  await fireEvent.press(await screen.findByTestId('message-failed-discard'))
+  expect(imageUpload.deleteUploaded).toHaveBeenCalledWith('https://x/1.jpg', 'u1', 'attachments')
+  expect(screen.queryByTestId('message-unsent')).toBeNull()
+})
+
+it('drops the unsent photo message when its echo arrives (matched by text and photo count)', async () => {
+  uploadsOk()
+  api.sendMessage.mockRejectedValueOnce(new ApiError('network'))
+  await render(<MessagesScreen />)
+  await attach(pic(1))
+  await fireEvent.press(screen.getByTestId('messages-send'))
+  await screen.findByTestId('message-failed-retry')
+  await act(async () => live.onMessage(sent('m9', { attachments: [] })))
+  expect(screen.getByTestId('message-unsent')).toBeTruthy()
+  await act(async () => live.onMessage(sent('m10')))
+  expect(screen.queryByTestId('message-unsent')).toBeNull()
 })

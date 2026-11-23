@@ -5,12 +5,14 @@ import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'rea
 import { AccessibilityInfo, ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { fetchMessages, fetchMyConversation, markRead, MAX_MESSAGE_LENGTH, sendFailureCopy, sendMessage, subscribeToConversation, type Attachment, type ChatMessage } from '@/api/chat'
+import { fetchMessages, fetchMyConversation, markRead, MAX_ATTACHMENTS, MAX_MESSAGE_LENGTH, sendFailureCopy, sendMessage, subscribeToConversation, type Attachment, type ChatMessage, type NewAttachment } from '@/api/chat'
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
 import { dateTime } from '@/lib/format'
+import { checkImage, CHAT_BUCKET, deleteUploaded, UploadError, uploadErrorMessage, uploadPhoto, type Photo } from '@/lib/imageUpload'
 import { PhotoViewer } from '@/product/PhotoViewer'
 import { HeaderIcon } from '@/ui/HeaderIcon'
+import { PhotoSourceSheet, UploadProgress } from '@/ui/PhotoPicker'
 import { PressableScale } from '@/ui/PressableScale'
 import { Skeleton } from '@/ui/Skeleton'
 import { StateMessage } from '@/ui/StateMessage'
@@ -20,7 +22,8 @@ import { useToast } from '@/ui/toast'
 // The character count turns red for the last 100 characters.
 const WARN_FROM = MAX_MESSAGE_LENGTH - 100
 // failure is null while the message is on its way, else the copy explaining why it was not sent. retry is false when sending it again cannot work.
-type Unsent = { content: string; failure: string | null; retry: boolean }
+// uploaded holds the photos already in storage (in order), so Retry carries on from there instead of uploading them again; percent is the upload progress of all photos.
+type Unsent = { content: string; photos: Photo[]; uploaded: NewAttachment[]; percent: number; failure: string | null; retry: boolean }
 type Row = ChatMessage | { unsent: Unsent }
 type Store = { owner: string | null; convId: string | null; messages: ChatMessage[] | null; error: unknown; unsent: Unsent | null; blocked: boolean; blockedReason: string | null }
 const EMPTY: Store = { owner: null, convId: null, messages: null, error: null, unsent: null, blocked: false, blockedReason: null }
@@ -32,12 +35,12 @@ function merge(current: ChatMessage[] | null, incoming: ChatMessage[]) {
   return fresh.length ? [...(current ?? []), ...fresh].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)) : (current ?? [])
 }
 
-// Adds what arrived and, if one of the NEW messages is mine with the same text as the unsent one, the send actually went through (the server
+// Adds what arrived and, if one of the NEW messages is mine with the same text and photo count as the unsent one, the send actually went through (the server
 // saved it but the reply was lost): drop the unsent bubble so Retry cannot post a second copy. Heuristic limit: the server has no idempotency
-// key, so identical text sent twice on purpose while the first one failed is taken as the same message.
+// key, so an identical message sent twice on purpose while the first one failed is taken as the same message.
 function land(s: Store, incoming: ChatMessage[], uid: string): Partial<Store> {
   const known = new Set((s.messages ?? []).map((message) => message.id))
-  const went = s.unsent && incoming.some((message) => !known.has(message.id) && message.senderId === uid && message.content === s.unsent?.content)
+  const went = s.unsent && incoming.some((message) => !known.has(message.id) && message.senderId === uid && message.content === s.unsent?.content && message.attachments.length === s.unsent.photos.length)
   return { messages: merge(s.messages, incoming), ...(went ? { unsent: null } : {}) }
 }
 
@@ -110,10 +113,24 @@ function UnsentBubble({ unsent, onRetry, onDiscard }: { unsent: Unsent; onRetry:
   const { color, type } = useTheme()
   return (
     <View testID="message-unsent" style={styles.unsent}>
-      <View accessible accessibilityLabel={`${unsent.failure === null ? 'Sending' : 'Not sent'}, ${unsent.content}`} style={[styles.bubble, styles.mine, unsent.failure === null && styles.sending]}>
-        <Text style={[type.body, { color: color.paper }]}>{unsent.content}</Text>
+      <View accessible accessibilityLabel={`${unsent.failure === null ? 'Sending' : 'Not sent'}, ${[unsent.content, unsent.photos.length > 0 && (unsent.photos.length > 1 ? 'Photos' : 'Photo')].filter(Boolean).join(', ')}`} style={[styles.bubble, styles.mine, unsent.failure === null && styles.sending]}>
+        {unsent.content !== '' && <Text style={[type.body, { color: color.paper }]}>{unsent.content}</Text>}
+        {unsent.photos.length > 0 && (
+          <View style={styles.tiles}>
+            {unsent.photos.map((photo, i) => (
+              <View key={i} style={styles.tile}>
+                <Image source={{ uri: photo.uri }} accessible={false} contentFit="cover" style={styles.fill} />
+              </View>
+            ))}
+          </View>
+        )}
         {unsent.failure === null && <Text style={[type.small, { color: color.porcelain }]}>Sending</Text>}
       </View>
+      {unsent.failure === null && unsent.uploaded.length < unsent.photos.length && (
+        <View style={styles.progress}>
+          <UploadProgress testID="message-upload-progress" percent={unsent.percent} label="Uploading photos" />
+        </View>
+      )}
       {unsent.failure !== null && (
         <View accessibilityRole="alert" style={styles.failure}>
           <Text style={[type.small, { color: color.graphite }]}>{unsent.failure}</Text>
@@ -155,11 +172,14 @@ export default function MessagesScreen() {
   const mine = store.owner === userId ? store : EMPTY
   const { convId, messages, error, unsent, blocked: muted, blockedReason } = mine
   const [text, setText] = useState('')
+  const [photos, setPhotos] = useState<Photo[]>([])
+  const [sheet, setSheet] = useState(false)
   const [masked, setMasked] = useState(false)
   const [textOwner, setTextOwner] = useState(userId)
   if (textOwner !== userId) {
     setTextOwner(userId)
     setText('')
+    setPhotos([])
     setMasked(false)
   }
   const [top, setTop] = useState(0)
@@ -267,13 +287,23 @@ export default function MessagesScreen() {
     }
   }, [userId, convId, patch])
 
-  const send = (content: string) => {
+  // Uploads the photos not yet in storage one after another, then posts the message. `done` is what an earlier try already uploaded.
+  const send = (content: string, photos: Photo[] = [], done: NewAttachment[] = []) => {
     if (!userId || inFlight.current) return
     inFlight.current = true
     setMasked(false)
     const ctl = (sending.current = new AbortController())
-    patch(userId, () => ({ unsent: { content, failure: null, retry: true } }))
-    sendMessage(content, ctl.signal)
+    const uploaded = [...done]
+    patch(userId, () => ({ unsent: { content, photos, uploaded: [...uploaded], percent: Math.round((done.length * 100) / (photos.length || 1)), failure: null, retry: true } }))
+    ;(async () => {
+      for (let i = uploaded.length; i < photos.length; i += 1) {
+        const photo = photos[i]
+        const onProgress = (percent: number) => patch(userId, (s) => (s.unsent ? { unsent: { ...s.unsent, percent: Math.round((i * 100 + percent) / photos.length) } } : {}))
+        const url = await uploadPhoto(photo, { userId, bucket: CHAT_BUCKET, onProgress, signal: ctl.signal })
+        uploaded.push({ url, fileName: photo.name.slice(0, 255), mimeType: photo.type, ...(photo.size ? { sizeBytes: photo.size } : {}) })
+      }
+      return sendMessage(content, uploaded, ctl.signal)
+    })()
       .then(
         (message) => {
           // The server masks profane words, so saved text that differs from what was sent means some were hidden.
@@ -283,7 +313,12 @@ export default function MessagesScreen() {
         (failure) => {
           // No unsent left means the echo already showed the message arrived.
           if (ctl.signal.aborted) return
-          patch(userId, (s) => (s.unsent ? { unsent: { content, failure: sendFailureCopy(failure), retry: !(failure instanceof ApiError && failure.kind === 'validation') } } : {}))
+          const upload = failure instanceof UploadError
+          // A refused file or text cannot succeed again: its uploads are no use, so they go (best effort). A dropped connection keeps them for Retry.
+          const refused = upload ? failure.kind === 'invalid' : failure instanceof ApiError && failure.kind === 'validation'
+          if (refused) uploaded.forEach((a) => void deleteUploaded(a.url, userId, CHAT_BUCKET))
+          const copy = upload ? `Not sent. ${uploadErrorMessage(failure.kind === 'unauthorized' ? 'forbidden' : failure.kind)}` : sendFailureCopy(failure)
+          patch(userId, (s) => (s.unsent ? { unsent: { ...s.unsent, uploaded: refused ? [] : [...uploaded], failure: copy, retry: !refused } } : {}))
           // A block that started after this screen loaded: reload the conversation so the composer shows it. A failed reload changes nothing.
           if (failure instanceof ApiError && failure.kind === 'forbidden') {
             fetchMyConversation(ctl.signal).then(
@@ -306,15 +341,28 @@ export default function MessagesScreen() {
   const pending = unsent !== null && unsent.failure === null
   // A failed message stays until Retry or Discard, so a new one can never overwrite it.
   const blocked = unsent !== null || muted
-  const empty = text.trim() === ''
+  const empty = text.trim() === '' && photos.length === 0
   const submit = () => {
     if (blocked || empty || inFlight.current) return
     const content = text.trim()
     setText('')
-    send(content)
+    setPhotos([])
+    send(content, photos)
   }
   const discard = () => {
-    if (userId) patch(userId, () => ({ unsent: null }))
+    if (!userId) return
+    unsent?.uploaded.forEach((a) => void deleteUploaded(a.url, userId, CHAT_BUCKET))
+    patch(userId, () => ({ unsent: null }))
+  }
+  // Keeps the photos that pass the check (and fit under the limit); a toast says what was left out and why.
+  const addPhotos = (picked: Photo[]) => {
+    const room = MAX_ATTACHMENTS - photos.length
+    const problems = picked.map(checkImage)
+    const good = picked.filter((_, i) => problems[i] === null)
+    setPhotos((current) => [...current, ...good.slice(0, room)])
+    const refused = problems.find((p) => p !== null)
+    if (refused) toast(refused)
+    else if (good.length > room) toast(`Only ${MAX_ATTACHMENTS} photos fit in one message, so the extra ones weren't added. Send this message, then attach the rest.`)
   }
   const retryLoad = () => {
     if (!userId) return
@@ -358,7 +406,7 @@ export default function MessagesScreen() {
         inverted
         data={rows}
         keyExtractor={(row) => ('unsent' in row ? 'unsent' : row.id)}
-        renderItem={({ item }) => ('unsent' in item ? <UnsentBubble unsent={muted ? { ...item.unsent, retry: false } : item.unsent} onRetry={() => send(item.unsent.content)} onDiscard={discard} /> : <Bubble message={item} mine={item.senderId === userId} live={item.id === liveId} />)}
+        renderItem={({ item }) => ('unsent' in item ? <UnsentBubble unsent={muted ? { ...item.unsent, retry: false } : item.unsent} onRetry={() => send(item.unsent.content, item.unsent.photos, item.unsent.uploaded)} onDiscard={discard} /> : <Bubble message={item} mine={item.senderId === userId} live={item.id === liveId} />)}
         ItemSeparatorComponent={Gap}
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
@@ -384,40 +432,65 @@ export default function MessagesScreen() {
         )}
         {ready && (
           <View style={[styles.composer, { paddingBottom: keyboard ? space.sm : Math.max(insets.bottom, space.sm) }]}>
-            <View style={styles.field}>
-              <TextInput
-                ref={input}
-                testID="messages-input"
-                accessibilityLabel="Message"
-                placeholder={muted ? 'Messaging is blocked' : 'Write a message'}
-                placeholderTextColor={color.graphite}
-                style={styles.input}
-                value={text}
-                onChangeText={(value) => {
-                  setText(value)
-                  setMasked(false)
-                }}
-                onFocus={() => setInputFocused(true)}
-                onBlur={() => setInputFocused(false)}
-                maxLength={MAX_MESSAGE_LENGTH}
-                multiline
-                editable={!muted}
-              />
-              {!muted && (inputFocused || text.length > 0) && <Text style={[type.small, type.numeric, styles.count, text.length >= WARN_FROM && styles.countWarn]}>{`${text.length}/${MAX_MESSAGE_LENGTH}`}</Text>}
+            {photos.length > 0 && (
+              <View style={styles.strip}>
+                {photos.map((photo, i) => (
+                  <View key={photo.uri + i} style={styles.thumb}>
+                    <Image source={{ uri: photo.uri }} accessible accessibilityLabel={`Photo ${i + 1} of ${photos.length} to send`} contentFit="cover" style={styles.fill} />
+                    <PressableScale testID={`messages-photo-remove-${i}`} accessibilityRole="button" accessibilityLabel={`Remove photo ${i + 1}`} onPress={() => setPhotos((current) => current.filter((_, at) => at !== i))} style={styles.remove}>
+                      <Ionicons name="close" size={24} color={color.onRed} />
+                    </PressableScale>
+                  </View>
+                ))}
+              </View>
+            )}
+            <View style={styles.composerRow}>
+              <PressableScale
+                testID="messages-attach"
+                accessibilityRole="button"
+                accessibilityLabel={photos.length > 0 ? `Attach photos, ${photos.length} of ${MAX_ATTACHMENTS} added` : 'Attach photos'}
+                accessibilityState={{ disabled: blocked || photos.length >= MAX_ATTACHMENTS }}
+                disabled={blocked || photos.length >= MAX_ATTACHMENTS}
+                onPress={() => setSheet(true)}
+                style={styles.send}>
+                <Ionicons name="image-outline" size={24} color={blocked || photos.length >= MAX_ATTACHMENTS ? color.stonewash : color.obsidian} />
+              </PressableScale>
+              <View style={styles.field}>
+                <TextInput
+                  ref={input}
+                  testID="messages-input"
+                  accessibilityLabel="Message"
+                  placeholder={muted ? 'Messaging is blocked' : 'Write a message'}
+                  placeholderTextColor={color.graphite}
+                  style={styles.input}
+                  value={text}
+                  onChangeText={(value) => {
+                    setText(value)
+                    setMasked(false)
+                  }}
+                  onFocus={() => setInputFocused(true)}
+                  onBlur={() => setInputFocused(false)}
+                  maxLength={MAX_MESSAGE_LENGTH}
+                  multiline
+                  editable={!muted}
+                />
+                {!muted && (inputFocused || text.length > 0) && <Text style={[type.small, type.numeric, styles.count, text.length >= WARN_FROM && styles.countWarn]}>{`${text.length}/${MAX_MESSAGE_LENGTH}`}</Text>}
+              </View>
+              <PressableScale
+                testID="messages-send"
+                accessibilityRole="button"
+                accessibilityLabel="Send message"
+                accessibilityState={{ disabled: blocked || empty, busy: pending }}
+                disabled={blocked || empty}
+                onPress={submit}
+                style={styles.send}>
+                {pending ? <ActivityIndicator color={color.obsidian} /> : <Ionicons name="send" size={24} color={blocked || empty ? color.stonewash : color.redInk} />}
+              </PressableScale>
             </View>
-            <PressableScale
-              testID="messages-send"
-              accessibilityRole="button"
-              accessibilityLabel="Send message"
-              accessibilityState={{ disabled: blocked || empty, busy: pending }}
-              disabled={blocked || empty}
-              onPress={submit}
-              style={styles.send}>
-              {pending ? <ActivityIndicator color={color.obsidian} /> : <Ionicons name="send" size={24} color={blocked || empty ? color.stonewash : color.redInk} />}
-            </PressableScale>
           </View>
         )}
       </KeyboardAvoidingView>
+      <PhotoSourceSheet visible={sheet} onClose={() => setSheet(false)} title="Add photos" limit={MAX_ATTACHMENTS - photos.length} onPhotos={addPhotos} />
     </View>
   )
 }
@@ -443,7 +516,12 @@ const useStyles = themed(({ color, type }) => StyleSheet.create({
   unsent: { alignItems: 'flex-end', gap: space.sm },
   failureActions: { flexDirection: 'row', gap: space.sm },
   failure: { maxWidth: '85%', gap: space.sm },
-  composer: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, paddingTop: space.sm, paddingHorizontal: space.lg, borderTopWidth: 1, borderTopColor: color.porcelain, backgroundColor: color.paper },
+  composer: { gap: space.sm, paddingTop: space.sm, paddingHorizontal: space.lg, borderTopWidth: 1, borderTopColor: color.porcelain, backgroundColor: color.paper },
+  composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm },
+  strip: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  thumb: { width: 64, height: 64, borderRadius: radius.soft, overflow: 'hidden', backgroundColor: color.porcelain },
+  remove: { position: 'absolute', top: 0, right: 0, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: color.scrim },
+  progress: { width: '85%' },
   note: { padding: space.md, paddingHorizontal: space.lg, color: color.graphite, backgroundColor: color.porcelain },
   field: { flex: 1, gap: space.xs },
   input: { ...type.body, borderWidth: 1, borderColor: color.stonewash, borderRadius: radius.soft, minHeight: 48, maxHeight: 120, paddingHorizontal: space.md, paddingVertical: space.md, backgroundColor: color.paper },

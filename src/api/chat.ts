@@ -8,6 +8,9 @@ export type ChatMessage = { id: string; senderId: string; content: string; creat
 export type Conversation = { id: string; hasUnreadMessages: boolean; blocked: boolean; blockedReason: string | null }
 
 export const MAX_MESSAGE_LENGTH = 2000
+export const MAX_ATTACHMENTS = 5
+/** What the API takes for an uploaded file: exactly these four fields. */
+export type NewAttachment = { url: string; fileName: string; mimeType: string; sizeBytes?: number }
 
 // Tolerant: a missing or garbage list is none, and an item without a url or with an unknown type is skipped.
 function toAttachments(raw: unknown): Attachment[] {
@@ -50,9 +53,10 @@ export async function fetchMessages(conversationId: string, signal?: AbortSignal
   return body.data.map(toMessage)
 }
 
-/** POST /chat/my-conversation/messages. The API trims the text and refuses an empty one or more than 2000 characters. */
-export async function sendMessage(content: string, signal?: AbortSignal): Promise<ChatMessage> {
-  return toMessage(await request('POST', '/chat/my-conversation/messages', { content }, signal))
+/** POST /chat/my-conversation/messages. The API trims the text and refuses more than 2000 characters, or a message with neither text nor attachments. */
+export async function sendMessage(content: string, attachments: NewAttachment[] = [], signal?: AbortSignal): Promise<ChatMessage> {
+  const body = { ...(content && { content }), ...(attachments.length > 0 && { attachments }) }
+  return toMessage(await request('POST', '/chat/my-conversation/messages', body, signal))
 }
 
 /** POST /chat/conversations/:id/read. Fire and forget: a missed read only leaves the unread dot a little longer. */

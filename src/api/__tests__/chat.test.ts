@@ -62,6 +62,14 @@ describe('requests', () => {
     expect((await sendMessage('Hi')).id).toBe('m1')
     expect(mockRequest).toHaveBeenCalledWith('POST', '/chat/my-conversation/messages', { content: 'Hi' }, undefined)
   })
+  it('sends attachments with the text, or alone without a content field', async () => {
+    mockRequest.mockResolvedValue(raw({ content: '', attachments: [{ id: 'a1', url: 'https://x/a.jpg', type: 'IMAGE' }] }))
+    const file = { url: 'https://x/a.jpg', fileName: 'a.jpg', mimeType: 'image/jpeg', sizeBytes: 9 }
+    await sendMessage('', [file])
+    expect(mockRequest).toHaveBeenLastCalledWith('POST', '/chat/my-conversation/messages', { attachments: [file] }, undefined)
+    await sendMessage('Hi', [file])
+    expect(mockRequest).toHaveBeenLastCalledWith('POST', '/chat/my-conversation/messages', { content: 'Hi', attachments: [file] }, undefined)
+  })
   it('marks read without surfacing a failure', async () => {
     mockRequest.mockRejectedValue(new ApiError('network'))
     expect(() => markRead('c1')).not.toThrow()
