@@ -68,3 +68,20 @@ export const notificationOrderId = (n: NotificationItem) => (typeof n.data?.orde
 
 /** A messaging block or unblock leads to Messages, where the notice and its reason already show. */
 export const notificationOpensMessages = (n: NotificationItem) => n.type === 'MESSAGING_BLOCKED' || n.type === 'MESSAGING_UNBLOCKED'
+
+export type Tone = 'success' | 'info' | 'warning' | 'danger'
+
+const TONES: Record<string, Tone> = {
+  ORDER_PAID: 'success',
+  REFUND_SUCCEEDED: 'success',
+  MESSAGING_UNBLOCKED: 'success',
+  PRODUCT_LOW_STOCK: 'warning',
+  REFUND_ACTION_REQUIRED: 'warning',
+  PAYMENT_FAILED: 'danger',
+  ORDER_CANCELLED: 'danger',
+  PRODUCT_SOLD_OUT: 'danger',
+  MESSAGING_BLOCKED: 'danger',
+}
+
+/** The accent a notification's toast takes; anything not listed is plain info. */
+export const notificationTone = (type: string): Tone => TONES[type] ?? 'info'

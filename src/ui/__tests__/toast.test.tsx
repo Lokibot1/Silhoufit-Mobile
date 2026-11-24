@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { AccessibilityInfo, Pressable, Text } from 'react-native'
 
+import { ThemeContext, themes } from '../theme'
 import { ToastProvider, useToast } from '../toast'
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 30, bottom: 10 }) }))
@@ -67,4 +68,58 @@ it('keeps a toast with an action for 8 seconds and a plain one for 4.5', async (
   await act(async () => jest.advanceTimersByTime(1))
   expect(screen.queryByTestId('toast')).toBeNull()
   jest.useRealTimers()
+})
+
+describe('title and tone', () => {
+  function Toned({ tone, title }: { tone?: 'success' | 'warning' | 'danger' | 'info'; title?: string }) {
+    const toast = useToast()
+    return <Pressable testID="go" onPress={() => toast('Body', { tone, title })}><Text>go</Text></Pressable>
+  }
+
+  it.each([['success', '#1F6F4A'], ['warning', '#B45309'], ['danger', '#CB1C2B'], ['info', '#1D5FD1']] as const)('colours the %s edge the same in light and dark', async (tone, hex) => {
+    for (const theme of [themes.light, themes.dark]) {
+      const view = await render(<ThemeContext.Provider value={theme}><ToastProvider><Toned tone={tone} /></ToastProvider></ThemeContext.Provider>)
+      await fireEvent.press(screen.getByTestId('go'))
+      expect(screen.getByTestId('toast')).toHaveStyle({ borderLeftColor: hex })
+      await view.unmount()
+    }
+  })
+
+  it('keeps the red edge without a tone', async () => {
+    await render(<ToastProvider><Toned /></ToastProvider>)
+    await fireEvent.press(screen.getByTestId('go'))
+    expect(screen.getByTestId('toast')).toHaveStyle({ borderLeftColor: '#CB1C2B' })
+  })
+
+  it('shows the title above the message and speaks the title first', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
+    await render(<ToastProvider><Toned title="Payment received" /></ToastProvider>)
+    await fireEvent.press(screen.getByTestId('go'))
+    expect(screen.getByText('Payment received')).toBeTruthy()
+    expect(screen.getByText('Body')).toBeTruthy()
+    expect(announce).toHaveBeenCalledWith('Payment received. Body')
+    announce.mockRestore()
+  })
+
+  it('still shows a toast that has a title and an empty message', async () => {
+    function TitleOnly() {
+      const toast = useToast()
+      return <Pressable testID="go" onPress={() => toast('', { title: 'Order shipped', tone: 'info' })}><Text>go</Text></Pressable>
+    }
+    await render(<ToastProvider><TitleOnly /></ToastProvider>)
+    await fireEvent.press(screen.getByTestId('go'))
+    expect(screen.getByTestId('toast')).toBeTruthy()
+    expect(screen.getByText('Order shipped')).toBeTruthy()
+  })
+
+  it('keeps a toned toast for 5 seconds', async () => {
+    jest.useFakeTimers()
+    await render(<ToastProvider><Toned tone="success" /></ToastProvider>)
+    await fireEvent.press(screen.getByTestId('go'))
+    await act(async () => jest.advanceTimersByTime(4999))
+    expect(screen.getByTestId('toast')).toBeTruthy()
+    await act(async () => jest.advanceTimersByTime(1))
+    expect(screen.queryByTestId('toast')).toBeNull()
+    jest.useRealTimers()
+  })
 })

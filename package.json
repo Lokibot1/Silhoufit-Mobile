@@ -15,6 +15,8 @@
     "eslint": "^9.39.5",
     "eslint-config-expo": "~58.0.4",
     "expo": "~58.0.25",
+    "expo-asset": "~58.0.21",
+    "expo-audio": "~58.0.12",
     "expo-constants": "~58.0.16",
     "expo-dev-client": "~58.0.20",
     "expo-device": "~58.0.5",

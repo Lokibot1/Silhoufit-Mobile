@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { fetchNotifications, fetchUnreadCount, markAllNotificationsRead, markNotificationRead, notificationOpensMessages, notificationOrderId, onNotificationsChanged, toNotification } from '../notifications'
+import { fetchNotifications, fetchUnreadCount, markAllNotificationsRead, markNotificationRead, notificationOpensMessages, notificationOrderId, notificationTone, onNotificationsChanged, toNotification } from '../notifications'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -85,5 +85,24 @@ describe('requests', () => {
     mockRequest.mockResolvedValue({})
     await markAllNotificationsRead()
     expect(run).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('notificationTone', () => {
+  it.each([
+    ['ORDER_PAID', 'success'],
+    ['REFUND_SUCCEEDED', 'success'],
+    ['MESSAGING_UNBLOCKED', 'success'],
+    ['PRODUCT_LOW_STOCK', 'warning'],
+    ['REFUND_ACTION_REQUIRED', 'warning'],
+    ['PAYMENT_FAILED', 'danger'],
+    ['ORDER_CANCELLED', 'danger'],
+    ['PRODUCT_SOLD_OUT', 'danger'],
+    ['MESSAGING_BLOCKED', 'danger'],
+    ['ORDER_SHIPPED', 'info'],
+    ['SOMETHING_NEW', 'info'],
+    ['', 'info'],
+  ])('%s is %s', (type, tone) => {
+    expect(notificationTone(type)).toBe(tone)
   })
 })

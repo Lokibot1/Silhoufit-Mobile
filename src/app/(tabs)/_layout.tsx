@@ -74,7 +74,7 @@ function TabsHeader() {
 function TabBar({ state, descriptors, emitter, navigateToTab, insets }: MaterialTopTabBarProps) {
   const styles = useStyles()
   const { color } = useTheme()
-  const { count } = useNotifications({ list: false })
+  const { count } = useNotifications({ list: false, announce: true })
   return (
     <View style={[styles.bar, { paddingBottom: insets.bottom }]}>
       {state.routes.map((route, i) => {

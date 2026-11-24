@@ -2,6 +2,9 @@
 jest.mock('@/ui/PressableScale', () => ({ PressableScale: jest.requireActual('react-native').Pressable }))
 jest.mock('@/ui/PullToRefresh', () => ({ PullToRefresh: ({ refreshing, onRefresh, children }) => children({ refreshing, onRefresh }) }))
 
+// The chime needs the native audio module; tests only care that it was asked to play.
+jest.mock('expo-audio', () => ({ createAudioPlayer: () => ({ seekTo: () => Promise.resolve(), play: () => {} }) }))
+
 // The native calendar has no JS implementation under test: a plain View carrying the props, and an Android opener the test can inspect.
 jest.mock('@react-native-community/datetimepicker', () => {
   const React = jest.requireActual('react')

@@ -1,11 +1,13 @@
+import { router } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
+import { playNotification } from '@/lib/sound'
 import { useLivePoll } from '@/lib/useLivePoll'
 import { useToast } from '@/ui/toast'
 
-import { fetchNotifications, fetchUnreadCount, markAllNotificationsRead, markNotificationRead, onNotificationsChanged, type NotificationItem } from './notifications'
+import { fetchNotifications, fetchUnreadCount, markAllNotificationsRead, markNotificationRead, notificationOpensMessages, notificationOrderId, notificationTone, onNotificationsChanged, type NotificationItem } from './notifications'
 
 type Page = { items: NotificationItem[]; hasNextPage: boolean; page: number }
 const EMPTY: Page = { items: [], hasNextPage: false, page: 1 }
@@ -13,8 +15,9 @@ const EMPTY: Page = { items: [], hasNextPage: false, page: 1 }
 /**
  * The signed-in customer's notifications from the server. The unread count is polled alone; the list is read only while `list` is on
  * (the screen) and again whenever the count changes. Marking read is optimistic and rolls back on failure. Always empty signed out.
+ * With `announce`, a rising count toasts the newest unread one with a chime (the tab bar's instance, never the screen's own).
  */
-export function useNotifications({ list = true }: { list?: boolean } = {}) {
+export function useNotifications({ list = true, announce = false }: { list?: boolean; announce?: boolean } = {}) {
   const { session } = useSession()
   const userId = session?.user.id ?? null
   const toast = useToast()
@@ -27,9 +30,9 @@ export function useNotifications({ list = true }: { list?: boolean } = {}) {
   const controller = useRef<AbortController | null>(null)
   const loaded = useRef(false) // something is on screen: a later failure toasts instead of replacing it
   // What the stable callbacks below read.
-  const live = useRef({ count, shown, unreadOnly, list })
+  const live = useRef({ count, shown, unreadOnly, list, announce })
   useEffect(() => {
-    live.current = { count, shown, unreadOnly, list }
+    live.current = { count, shown, unreadOnly, list, announce }
   })
 
   // A different account must not inherit the previous one's notifications: reset while rendering, before the fetch effects run.
@@ -72,12 +75,23 @@ export function useNotifications({ list = true }: { list?: boolean } = {}) {
   const readCount = useCallback(
     async (signal?: AbortSignal) => {
       const next = await fetchUnreadCount(signal)
-      const { count: known, unreadOnly: only, list: listing } = live.current
+      const { count: known, unreadOnly: only, list: listing, announce: announcing } = live.current
       live.current.count = next
       setCount(next)
       if (listing && known !== null && known !== next) void load(1, only, true)
+      if (announcing && !listing && known !== null && next > known) {
+        // The newest unread one is the story; the rest are only counted.
+        const latest = await fetchNotifications({ page: 1, unreadOnly: true }, signal).then((page) => page.items[0], () => undefined)
+        if (!latest) return
+        const more = next - known - 1
+        const orderId = notificationOrderId(latest)
+        const link = notificationOpensMessages(latest) ? ('/messages' as const) : orderId ? { pathname: '/orders/[id]' as const, params: { id: orderId } } : null
+        const body = `${latest.body ?? ''}${more > 0 ? `${latest.body ? ' ' : ''}and ${more} more` : ''}`
+        toast(body, { title: latest.title, tone: notificationTone(latest.type), action: link ? { label: 'View', onPress: () => router.push(link) } : undefined })
+        playNotification()
+      }
     },
-    [load],
+    [load, toast],
   )
 
   const active = userId !== null
