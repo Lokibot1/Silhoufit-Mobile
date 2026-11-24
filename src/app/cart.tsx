@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, FlatList, LayoutAnimation, StyleSheet, Text, View } from 'react-native'
 
-import { clearCart, fetchCart, removeCartItem, setCartItemQuantity, type Cart, type CartItem } from '@/api/cart'
+import { clearCart, fetchCart, removeCartItem, removeCartItems, setCartItemQuantity, type Cart, type CartItem } from '@/api/cart'
 import { useSession } from '@/auth/session'
 import { cartWarning } from '@/checkout/cartWarning'
 import { ApiError, errorMessage } from '@/lib/api'
@@ -22,6 +22,7 @@ const TARGET = 44
 const IMG_W = 88
 const IMG_H = 112
 const LOW_STOCK = 5
+const BULK = 'bulk' // busyId of Remove selected: not a row id, and not Clear Cart's ''
 const BLOCKED_NOTE = 'Fix the items marked above to check out'
 
 const variantLine = ({ size, color: colour }: CartItem['variant']) => [size, colour].filter(Boolean).join(' / ')
@@ -39,13 +40,15 @@ type RowProps = {
   item: CartItem
   locked: boolean
   pending: boolean
+  checked: boolean
   error?: string
+  onToggle: (id: string) => void
   onOpen: (item: CartItem) => void
   onQuantity: (item: CartItem, quantity: number) => void
   onRemove: (item: CartItem) => void
 }
 
-function CartRow({ item, locked, pending, error, onOpen, onQuantity, onRemove }: RowProps) {
+function CartRow({ item, locked, pending, checked, error, onToggle, onOpen, onQuantity, onRemove }: RowProps) {
   const styles = useStyles()
   const { color } = useTheme()
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
@@ -64,22 +67,34 @@ function CartRow({ item, locked, pending, error, onOpen, onQuantity, onRemove }:
   const openLabel = [`Open ${product.name}`, variantLine(variant), `${peso(variant.price)} each`, warn, lowStock ? `Only ${stock} left` : null].filter(Boolean).join(', ')
   return (
     <View testID={`cart-row-${id}`} accessibilityState={{ busy: pending }} style={styles.card}>
-      <PressableScale testID={`cart-open-${id}`} accessibilityRole="button" accessibilityLabel={openLabel} disabled={!product.id} onPress={() => onOpen(item)} style={styles.top}>
-        <View style={[styles.tile, unavailable && styles.dim]}>
-          {showImage ? (
-            <Image source={{ uri: product.image ?? undefined }} accessible={false} contentFit="cover" transition={200} onError={() => setFailedUrl(product.image)} style={styles.fill} />
-          ) : (
-            <Text importantForAccessibility="no-hide-descendants" numberOfLines={4} maxFontSizeMultiplier={1.2} style={styles.fallback}>{product.name}</Text>
-          )}
-        </View>
-        <View style={styles.info}>
-          <Text numberOfLines={2} style={styles.name}>{product.name}</Text>
-          {variantLine(variant) !== '' && <Text style={styles.variant}>{variantLine(variant)}</Text>}
-          <Text accessibilityLabel={`${peso(variant.price)} each`} style={styles.unit}>{peso(variant.price)}</Text>
-          {warn && <Text style={styles.warn}>{warn}</Text>}
-          {lowStock && <Text style={styles.warn}>{`Only ${stock} left`}</Text>}
-        </View>
-      </PressableScale>
+      <View style={styles.pick}>
+        <PressableScale
+          testID={`cart-check-${id}`}
+          accessibilityRole="checkbox"
+          accessibilityLabel={`Select ${product.name}`}
+          accessibilityState={{ checked, disabled: locked }}
+          disabled={locked}
+          onPress={() => onToggle(id)}
+          style={[styles.check, locked && styles.off]}>
+          <View style={[styles.box, checked && styles.boxOn]}>{checked && <Ionicons name="checkmark" size={16} color={color.paper} />}</View>
+        </PressableScale>
+        <PressableScale testID={`cart-open-${id}`} accessibilityRole="button" accessibilityLabel={openLabel} disabled={!product.id} onPress={() => onOpen(item)} style={[styles.top, styles.grow]}>
+          <View style={[styles.tile, unavailable && styles.dim]}>
+            {showImage ? (
+              <Image source={{ uri: product.image ?? undefined }} accessible={false} contentFit="cover" transition={200} onError={() => setFailedUrl(product.image)} style={styles.fill} />
+            ) : (
+              <Text importantForAccessibility="no-hide-descendants" numberOfLines={4} maxFontSizeMultiplier={1.2} style={styles.fallback}>{product.name}</Text>
+            )}
+          </View>
+          <View style={styles.info}>
+            <Text numberOfLines={2} style={styles.name}>{product.name}</Text>
+            {variantLine(variant) !== '' && <Text style={styles.variant}>{variantLine(variant)}</Text>}
+            <Text accessibilityLabel={`${peso(variant.price)} each`} style={styles.unit}>{peso(variant.price)}</Text>
+            {warn && <Text style={styles.warn}>{warn}</Text>}
+            {lowStock && <Text style={styles.warn}>{`Only ${stock} left`}</Text>}
+          </View>
+        </PressableScale>
+      </View>
       <PressableScale
         testID={`cart-remove-${id}`}
         accessibilityRole="button"
@@ -113,12 +128,15 @@ function CartSkeleton() {
       <View style={styles.skeletonList}>
         {[0, 1, 2].map((key) => (
           <View key={key} style={styles.card}>
-            <View style={styles.top}>
-              <Skeleton width={IMG_W} height={IMG_H} radius={radius.soft} />
-              <View style={[styles.info, styles.skeletonInfo]}>
-                <Skeleton height={40} />
-                <Skeleton width="60%" height={20} />
-                <Skeleton width="40%" height={24} />
+            <View style={styles.pick}>
+              <View style={styles.check} />
+              <View style={[styles.top, styles.grow]}>
+                <Skeleton width={IMG_W} height={IMG_H} radius={radius.soft} />
+                <View style={[styles.info, styles.skeletonInfo]}>
+                  <Skeleton height={40} />
+                  <Skeleton width="60%" height={20} />
+                  <Skeleton width="40%" height={24} />
+                </View>
               </View>
             </View>
             <View style={styles.controls}>
@@ -139,8 +157,8 @@ function CartSkeleton() {
   )
 }
 
-type Store = { owner: string | null; cart: Cart | null; error: unknown; rowError: { id: string; message: string } | null }
-const EMPTY: Store = { owner: null, cart: null, error: null, rowError: null }
+type Store = { owner: string | null; cart: Cart | null; error: unknown; rowError: { id: string; message: string } | null; selected: string[] }
+const EMPTY: Store = { owner: null, cart: null, error: null, rowError: null, selected: [] }
 // Everything fetched is tagged with its account, so another account never sees it (not even for one render).
 const own = (s: Store, uid: string, change: Partial<Store> | ((cur: Store) => Partial<Store>)): Store => {
   const cur = s.owner === uid ? s : { ...EMPTY, owner: uid }
@@ -164,7 +182,7 @@ export default function CartScreen() {
   const toast = useToast()
   const [store, setStore] = useState<Store>(EMPTY)
   const mine = store.owner === userId ? store : EMPTY
-  const { cart, error, rowError } = mine
+  const { cart, error, rowError, selected } = mine
   const [busyId, setBusyId] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const reduceMotion = useReduceMotion()
@@ -281,8 +299,8 @@ export default function CartScreen() {
         const message = failure instanceof ApiError && failure.kind === 'validation' && failure.detail ? failure.detail : errorMessage(failure)
         // The server refused because the stock or the line changed: refresh the row so the stepper and warning match, keeping the error shown.
         reload = failure instanceof ApiError && (failure.kind === 'validation' || failure.kind === 'conflict')
-        // Clear Cart has no row to carry the message, so it toasts.
-        if (id === '') notify.current(message)
+        // Clear Cart and Remove selected have no single row to carry the message, so they toast.
+        if (id === '' || id === BULK) notify.current(message)
         else write(uid, { rowError: { id, message } })
       }
     } finally {
@@ -344,16 +362,75 @@ export default function CartScreen() {
       }),
     )
 
-  const count = cart?.totalItems ?? 0
-  const blocked = !!cart?.items.some((item) => cartWarning(item) !== null)
+  // Only ticked lines count; a tick for a line that has vanished drops out here.
+  const chosen = cart?.items.filter((item) => selected.includes(item.id)) ?? []
+  const count = chosen.reduce((sum, item) => sum + item.quantity, 0)
+  const subtotal = Math.round(chosen.reduce((sum, item) => sum + item.lineTotal, 0) * 100) / 100
+  const all = !!cart && cart.items.length > 0 && chosen.length === cart.items.length
+  const blocked = chosen.some((item) => cartWarning(item) !== null)
+  const toggle = (id: string) => {
+    if (userId) write(userId, (cur) => ({ selected: cur.selected.includes(id) ? cur.selected.filter((x) => x !== id) : [...cur.selected, id] }))
+  }
+  const toggleAll = () => {
+    if (userId) write(userId, { selected: all ? [] : (cart?.items ?? []).map((item) => item.id) })
+  }
+  const removeSelected = () => {
+    const ids = chosen.map((item) => item.id)
+    const single = ids.length === 1 ? chosen[0].product.name : null
+    confirm(single ? `Remove ${single} from your cart?` : `Remove ${ids.length} items from your cart?`, single ? 'Remove Item' : `Remove ${ids.length} Items`, () =>
+      mutate(BULK, async (uid) => {
+        let next: Cart
+        try {
+          next = await removeCartItems(ids)
+        } catch (failure) {
+          if (!isGone(failure)) throw failure
+          // Nothing was removed: keep the ids still in the bag and send them again.
+          const fresh = await fetchCart()
+          const left = ids.filter((id) => fresh.items.some((item) => item.id === id))
+          next = left.length ? await removeCartItems(left) : fresh
+        }
+        animate()
+        apply(uid, { cart: next, selected: [] })
+        notify.current(single ? `Removed ${single} from cart` : `Removed ${ids.length} items from cart`)
+      }),
+    )
+  }
   const checkout = () => {
     if (opening.current) return
     opening.current = true
-    router.push('/checkout')
+    router.push({ pathname: '/checkout', params: { items: chosen.map((item) => item.id).join(',') } })
   }
 
   const header = (
     <View style={styles.header} />
+  )
+
+  const selectBar = (
+    <View testID="cart-select-bar" style={styles.selectBar}>
+      <PressableScale
+        testID="cart-select-all"
+        accessibilityRole="checkbox"
+        accessibilityLabel="Select all"
+        accessibilityState={{ checked: all ? true : chosen.length > 0 ? 'mixed' : false, disabled: busyId !== null }}
+        disabled={busyId !== null}
+        onPress={toggleAll}
+        style={[styles.selectAll, busyId !== null && styles.off]}>
+        <View style={[styles.box, chosen.length > 0 && styles.boxOn]}>{chosen.length > 0 && <Ionicons name={all ? 'checkmark' : 'remove'} size={16} color={color.paper} />}</View>
+        <Text style={styles.selectText}>Select all</Text>
+      </PressableScale>
+      <Text testID="cart-selected" accessibilityLiveRegion="polite" style={styles.selected}>{`${chosen.length} selected`}</Text>
+      <PressableScale
+        testID="cart-remove-selected"
+        accessibilityRole="button"
+        accessibilityLabel="Remove selected"
+        accessibilityState={{ disabled: chosen.length === 0 || busyId !== null, busy: busyId === BULK }}
+        disabled={chosen.length === 0 || busyId !== null}
+        onPress={removeSelected}
+        style={[styles.removeSelected, (chosen.length === 0 || busyId !== null) && styles.off]}>
+        <Ionicons name="trash-outline" size={24} color={color.graphite} />
+        <Text style={styles.selectText}>Remove selected</Text>
+      </PressableScale>
+    </View>
   )
 
   if (loading || (signedIn && !cart && !error)) {
@@ -406,9 +483,10 @@ export default function CartScreen() {
             contentContainerStyle={styles.listContent}
             data={cart.items}
             keyExtractor={(item) => item.id}
-            ListHeaderComponent={header}
+            ListHeaderComponent={selectBar}
+            stickyHeaderIndices={[0]}
             renderItem={({ item }) => (
-              <CartRow item={item} locked={busyId !== null} pending={busyId === item.id} error={rowError?.id === item.id ? rowError.message : undefined} onOpen={open} onQuantity={changeQuantity} onRemove={remove} />
+              <CartRow item={item} locked={busyId !== null} pending={busyId === item.id} checked={selected.includes(item.id)} error={rowError?.id === item.id ? rowError.message : undefined} onToggle={toggle} onOpen={open} onQuantity={changeQuantity} onRemove={remove} />
             )}
             ListFooterComponent={
               <PressableScale testID="cart-clear" accessibilityRole="button" accessibilityLabel="Clear cart" accessibilityState={{ disabled: busyId !== null, busy: busyId === '' }} disabled={busyId !== null} onPress={clear} style={[styles.clear, busyId !== null && styles.off]}>
@@ -424,22 +502,31 @@ export default function CartScreen() {
             <Text style={styles.subtotalLabel}>Subtotal</Text>
             <Text testID="cart-count" style={styles.count}>{`${count} ${count === 1 ? 'Item' : 'Items'}`}</Text>
           </View>
-          <Text testID="cart-subtotal" maxFontSizeMultiplier={1.3} style={styles.subtotal}>{peso(cart.subtotal)}</Text>
+          <Text testID="cart-subtotal" maxFontSizeMultiplier={1.3} style={styles.subtotal}>{peso(subtotal)}</Text>
         </View>
         {blocked && <Text testID="cart-checkout-note" accessibilityLiveRegion="polite" style={styles.note}>{BLOCKED_NOTE}</Text>}
-        <Button testID="cart-checkout" label="Checkout" disabled={blocked || busyId !== null} accessibilityHint={blocked ? BLOCKED_NOTE : undefined} onPress={checkout} />
+        <Button testID="cart-checkout" label={`Checkout (${count})`} disabled={chosen.length === 0 || blocked || busyId !== null} accessibilityHint={blocked ? BLOCKED_NOTE : undefined} onPress={checkout} />
       </View>
     </View>
   )
 }
 
-const useStyles = themed(({ color, type }) => StyleSheet.create({
+const useStyles = themed(({ color, type, hairline }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   listContent: { paddingBottom: space.lg },
   message: { padding: space.lg },
   header: { paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.md, gap: space.md },
   grow: { flex: 1 },
   card: { marginHorizontal: space.lg, marginBottom: space.md, padding: space.md, gap: space.sm, borderWidth: 1, borderColor: color.porcelain, borderRadius: radius.soft, backgroundColor: color.paper },
+  pick: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  check: { width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
+  box: { ...hairline, borderColor: color.obsidian, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  boxOn: { backgroundColor: color.obsidian },
+  selectBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: space.md, paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: space.md, backgroundColor: color.paper },
+  selectAll: { minHeight: TARGET, flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  selectText: { ...type.small, fontFamily: font.medium, color: color.obsidian },
+  selected: { ...type.small, ...type.numeric, color: color.graphite, flex: 1 },
+  removeSelected: { minHeight: TARGET, flexDirection: 'row', alignItems: 'center', gap: space.xs },
   top: { flexDirection: 'row', gap: space.md },
   tile: { width: IMG_W, height: IMG_H, backgroundColor: color.porcelain, borderRadius: radius.soft, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: space.xs },
   dim: { opacity: 0.5 },

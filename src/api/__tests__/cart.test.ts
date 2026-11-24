@@ -1,6 +1,6 @@
 import { ApiError, request } from '@/lib/api'
 
-import { addCartItem, clearCart, fetchCart, removeCartItem, setCartItemQuantity, toCart } from '../cart'
+import { addCartItem, clearCart, fetchCart, removeCartItem, removeCartItems, setCartItemQuantity, toCart } from '../cart'
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), request: jest.fn() }))
 const mockRequest = request as jest.Mock
@@ -96,6 +96,11 @@ describe('cart calls', () => {
     mockRequest.mockResolvedValue({ success: true })
     await removeCartItem('i1', signal)
     expect(mockRequest).toHaveBeenCalledWith('DELETE', '/cart/items/i1', undefined, signal)
+  })
+  it('removeCartItems DELETEs /cart/items with the ids and parses the whole cart', async () => {
+    mockRequest.mockResolvedValue({ items: [item()] })
+    expect((await removeCartItems(['a', 'b'], signal)).items).toHaveLength(1)
+    expect(mockRequest).toHaveBeenCalledWith('DELETE', '/cart/items', { itemIds: ['a', 'b'] }, signal)
   })
   it('clearCart DELETEs /cart', async () => {
     mockRequest.mockResolvedValue({ success: true })

@@ -63,6 +63,11 @@ export async function removeCartItem(itemId: string, signal?: AbortSignal): Prom
   await request('DELETE', `/cart/items/${encodeURIComponent(itemId)}`, undefined, signal)
 }
 
+/** DELETE /cart/items with `{ itemIds }`. All or nothing: a 404 means an id is gone and nothing was removed. Answers the whole cart. */
+export async function removeCartItems(itemIds: string[], signal?: AbortSignal): Promise<Cart> {
+  return toCart(await request('DELETE', '/cart/items', { itemIds }, signal))
+}
+
 /** DELETE /cart. Empties the cart; answers only `{ success: true }`. */
 export async function clearCart(signal?: AbortSignal): Promise<void> {
   await request('DELETE', '/cart', undefined, signal)

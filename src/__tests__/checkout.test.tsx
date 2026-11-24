@@ -9,11 +9,13 @@ jest.mock('@/api/addresses', () => ({ fetchAddresses: jest.fn() }))
 jest.mock('@/api/orders', () => ({ deliveryProblem: jest.requireActual('@/api/orders').deliveryProblem, quoteShipping: jest.fn(), createOrder: jest.fn(), fetchOrdersPage: jest.fn() }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
 const mockToast = jest.fn()
+let mockParams: { items?: string } = {}
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn(), replace: jest.fn(), canGoBack: () => true },
   Stack: { Screen: () => null },
+  useLocalSearchParams: () => mockParams,
   useFocusEffect: (effect: () => void | (() => void)) => jest.requireActual('react').useEffect(effect, [effect]),
 }))
 jest.mock('expo-image', () => ({ Image: () => null }))
@@ -59,6 +61,7 @@ const alertSpy = jest.spyOn(Alert, 'alert')
 
 beforeEach(() => {
   jest.resetAllMocks()
+  mockParams = {}
   mockUseSession.mockReturnValue(signedIn)
   cartApi.fetchCart.mockResolvedValue(cartOf([line('a')]))
   addressApi.fetchAddresses.mockResolvedValue([address('home', { isDefault: true })])
@@ -676,5 +679,32 @@ describe('while the order is in flight', () => {
     expect(screen.getByTestId('address-option-home').props.accessibilityState.checked).toBe(true)
     expect(ordersApi.quoteShipping).toHaveBeenCalledTimes(1)
     await act(async () => finish({ id: 'o1', total: 2650 })) // settles the request so its timer is cleared
+  })
+})
+
+describe('with an items param from the Cart screen', () => {
+  const three = () => [line('a'), line('b', { quantity: 1, lineTotal: 1250 }), line('c', { quantity: 1, lineTotal: 1250 })]
+  beforeEach(() => cartApi.fetchCart.mockResolvedValue(cartOf(three())))
+
+  it('lists only those lines, totals only them, and orders only their ids', async () => {
+    mockParams = { items: 'a,c' }
+    await render(<CheckoutScreen />)
+    expect(await screen.findByText('Tee a')).toBeTruthy()
+    expect(screen.getByText('Tee c')).toBeTruthy()
+    expect(screen.queryByText('Tee b')).toBeNull()
+    await screen.findByTestId('checkout-shipping-fee')
+    expect(screen.getByTestId('checkout-bar-total').props.children).toBe('₱3,900.00') // 2,500 + 1,250 + 150 delivery
+    await fireEvent.press(screen.getByTestId('checkout-place-order'))
+    await waitFor(() => expect(ordersApi.createOrder).toHaveBeenCalled())
+    expect(ordersApi.createOrder.mock.calls[0][0].cartItemIds).toEqual(['a', 'c'])
+    await waitFor(() => expect(cartApi.removeCartItem).toHaveBeenCalledTimes(2))
+    expect(cartApi.removeCartItem).not.toHaveBeenCalledWith('b')
+  })
+
+  it('shows Nothing to check out when every selected line is gone', async () => {
+    mockParams = { items: 'x,y' }
+    await render(<CheckoutScreen />)
+    expect(await screen.findByText('Nothing to check out')).toBeTruthy()
+    expect(screen.queryByTestId('checkout-place-order')).toBeNull()
   })
 })

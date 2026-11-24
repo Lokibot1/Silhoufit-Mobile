@@ -1,4 +1,4 @@
-import { router, Stack, useFocusEffect } from 'expo-router'
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -73,6 +73,8 @@ export default function CheckoutScreen() {
   const toast = useToast()
   const userId = session?.user.id ?? null
   const insets = useSafeAreaInsets()
+  const { items: only } = useLocalSearchParams<{ items?: string }>()
+  const ids = only?.split(',').filter(Boolean)
   const cart = useRequest(`${userId}:cart`, (signal) => (userId ? fetchCart(signal) : idle()))
   const addresses = useRequest(`${userId}:addresses`, (signal) => (userId ? fetchAddresses(signal) : idle()))
   const [chosen, setChosen] = useState<string | null>(null)
@@ -177,7 +179,12 @@ export default function CheckoutScreen() {
       </View>
     )
   }
-  if (cart.status === 'ready' && cart.data?.items.length === 0) {
+  // The Cart screen hands over only the ticked lines; without them the whole cart is checked out.
+  const picked = cart.data && ids?.length ? cart.data.items.filter((item) => ids.includes(item.id)) : null
+  const view = picked
+    ? { items: picked, totalItems: picked.reduce((sum, item) => sum + item.quantity, 0), subtotal: Math.round(picked.reduce((sum, item) => sum + item.lineTotal, 0) * 100) / 100 }
+    : cart.data
+  if (cart.status === 'ready' && view?.items.length === 0) {
     return (
       <View style={styles.screen}>
         {header}
@@ -189,9 +196,9 @@ export default function CheckoutScreen() {
   }
 
   const idleShipping = addresses.status === 'loading' ? 'loading' : selected ? null : 'none'
-  const items = cart.data?.items ?? []
+  const items = view?.items ?? []
   const shipping = fresh && fresh.addressId === selected?.id ? { ...requested, status: 'ready' as const, data: quote } : requested
-  const amounts = totals(cart.data?.subtotal ?? null, quote?.shippingFee ?? null)
+  const amounts = totals(view?.subtotal ?? null, quote?.shippingFee ?? null)
   const blocked = items.some((item) => cartWarning(item) !== null)
   const addressHint = addresses.status !== 'ready' || selected ? null : list.length === 0 ? 'Add an address first' : 'Choose an address with a map pin'
   const hint = addressHint ?? (blocked ? 'Fix the items marked above to place your order' : selected && !quote && requested.status === 'error' ? 'Retry the shipping fee above to place your order' : null)
@@ -249,7 +256,7 @@ export default function CheckoutScreen() {
 
   // `check` only looks for an order an unanswered attempt may have created, and never places a new one.
   async function place(retry = false, check = false) {
-    if (busy.current || !selected || !cart.data) return
+    if (busy.current || !selected || !view) return
     busy.current = true
     setPlacing(true)
     setNotice(null)
@@ -291,7 +298,7 @@ export default function CheckoutScreen() {
         }
         sent = {
           body: { addressId: selected.id, cartItemIds: items.map((item) => item.id), quotationId: current.quotationId, ...(cleanNote(sellerNote) && { sellerNotes: cleanNote(sellerNote) }), ...(cleanNote(courierNote) && { courierNotes: cleanNote(courierNote) }) },
-          shown: totals(cart.data.subtotal, current.shippingFee).total,
+          shown: totals(view.subtotal, current.shippingFee).total,
           since: Date.now(),
           line: [selected.streetAddress, selected.addressLine2, selected.barangay].filter(Boolean).join(', '),
         }
@@ -348,7 +355,7 @@ export default function CheckoutScreen() {
           <Text accessibilityRole="header" style={type.h1}>Checkout</Text>
         </View>
         <AddressSection req={addresses} selected={selected} disabled={placing} onChange={() => setPicking(true)} onAdd={addAddress} />
-        <ItemsSection req={cart} />
+        <ItemsSection req={{ ...cart, data: view }} />
         <ShippingSection idle={idleShipping} req={shipping} onPick={() => setPicking(true)} />
         <NotesSection courier={courierNote} seller={sellerNote} onCourier={setCourierNote} onSeller={setSellerNote} disabled={placing} />
         <PaymentSection />
