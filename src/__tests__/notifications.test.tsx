@@ -10,6 +10,7 @@ jest.mock('@/api/notifications', () => ({
   markNotificationRead: jest.fn(),
   markAllNotificationsRead: jest.fn(),
 }))
+jest.mock('@/lib/notificationPrefs', () => ({ popupsOn: () => true, soundOn: () => true }))
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('expo-router', () => ({

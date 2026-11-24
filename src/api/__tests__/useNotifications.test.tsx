@@ -9,12 +9,14 @@ jest.mock('../notifications', () => ({
 }))
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
+jest.mock('@/lib/notificationPrefs', () => ({ popupsOn: jest.fn(() => true), soundOn: jest.fn(() => true) }))
 jest.mock('@/lib/sound', () => ({ playNotification: jest.fn() }))
 jest.mock('expo-router', () => ({ useIsFocused: () => true, router: { push: jest.fn() } }))
 jest.mock('@/ui/toast', () => ({ useToast: () => mockToast }))
 const mockToast = jest.fn()
 const api = jest.requireMock('../notifications')
 const { playNotification } = jest.requireMock('@/lib/sound')
+const prefs = jest.requireMock('@/lib/notificationPrefs') as Record<'popupsOn' | 'soundOn', jest.Mock>
 const { push } = jest.requireMock('expo-router').router
 const mockUseSession = jest.requireMock('@/auth/session').useSession
 
@@ -40,6 +42,8 @@ beforeEach(() => {
   jest.useFakeTimers()
   jest.spyOn(Math, 'random').mockReturnValue(0.5)
   api.fetchNotifications.mockReset()
+  prefs.popupsOn.mockReturnValue(true)
+  prefs.soundOn.mockReturnValue(true)
   mockUseSession.mockReturnValue({ session: { user: { id: 'u1' } }, loading: false, signOut: jest.fn() })
 })
 afterEach(() => {
@@ -56,6 +60,22 @@ it('toasts the newest unread one with title, tone, the rest counted and a View a
   mockToast.mock.calls[0][1].action.onPress()
   expect(push).toHaveBeenCalledWith({ pathname: '/orders/[id]', params: { id: 'order-b' } })
   expect(playNotification).toHaveBeenCalledTimes(1)
+})
+
+it('still chimes but shows no toast when pop-up alerts are off', async () => {
+  prefs.popupsOn.mockReturnValue(false)
+  api.fetchNotifications.mockResolvedValue(pageOf([note('a')]))
+  await poll([1, 2])
+  expect(mockToast).not.toHaveBeenCalled()
+  expect(playNotification).toHaveBeenCalledTimes(1)
+})
+
+it('toasts without a chime when the notification sound is off', async () => {
+  prefs.soundOn.mockReturnValue(false)
+  api.fetchNotifications.mockResolvedValue(pageOf([note('a')]))
+  await poll([1, 2])
+  expect(mockToast).toHaveBeenCalledTimes(1)
+  expect(playNotification).not.toHaveBeenCalled()
 })
 
 it('opens Messages for a messaging notice', async () => {

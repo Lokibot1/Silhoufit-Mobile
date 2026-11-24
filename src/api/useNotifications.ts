@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
+import { popupsOn, soundOn } from '@/lib/notificationPrefs'
 import { playNotification } from '@/lib/sound'
 import { useLivePoll } from '@/lib/useLivePoll'
 import { useToast } from '@/ui/toast'
@@ -15,7 +16,7 @@ const EMPTY: Page = { items: [], hasNextPage: false, page: 1 }
 /**
  * The signed-in customer's notifications from the server. The unread count is polled alone; the list is read only while `list` is on
  * (the screen) and again whenever the count changes. Marking read is optimistic and rolls back on failure. Always empty signed out.
- * With `announce`, a rising count toasts the newest unread one with a chime (the tab bar's instance, never the screen's own).
+ * With `announce`, a rising count toasts the newest unread one with a chime, each following the device's notification settings (the tab bar's instance, never the screen's own).
  */
 export function useNotifications({ list = true, announce = false }: { list?: boolean; announce?: boolean } = {}) {
   const { session } = useSession()
@@ -87,8 +88,8 @@ export function useNotifications({ list = true, announce = false }: { list?: boo
         const orderId = notificationOrderId(latest)
         const link = notificationOpensMessages(latest) ? ('/messages' as const) : orderId ? { pathname: '/orders/[id]' as const, params: { id: orderId } } : null
         const body = `${latest.body ?? ''}${more > 0 ? `${latest.body ? ' ' : ''}and ${more} more` : ''}`
-        toast(body, { title: latest.title, tone: notificationTone(latest.type), action: link ? { label: 'View', onPress: () => router.push(link) } : undefined })
-        playNotification()
+        if (popupsOn()) toast(body, { title: latest.title, tone: notificationTone(latest.type), action: link ? { label: 'View', onPress: () => router.push(link) } : undefined })
+        if (soundOn()) playNotification()
       }
     },
     [load, toast],

@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 import { AgeGate } from '@/auth/AgeGate'
 import { SessionProvider, useSession } from '@/auth/session'
+import { loadNotificationPrefs } from '@/lib/notificationPrefs'
 import { fontAssets } from '@/ui/fonts'
 import { OnboardingGate } from '@/onboarding/OnboardingGate'
 import { IntroLoader } from '@/ui/IntroLoader'
@@ -269,6 +270,10 @@ function NavTheme({ children }: { children: ReactNode }) {
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets)
   const fontsSettled = fontsLoaded || !!fontError
+
+  useEffect(() => {
+    void loadNotificationPrefs()
+  }, [])
 
   useEffect(() => {
     if (fontsSettled) SplashScreen.hideAsync()

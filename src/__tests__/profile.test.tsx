@@ -1,7 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
 import { Alert, Linking, Platform, Text } from 'react-native'
 
+import { setNotificationPref } from '../lib/notificationPrefs'
 import Profile from '../app/(tabs)/profile'
 import { ThemeProvider } from '../ui/ThemeProvider'
 import { useTheme } from '../ui/theme'
@@ -34,6 +36,11 @@ beforeEach(() => {
 
 const base = { session: null, profile: null, loading: false, error: null, retry: jest.fn(), signOut: jest.fn().mockResolvedValue(undefined) }
 const me = { id: 'u1', email: 'ana@example.com', role: 'customer', firstName: 'Ana', lastName: 'Cruz', fullName: null, avatarUrl: null, createdAt: '2026-03-02T01:00:00.000Z' }
+
+afterEach(async () => {
+  await setNotificationPref('popup', true)
+  await setNotificationPref('sound', true)
+})
 
 it('shows the skeleton, not the prompt, while loading', async () => {
   mockUseSession.mockReturnValue({ ...base, loading: true })
@@ -280,4 +287,25 @@ describe('appearance', () => {
     expect(screen.getByTestId('paper').props.children).toBe('#161113')
     expect(screen.getByLabelText('Appearance, Dark')).toBeTruthy()
   })
+})
+
+// The native switch reads `value` on iOS and `on` on Android (an earlier test leaves Platform.OS on android).
+const isOn = (testID: string) => { const props = screen.getByTestId(testID).props; return props.value ?? props.on }
+
+it('switches pop-up alerts off for this device with a toast, signed in', async () => {
+  mockUseSession.mockReturnValue({ ...base, session: {}, profile: me })
+  await render(<Profile />)
+  expect(isOn('profile-notify-popup')).toBe(true)
+  expect(isOn('profile-notify-sound')).toBe(true)
+  await fireEvent(screen.getByTestId('profile-notify-popup'), 'valueChange', false)
+  expect(AsyncStorage.setItem).toHaveBeenCalledWith('silhoufit-notify-popup', 'off')
+  expect(mockToast).toHaveBeenCalledWith('Pop-up alerts turned off')
+  expect(isOn('profile-notify-popup')).toBe(false)
+})
+
+it('has no notification switches signed out', async () => {
+  mockUseSession.mockReturnValue(base)
+  await render(<Profile />)
+  expect(screen.queryByTestId('profile-notify-popup')).toBeNull()
+  expect(screen.queryByTestId('profile-notify-sound')).toBeNull()
 })

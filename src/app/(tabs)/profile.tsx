@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import { type ComponentProps, useCallback, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
 
 import { useSession } from '@/auth/session'
 import { dateOnly } from '@/lib/format'
+import { popupsOn, setNotificationPref, soundOn, type NotificationPref } from '@/lib/notificationPrefs'
 import { CONTACT_EMAIL, openLegal } from '@/lib/site'
 import { Avatar } from '@/ui/Avatar'
 import { ActionSheet } from '@/ui/ActionSheet'
@@ -33,6 +34,11 @@ const APPEARANCES: { id: Preference; label: string }[] = [
   { id: 'system', label: 'System' },
   { id: 'light', label: 'Light' },
   { id: 'dark', label: 'Dark' },
+]
+
+const ALERTS: { key: NotificationPref; label: string; help: string }[] = [
+  { key: 'popup', label: 'Pop-up alerts', help: 'Show a banner when a new notification arrives, on this device.' },
+  { key: 'sound', label: 'Notification sound', help: 'Play a short chime when a new notification arrives, on this device.' },
 ]
 
 // `nav` is unique per tap so Orders re-selects the tab even when the param value is unchanged.
@@ -89,6 +95,7 @@ export default function Profile() {
   const { preference, setPreference } = useAppearance()
   const [choosingAppearance, setChoosingAppearance] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+  const [alerts, setAlerts] = useState({ popup: popupsOn(), sound: soundOn() })
   const busy = useRef(false)
   const asking = useRef(false)
   const opening = useRef(false)
@@ -141,6 +148,11 @@ export default function Profile() {
   const openPage = (doc: Parameters<typeof openLegal>[0]) =>
     openLegal(doc).catch(() => toast("Couldn't open the page. Check your connection and try again."))
   const writeToUs = () => Linking.openURL(`mailto:${CONTACT_EMAIL}`).catch(() => toast(`No email app found. Write to ${CONTACT_EMAIL}.`))
+  const toggle = (key: NotificationPref, label: string, on: boolean) => {
+    void setNotificationPref(key, on)
+    setAlerts((current) => ({ ...current, [key]: on }))
+    toast(`${label} turned ${on ? 'on' : 'off'}`)
+  }
   const appearanceLabel = APPEARANCES.find((a) => a.id === preference)?.label ?? 'System'
   const name = profile ? profile.fullName?.trim() || `${profile.firstName} ${profile.lastName}`.trim() : ''
 
@@ -243,6 +255,23 @@ export default function Profile() {
           <Text accessibilityRole="header" style={type.h2}>Preferences</Text>
           <View style={styles.card}>
             <MenuRow testID="profile-menu-appearance" icon="contrast-outline" label="Appearance" value={appearanceLabel} onPress={() => setChoosingAppearance(true)} divider={false} />
+            {session && ALERTS.map(({ key, label, help }) => (
+              <View key={key} style={[styles.row, styles.divider]}>
+                <View style={styles.grow}>
+                  <Text style={type.body}>{label}</Text>
+                  <Text style={[type.small, styles.off]}>{help}</Text>
+                </View>
+                <Switch
+                  testID={`profile-notify-${key}`}
+                  accessibilityLabel={label}
+                  accessibilityHint={help}
+                  value={alerts[key]}
+                  onValueChange={(on) => toggle(key, label, on)}
+                  trackColor={{ true: color.red, false: color.stonewash }}
+                  thumbColor={color.onRed}
+                />
+              </View>
+            ))}
           </View>
         </View>
       )}
