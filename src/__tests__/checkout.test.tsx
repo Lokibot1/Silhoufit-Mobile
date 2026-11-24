@@ -405,6 +405,21 @@ describe('a refused order is explained inline', () => {
     expect(screen.getByTestId('checkout-shipping-fee').props.children).toBe('₱175.00')
   })
 
+  it.each([
+    ['QUOTATION_ORIGIN_MISMATCH', 'Quotation origin does not match the configured pickup hub coordinates'],
+    ['QUOTATION_DESTINATION_MISMATCH', 'Quotation destination does not match the selected delivery address coordinates'],
+    ['QUOTATION_ORIGIN_MISMATCH', 'Address coordinates do not match'], // wording that would hit NO_PIN: the code wins
+  ])('%s (%s): re-quotes instead of the no-pin path', async (code, message) => {
+    ordersApi.createOrder.mockRejectedValueOnce(new ApiError('validation', message, 400, code, undefined, true))
+    await ready()
+    ordersApi.quoteShipping.mockResolvedValue(quoteOf(175))
+    await place()
+    expect(await screen.findByText(/Delivery is now ₱175.00. Check your total, then place your order again./)).toBeTruthy()
+    expect(ordersApi.quoteShipping).toHaveBeenCalledTimes(2)
+    expect(screen.getByTestId('checkout-shipping-fee').props.children).toBe('₱175.00')
+    expect(screen.queryByText(/no map pin/)).toBeNull()
+  })
+
   it.each(['Insufficient stock for SKU-9F1C-0042 (M). Available: 1.', 'Insufficient stock for Quote coordinates Tee (M). Available: 1.'])(
     'stock: generic copy (never the server detail), a way back to the cart, and a cart reload: %s',
     async (message) => {

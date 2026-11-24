@@ -224,6 +224,7 @@ export default function CheckoutScreen() {
     }
     if (failure instanceof ApiError && status === 400) {
       const detail = failure.detail ?? ''
+      if (failure.code === 'QUOTATION_ORIGIN_MISMATCH' || failure.code === 'QUOTATION_DESTINATION_MISMATCH') return requote(selected?.id)
       if (NO_PIN.test(detail)) return setNotice({ message: "This address has no map pin, so delivery can't be priced and the order was not placed. Pick another address.", actions: [pick] })
       if (QUOTE.test(detail)) return requote(selected?.id)
       cart.retry()
