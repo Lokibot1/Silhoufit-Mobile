@@ -1,13 +1,9 @@
 import {
-  ageFrom,
   getPasswordRequirements,
   getPasswordStrength,
   LIMITS,
-  MIN_AGE,
   sanitizeName,
   sanitizeSuffix,
-  UNDERAGE_MESSAGE,
-  validateAdultBirthday,
   validateConfirmPassword,
   validateMiddleName,
   validateName,
@@ -103,26 +99,5 @@ describe('strength', () => {
     expect(getPasswordStrength('Anabel9!kLm2#Rt5', { email: 'anabel@example.com' }).level).toBe(getPasswordStrength('Anabel9!kLm2#Rt5').level - 1)
     expect(getPasswordStrength('Mi9!kLm2#Rt5xyz', { firstName: 'Mika' }).level).toBe(getPasswordStrength('Mi9!kLm2#Rt5xyz').level)
     expect(getPasswordStrength('Mika9!kLm2#Rt5', { firstName: ' MIKA ' }).level).toBe(getPasswordStrength('Mika9!kLm2#Rt5').level - 1)
-  })
-})
-
-describe('birthday', () => {
-  const now = new Date(2026, 10, 15) // 15 Nov 2026
-  it('requires one', () => {
-    expect(validateAdultBirthday('', now)).toBe('Choose your birthday from the calendar. You must be 18 or older to sign up.')
-  })
-  it('reuses the profile format and future checks', () => {
-    expect(validateAdultBirthday('15/11/2000', now)).toBe('Enter your birthday as YYYY-MM-DD, like 1995-05-15.')
-    expect(validateAdultBirthday('2030-01-01', now)).toContain("can't be in the future")
-  })
-  it('turns 18 exactly on the birthday, not the day before', () => {
-    expect(MIN_AGE).toBe(18)
-    expect(validateAdultBirthday('2008-11-15', now)).toBeNull()
-    expect(validateAdultBirthday('2008-11-16', now)).toBe(UNDERAGE_MESSAGE)
-    expect(validateAdultBirthday('2008-5-9', now)).toBeNull() // forgiving format
-  })
-  it('counts whole years', () => {
-    expect(ageFrom('2000-11-15', now)).toBe(26)
-    expect(ageFrom('2000-11-16', now)).toBe(25)
   })
 })

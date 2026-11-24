@@ -1,5 +1,5 @@
 import { validateEmail as validateLoginEmail } from '@/lib/loginValidation'
-import { normalizeBirthday, normalizeName, stripEmoji, validateBirthday } from '@/lib/profileValidation'
+import { normalizeName, stripEmoji } from '@/lib/profileValidation'
 
 // Ported from the web signUpValidation + age. No phone or gender here: the mobile sign-up does not ask for them.
 export const LIMITS = {
@@ -10,9 +10,6 @@ export const LIMITS = {
   passwordMinLength: 8,
   passwordMaxLength: 64,
 } as const
-
-export const MIN_AGE = 18
-export const UNDERAGE_MESSAGE = `You must be at least ${MIN_AGE} years old to create a KRAL account. Come back once you turn ${MIN_AGE}.`
 
 // An engine without Unicode property escapes must not crash on import: fall back to ASCII plus Latin letters (same idea as profileValidation).
 const FALLBACK: [string, string][] = [['\\p{Lu}', 'A-ZÀ-Þ'], ['\\p{Ll}', 'a-zß-ÿ'], ['\\p{L}', 'A-Za-zÀ-ɏ'], ['\\p{M}', '̀-ͯ'], ['\\p{N}', '0-9']]
@@ -113,17 +110,3 @@ export function getPasswordStrength(password: string, context: { email?: string;
   return { level: final, label: STRENGTH_LABELS[final] }
 }
 
-/** Whole years lived on `now`, from a "YYYY-MM-DD" birthday. */
-export function ageFrom(birthday: string, now = new Date()): number {
-  const [year, month, day] = birthday.split('-').map(Number)
-  const had = now.getMonth() + 1 > month || (now.getMonth() + 1 === month && now.getDate() >= day)
-  return now.getFullYear() - year - (had ? 0 : 1)
-}
-
-/** Required birthday of someone old enough to register, or the message that says why not. */
-export function validateAdultBirthday(value: string, now = new Date()): string | null {
-  if (!value.trim()) return 'Choose your birthday from the calendar. You must be 18 or older to sign up.'
-  const invalid = validateBirthday(value, now)
-  if (invalid) return invalid
-  return ageFrom(normalizeBirthday(value)!, now) < MIN_AGE ? UNDERAGE_MESSAGE : null
-}

@@ -8,7 +8,7 @@ jest.mock('@/lib/supabase', () => ({
 jest.mock('expo-linking', () => ({ createURL: (path: string) => `silhoufitmobile://${path}` }))
 
 const auth = supabase.auth as unknown as Record<'signInWithPassword' | 'signOut' | 'signUp' | 'resetPasswordForEmail' | 'resend' | 'exchangeCodeForSession' | 'updateUser' | 'getSession', jest.Mock>
-const payload = { firstName: 'Ana', middleName: null, lastName: 'Cruz', suffix: 'Jr.', email: 'ana@example.com', birthday: '1995-05-15', password: 'Abcdefg1!' }
+const payload = { firstName: 'Ana', middleName: null, lastName: 'Cruz', suffix: 'Jr.', email: 'ana@example.com', password: 'Abcdefg1!' }
 
 beforeEach(() => jest.resetAllMocks())
 
@@ -26,7 +26,7 @@ describe('signUp', () => {
       email: 'ana@example.com',
       password: 'Abcdefg1!',
       options: {
-        data: { first_name: 'Ana', middle_name: null, last_name: 'Cruz', suffix: 'Jr.', birthday: '1995-05-15', full_name: 'Ana Cruz Jr.' },
+        data: { first_name: 'Ana', middle_name: null, last_name: 'Cruz', suffix: 'Jr.', full_name: 'Ana Cruz Jr.' },
         emailRedirectTo: CONFIRM_REDIRECT,
       },
     })

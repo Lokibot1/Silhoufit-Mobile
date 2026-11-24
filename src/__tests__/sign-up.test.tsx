@@ -1,6 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
-import { pickBirthday } from '@/test/pickBirthday'
 import SignUp from '../app/sign-up'
 
 jest.mock('@/auth/email', () => ({ signUp: jest.fn() }))
@@ -24,13 +23,11 @@ const deferred = () => {
   return { promise, resolve }
 }
 const type = (id: string, text: string) => fireEvent.changeText(screen.getByTestId(id), text)
-const pick = (iso: string) => pickBirthday('sign-up-birthday', iso)
 const disabled = (id: string) => screen.getByTestId(id).props.accessibilityState.disabled
 async function fill(consent = true) {
   await type('sign-up-first-name', 'Ana')
   await type('sign-up-last-name', 'Cruz')
   await type('sign-up-email', 'ana@example.com')
-  await pick('1995-05-15')
   await type('sign-up-password', 'Abcdefg1!')
   await type('sign-up-confirm', 'Abcdefg1!')
   if (consent) await fireEvent.press(screen.getByTestId('sign-up-consent'))
@@ -69,21 +66,18 @@ it('shows every required message on an empty submit and sends nothing', async ()
   expect(await screen.findByText('First name is required.')).toBeTruthy()
   expect(screen.getByText('Last name is required.')).toBeTruthy()
   expect(screen.getByText('Email is required.')).toBeTruthy()
-  expect(screen.getByText('Choose your birthday from the calendar. You must be 18 or older to sign up.')).toBeTruthy()
   expect(screen.getByText('Password is required.')).toBeTruthy()
   expect(screen.getByText('Confirm your password.')).toBeTruthy()
   expect(screen.getByText(CONSENT)).toBeTruthy()
   expect(signUp).not.toHaveBeenCalled()
 })
 
-it('shows specific messages: under 18 and mismatched passwords', async () => {
+it('shows mismatched passwords', async () => {
   await render(<SignUp />)
   await fill()
-  await pick('2020-01-01')
   await type('sign-up-confirm', 'Different1!')
   await fireEvent.press(screen.getByTestId('sign-up-submit'))
-  expect(await screen.findByText(/at least 18 years old/)).toBeTruthy()
-  expect(screen.getByText("Passwords don't match.")).toBeTruthy()
+  expect(await screen.findByText("Passwords don't match.")).toBeTruthy()
   expect(signUp).not.toHaveBeenCalled()
 })
 
@@ -155,7 +149,7 @@ it('sends the cleaned profile and opens Check Email', async () => {
   await type('sign-up-middle-name', 'de   la')
   await fireEvent.press(screen.getByTestId('sign-up-submit'))
   await waitFor(() => expect(replace).toHaveBeenCalledWith({ pathname: '/check-email', params: { email: 'ana@example.com' } }))
-  expect(signUp).toHaveBeenCalledWith({ firstName: 'Ana', middleName: 'de la', lastName: 'Cruz', suffix: null, email: 'ana@example.com', birthday: '1995-05-15', password: 'Abcdefg1!' })
+  expect(signUp).toHaveBeenCalledWith({ firstName: 'Ana', middleName: 'de la', lastName: 'Cruz', suffix: null, email: 'ana@example.com', password: 'Abcdefg1!' })
   expect(mockToast).toHaveBeenCalledWith('Account created. Check your email to finish setting up.')
 })
 

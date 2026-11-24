@@ -45,7 +45,7 @@ function changes(v: Values, saved: Values): MePatch {
   if (normalizeName(v.lastName) !== normalizeName(saved.lastName)) patch.lastName = normalizeName(v.lastName)
   if (normalizeName(v.middleName) !== normalizeName(saved.middleName)) patch.middleName = normalizeName(v.middleName) || null
   if (v.suffix.trim() !== saved.suffix.trim()) patch.suffix = v.suffix.trim() || null
-  if (v.birthday !== saved.birthday) patch.birthday = v.birthday
+  if (v.birthday !== saved.birthday) patch.birthday = v.birthday || null
   if (v.gender !== saved.gender) patch.gender = v.gender
   return patch
 }

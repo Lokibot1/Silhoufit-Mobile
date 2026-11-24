@@ -13,7 +13,6 @@ export type SignUpPayload = {
   lastName: string
   suffix: string | null
   email: string
-  birthday: string
   password: string
 }
 export type SignUpErrorKind = 'network' | 'rate-limit' | 'weak-password' | 'invalid-email' | 'signup-disabled' | 'server'
@@ -54,7 +53,7 @@ function signUpKind(error: AuthFailure): SignUpErrorKind {
 }
 
 /** Creates the account. The project requires email confirmation, so `signedIn` is normally false and the user must open the emailed link. */
-export async function signUp({ firstName, middleName, lastName, suffix, email, birthday, password }: SignUpPayload): Promise<{ ok: true; signedIn: boolean } | { ok: false; kind: SignUpErrorKind }> {
+export async function signUp({ firstName, middleName, lastName, suffix, email, password }: SignUpPayload): Promise<{ ok: true; signedIn: boolean } | { ok: false; kind: SignUpErrorKind }> {
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -65,7 +64,6 @@ export async function signUp({ firstName, middleName, lastName, suffix, email, b
           middle_name: middleName,
           last_name: lastName,
           suffix,
-          birthday,
           full_name: [firstName, middleName, lastName, suffix].filter(Boolean).join(' '),
         },
         emailRedirectTo: CONFIRM_REDIRECT,

@@ -1,7 +1,5 @@
 import { render, waitFor } from '@testing-library/react-native'
-import { View } from 'react-native'
 
-import { AgeGate } from '@/auth/AgeGate'
 import { OnboardingGate } from '../OnboardingGate'
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
@@ -65,16 +63,3 @@ it('waits while the cold-start loader is up and on sign-in or checkout screens',
   await waitFor(() => expect(router.push).toHaveBeenCalledTimes(1))
 })
 
-it('the age gate wins: a customer with no birthday goes to the age step and never to the tour', async () => {
-  mockSession = signedIn(customer(null))
-  await render(
-    <View>
-      <AgeGate />
-      <OnboardingGate enabled />
-    </View>,
-  )
-  await new Promise((resolve) => setTimeout(resolve, 20))
-  expect(router.replace).toHaveBeenCalledWith('/auth/age')
-  expect(router.push).not.toHaveBeenCalled()
-  expect(mockDone).not.toHaveBeenCalled()
-})

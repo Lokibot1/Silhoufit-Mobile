@@ -5,13 +5,12 @@ import { Ionicons } from '@expo/vector-icons'
 
 import { signUp, type SignUpErrorKind } from '@/auth/email'
 import { signInWithGoogle } from '@/auth/google'
-import { normalizeBirthday, normalizeName, stripEmoji } from '@/lib/profileValidation'
+import { normalizeName, stripEmoji } from '@/lib/profileValidation'
 import { openLegal } from '@/lib/site'
 import {
   LIMITS,
   sanitizeName,
   sanitizeSuffix,
-  validateAdultBirthday,
   validateConfirmPassword,
   validateEmail,
   validateMiddleName,
@@ -20,7 +19,6 @@ import {
   validateSuffix,
 } from '@/lib/signUpValidation'
 import { Button } from '@/ui/Button'
-import { BirthdayField } from '@/ui/BirthdayField'
 import { FloatingField } from '@/ui/FloatingField'
 import { GoogleMark } from '@/ui/GoogleMark'
 import { KralLogo } from '@/ui/KralLogo'
@@ -30,10 +28,10 @@ import { font, space, themed, useTheme } from '@/ui/theme'
 import { useToast } from '@/ui/toast'
 import { KeyboardScreen } from '@/ui/KeyboardScreen'
 
-type Field = 'firstName' | 'lastName' | 'middleName' | 'suffix' | 'email' | 'birthday' | 'password' | 'confirm'
-const ORDER: Field[] = ['firstName', 'lastName', 'middleName', 'suffix', 'email', 'birthday', 'password', 'confirm']
-const IDS: Record<Field, string> = { firstName: 'first-name', lastName: 'last-name', middleName: 'middle-name', suffix: 'suffix', email: 'email', birthday: 'birthday', password: 'password', confirm: 'confirm' }
-const EMPTY: Record<Field, string> = { firstName: '', lastName: '', middleName: '', suffix: '', email: '', birthday: '', password: '', confirm: '' }
+type Field = 'firstName' | 'lastName' | 'middleName' | 'suffix' | 'email' | 'password' | 'confirm'
+const ORDER: Field[] = ['firstName', 'lastName', 'middleName', 'suffix', 'email', 'password', 'confirm']
+const IDS: Record<Field, string> = { firstName: 'first-name', lastName: 'last-name', middleName: 'middle-name', suffix: 'suffix', email: 'email', password: 'password', confirm: 'confirm' }
+const EMPTY: Record<Field, string> = { firstName: '', lastName: '', middleName: '', suffix: '', email: '', password: '', confirm: '' }
 
 // Same as the web sign-up: applied on every change, so pasted text is cleaned too.
 const SANITIZERS: Partial<Record<Field, (input: string) => string>> = {
@@ -84,7 +82,6 @@ export default function SignUp() {
     middleName: validateMiddleName(values.middleName),
     suffix: validateSuffix(values.suffix),
     email: validateEmail(values.email),
-    birthday: validateAdultBirthday(values.birthday),
     password: validatePassword(values.password),
     confirm: validateConfirmPassword(values.password, values.confirm),
     consent: consent ? null : CONSENT_ERROR,
@@ -148,7 +145,6 @@ export default function SignUp() {
       lastName: normalizeName(values.lastName),
       suffix: values.suffix.trim() || null,
       email,
-      birthday: normalizeBirthday(values.birthday)!,
       password: values.password,
     }) // never throws: failures come back as a kind
     inFlight.current = false
@@ -179,7 +175,7 @@ export default function SignUp() {
       const result = await signInWithGoogle()
       if (!result.ok) return result.cancelled ? undefined : setFailure({ title: "We couldn't continue with Google.", body: result.message })
       toast('Signed in with Google')
-      leave() // the root gate sends a customer with no birthday to the age step
+      leave()
     } catch {
       setFailure(FAILURE.server)
     } finally {
@@ -208,7 +204,6 @@ export default function SignUp() {
           autoComplete="email"
           textContentType="emailAddress"
         />
-        <BirthdayField testID="sign-up-birthday" value={values.birthday} onChange={(iso) => change('birthday', iso)} onClose={() => blur('birthday')} error={errorOf('birthday')} helper="You must be 18 or older." editable={pending === null} />
         <FloatingField
           {...field('password')}
           toggleTestID="sign-up-toggle-password"

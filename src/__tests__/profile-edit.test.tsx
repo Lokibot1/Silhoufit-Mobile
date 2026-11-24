@@ -127,17 +127,13 @@ describe('validation', () => {
     expect(screen.getByTestId('edit-birthday', { includeHiddenElements: true }).props.value).toBe('May 9, 1996')
   })
 
-  it('requires a birthday: an account with none cannot save until one is chosen', async () => {
+  it('does not require a birthday: an account with none can save without one', async () => {
     mockUseSession.mockReturnValue({ ...base, profile: { ...me, birthday: null } })
     mockUpdateMe.mockResolvedValue(me)
     await render(<EditProfile />)
     await type('edit-first-name', 'Anna')
     await fireEvent.press(screen.getByTestId('edit-save'))
-    expect(screen.getByText('Choose your birthday from the calendar.')).toBeTruthy()
-    expect(mockUpdateMe).not.toHaveBeenCalled()
-    await pickBirthday('edit-birthday', '1996-05-09')
-    await fireEvent.press(screen.getByTestId('edit-save'))
-    expect(mockUpdateMe).toHaveBeenCalledWith({ firstName: 'Anna', birthday: '1996-05-09' })
+    expect(mockUpdateMe).toHaveBeenCalledWith({ firstName: 'Anna' })
   })
 
   it('does not send while a field is invalid', async () => {

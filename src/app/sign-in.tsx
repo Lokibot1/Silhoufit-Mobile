@@ -85,7 +85,7 @@ export default function SignIn() {
       const result = await signInWithGoogle()
       if (!result.ok) return result.cancelled ? undefined : setFailure(result.message)
       toast('Signed in with Google')
-      leave() // the root gate sends a customer with no birthday to the age step
+      leave()
     } catch {
       setFailure('Sign-in failed on our side. Please try again.')
     } finally {

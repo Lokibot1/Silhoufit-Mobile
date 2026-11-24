@@ -244,17 +244,6 @@ function Gate() {
             gestureEnabled: false,
           }}
         />
-        <Stack.Screen
-          name="auth/age"
-          options={{
-            headerTitle: () => <KralLogo width={72} />,
-            headerStyle: { backgroundColor: color.paper },
-            headerShadowVisible: false,
-            headerTintColor: color.obsidian,
-            gestureEnabled: false,
-            headerBackVisible: false,
-          }}
-        />
       </Stack>
       <AgeGate />
       <OnboardingGate enabled={done} />

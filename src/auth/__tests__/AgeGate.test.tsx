@@ -28,32 +28,9 @@ beforeEach(() => {
 })
 afterEach(() => jest.restoreAllMocks())
 
-it('sends a customer with no birthday to the age step', async () => {
-  mockSession = { ...base, profile: customer(null) }
-  await render(<AgeGate />)
-  expect(replace).toHaveBeenCalledWith('/auth/age')
-})
-
-it('sends them back if they navigate away, and stays put once on the age step', async () => {
-  mockSession = { ...base, profile: customer(null) }
-  mockPath = '/auth/age'
-  const { rerender } = await render(<AgeGate />)
-  expect(replace).not.toHaveBeenCalled()
-  mockPath = '/(tabs)/orders'
-  await rerender(<AgeGate />)
-  expect(replace).toHaveBeenCalledWith('/auth/age')
-})
-
-it('blocks hardware back while the age step is required', async () => {
-  mockSession = { ...base, profile: customer(null) }
-  mockPath = '/auth/age'
-  await render(<AgeGate />)
-  expect(backListeners).toHaveLength(1)
-  expect(backListeners[0]()).toBe(true)
-})
-
 it.each([
   ['a customer with a birthday', { ...base, profile: customer('1995-05-15') }],
+  ['a customer with no birthday', { ...base, profile: customer(null) }],
   ['a signed-out visitor', { ...base, session: null, profile: null }],
 ])('does nothing for %s', async (_name, value) => {
   mockSession = value
@@ -80,17 +57,6 @@ it('does not wave the user through when the profile failed: Retry or Sign Out', 
   expect(mockRetry).toHaveBeenCalledTimes(1)
   await fireEvent.press(screen.getByTestId('gate-signout'))
   expect(mockSignOut).toHaveBeenCalledTimes(1)
-})
-
-it('clears the gate once the birthday is saved', async () => {
-  mockSession = { ...base, profile: customer(null) }
-  mockPath = '/auth/age'
-  const { rerender } = await render(<AgeGate />)
-  expect(backListeners).toHaveLength(1)
-  mockSession = { ...base, profile: customer('1995-05-15') }
-  await rerender(<AgeGate />)
-  expect(backListeners).toHaveLength(0)
-  expect(screen.queryByTestId('gate-cover')).toBeNull()
 })
 
 it.each(['staff', 'admin', 'superadmin'])('signs a %s account out and keeps the customers-only notice until dismissed', async (role) => {

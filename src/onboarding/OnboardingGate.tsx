@@ -17,7 +17,7 @@ export function OnboardingGate({ enabled }: { enabled: boolean }) {
   const pathname = usePathname()
   const [offered, setOffered] = useState<string | null>(null)
   const userId = session?.user.id
-  const eligible = enabled && !!session && profile?.role === 'customer' && profile.birthday !== null && !BUSY.test(pathname) && offered !== userId
+  const eligible = enabled && !!session && profile?.role === 'customer' && !BUSY.test(pathname) && offered !== userId
 
   useEffect(() => {
     if (!eligible || !session) return
