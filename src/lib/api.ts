@@ -54,6 +54,12 @@ export const num = (value: unknown): number | null => {
   return typeof n === 'number' && Number.isFinite(n) ? n : null
 }
 
+let deactivated: (() => void) | null = null
+/** Registers what runs when a signed-in call is refused because the account was deactivated. */
+export const onAccountDeactivated = (next: () => void) => {
+  deactivated = next
+}
+
 /** Calls the SilhouFit API with the Supabase token (`auth: false` for public endpoints sends none). An abort rejects with the AbortError itself. */
 export async function request(method: 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, signal?: AbortSignal, { auth = true }: { auth?: boolean } = {}): Promise<unknown> {
   const token = auth ? (await supabase.auth.getSession()).data.session?.access_token : undefined
@@ -73,6 +79,7 @@ export async function request(method: 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE
   }
   if (!response.ok) {
     const { detail, code, retryable } = await errorBody(response)
+    if (response.status === 403 && /deactivated/i.test(detail ?? '')) deactivated?.()
     throw new ApiError(STATUS_KIND[response.status] ?? 'server', detail, response.status, code, retryAfterMs(response), retryable)
   }
   try {

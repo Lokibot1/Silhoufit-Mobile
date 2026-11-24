@@ -1,23 +1,24 @@
 import { router, usePathname } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, BackHandler, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, BackHandler, Modal, StyleSheet, View } from 'react-native'
 
 import { useSession } from '@/auth/session'
 import { Button } from '@/ui/Button'
 import { StateMessage } from '@/ui/StateMessage'
-import { space, themed, useTheme } from '@/ui/theme'
+import { radius, space, themed, useTheme } from '@/ui/theme'
 
 const AGE_PATH = '/auth/age'
 
 /**
  * Keeps a signed-in customer with no birthday (a first Google sign-in) on the age step until they save an adult birthday or sign out.
  * Until the profile is known it covers the app instead of waving the user through: a spinner while it loads, Retry or Sign Out if it failed.
+ * A deactivated account (the API refused a call) is signed out and shown a blocking notice that only its button closes.
  * Staff roles are signed out as soon as their profile loads (the app is for customers only); the cover then stays until they dismiss the notice.
  */
 export function AgeGate() {
   const styles = useStyles()
   const { color } = useTheme()
-  const { session, profile, error, retry, signOut } = useSession()
+  const { session, profile, error, retry, signOut, deactivated, acknowledgeDeactivated } = useSession()
   const pathname = usePathname()
   const [staffNotice, setStaffNotice] = useState(false)
   const staff = profile != null && profile.role !== 'customer'
@@ -42,6 +43,17 @@ export function AgeGate() {
     return () => subscription.remove()
   }, [needsAge])
 
+  if (deactivated) {
+    return (
+      <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
+        <View style={styles.scrim}>
+          <View testID="deactivated-notice" accessibilityViewIsModal style={styles.dialog}>
+            <StateMessage alert testID="deactivated-ack" title="This account has been deactivated" message="An administrator turned this account off, so you have been signed out. Contact the store to have it activated again." actionLabel="I understand" onAction={acknowledgeDeactivated} />
+          </View>
+        </View>
+      </Modal>
+    )
+  }
   if (staffNotice) {
     return (
       <View testID="gate-cover" style={styles.cover}>
@@ -71,5 +83,7 @@ export function AgeGate() {
 const useStyles = themed(({ color }) => StyleSheet.create({
   cover: { ...StyleSheet.absoluteFill, backgroundColor: color.paper },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  scrim: { flex: 1, justifyContent: 'center', padding: space.lg, backgroundColor: color.scrim },
+  dialog: { backgroundColor: color.paper, borderRadius: radius.soft, padding: space.lg, gap: space.md },
   content: { padding: space.lg, gap: space.lg },
 }))

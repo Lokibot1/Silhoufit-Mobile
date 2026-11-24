@@ -7,8 +7,10 @@ import { SessionProvider, useSession, type SessionValue } from '../session'
 jest.mock('@/lib/supabase', () => ({
   supabase: { auth: { onAuthStateChange: jest.fn(), signInWithPassword: jest.fn(), signOut: jest.fn(), startAutoRefresh: jest.fn(), stopAutoRefresh: jest.fn() } },
 }))
+jest.mock('@/lib/api', () => ({ ...jest.requireActual('@/lib/api'), onAccountDeactivated: jest.fn() }))
 jest.mock('@/api/me', () => ({ fetchMe: jest.fn() }))
 const mockAuth = jest.requireMock('@/lib/supabase').supabase.auth
+const mockOnDeactivated = jest.requireMock('@/lib/api').onAccountDeactivated as jest.Mock
 const mockFetchMe = jest.requireMock('@/api/me').fetchMe
 
 const me = { id: 'u1', email: 'a@b.co', role: 'customer', firstName: 'Ana', lastName: 'Cruz', fullName: null, avatarUrl: null }
@@ -137,6 +139,21 @@ it('update() replaces a loaded profile', async () => {
   await act(async () => emit({ user: { id: 'u1' } }))
   await act(async () => current.update({ ...me, firstName: 'Anna' } as never))
   expect(await screen.findByText('Anna')).toBeTruthy()
+})
+
+it('signs out and keeps the deactivated flag, even signed out, until acknowledged', async () => {
+  mockFetchMe.mockResolvedValue(me)
+  await render(<SessionProvider><Probe /></SessionProvider>)
+  const handler = mockOnDeactivated.mock.calls[0][0] as () => void
+  await act(async () => emit({ user: { id: 'u1' } }))
+  expect(current.deactivated).toBe(false)
+  await act(async () => handler())
+  expect(mockAuth.signOut).toHaveBeenCalled()
+  expect(current.deactivated).toBe(true)
+  await act(async () => emit(null))
+  expect(current.deactivated).toBe(true)
+  await act(async () => current.acknowledgeDeactivated())
+  expect(current.deactivated).toBe(false)
 })
 
 it('stops auto refresh in the background and restarts it when active', async () => {

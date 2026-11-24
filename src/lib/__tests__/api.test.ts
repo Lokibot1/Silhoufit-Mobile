@@ -1,4 +1,4 @@
-import { request } from '../api'
+import { onAccountDeactivated, request } from '../api'
 
 const mockGetSession = jest.fn()
 jest.mock('../supabase', () => ({ supabase: { auth: { getSession: () => mockGetSession() } } }))
@@ -48,4 +48,25 @@ it('leaves retryAfterMs undefined on other errors', async () => {
 it.each([[false, false], [true, true], ['false', undefined], [0, undefined]])('reads retryable %p as %p', async (sent, expected) => {
   fetchMock.mockResolvedValue({ ok: false, status: 400, headers: new Headers(), json: async () => ({ code: 'OUT_OF_SERVICE_AREA', retryable: sent }) })
   await expect(request('GET', '/x')).rejects.toMatchObject({ code: 'OUT_OF_SERVICE_AREA', retryable: expected })
+})
+
+describe('deactivated accounts', () => {
+  const refuse = (status: number, message: string) => fetchMock.mockResolvedValue({ ok: false, status, headers: new Headers(), json: async () => ({ message }) })
+  const handler = jest.fn()
+  beforeEach(() => onAccountDeactivated(handler))
+
+  it('a 403 saying the account is deactivated notifies once and still rejects forbidden', async () => {
+    refuse(403, 'User account is deactivated')
+    await expect(request('GET', '/x')).rejects.toMatchObject({ kind: 'forbidden', status: 403 })
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    [403, 'Forbidden resource'],
+    [401, 'User account is deactivated'],
+  ])('a %p saying %p does not notify', async (status, message) => {
+    refuse(status, message)
+    await expect(request('GET', '/x')).rejects.toMatchObject({ kind: 'forbidden', status })
+    expect(handler).not.toHaveBeenCalled()
+  })
 })

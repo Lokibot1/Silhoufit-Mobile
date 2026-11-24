@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { AppState } from 'react-native'
 
 import { fetchMe, type Me } from '@/api/me'
-import { ApiError, errorMessage } from '@/lib/api'
+import { ApiError, errorMessage, onAccountDeactivated } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 
 export type SignInResult = { ok: true } | { ok: false; message: string }
@@ -17,6 +17,9 @@ export type SessionValue = {
   update(me: Me): void
   signIn(email: string, password: string): Promise<SignInResult>
   signOut(): Promise<void>
+  /** True after the API refused a call because an administrator deactivated the account; survives the sign-out. */
+  deactivated: boolean
+  acknowledgeDeactivated(): void
 }
 
 const SessionContext = createContext<SessionValue | null>(null)
@@ -40,6 +43,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState<Me | null>(null)
   const [failed, setFailed] = useState<{ id: string; message: string } | null>(null)
   const [attempt, setAttempt] = useState(0)
+  const [deactivated, setDeactivated] = useState(false)
   const userId = session?.user.id
   const error = failed && failed.id === userId ? failed.message : null
 
@@ -51,6 +55,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setRestoring(false)
     })
     return () => data.subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    onAccountDeactivated(() => {
+      setDeactivated(true)
+      endSession().catch(() => {})
+    })
   }, [])
 
   // Keyed on the user id, so a token refresh for the same user does not refetch.
@@ -101,6 +112,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async signOut() {
       setFailed(null)
       await endSession()
+    },
+    deactivated,
+    acknowledgeDeactivated() {
+      setDeactivated(false)
     },
   }
   return <SessionContext value={value}>{children}</SessionContext>

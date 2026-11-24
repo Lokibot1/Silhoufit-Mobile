@@ -7,6 +7,7 @@ jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('@/auth/session', () => ({ useSession: () => mockSession }))
 jest.mock('expo-router', () => ({ router: { replace: jest.fn() }, usePathname: () => mockPath }))
 const mockRetry = jest.fn()
+const mockAck = jest.fn()
 const mockSignOut = jest.fn(() => Promise.resolve())
 let mockPath = '/(tabs)'
 let mockSession: Record<string, unknown>
@@ -103,4 +104,20 @@ it.each(['staff', 'admin', 'superadmin'])('signs a %s account out and keeps the 
   expect(screen.getByText('SilhouFit mobile is for customers')).toBeTruthy()
   await fireEvent.press(screen.getByText('Back to Sign In'))
   expect(screen.queryByTestId('gate-cover')).toBeNull()
+})
+
+it('blocks with the deactivated notice, even signed out, until the person acknowledges it', async () => {
+  mockSession = { ...base, session: null, profile: null, deactivated: true, acknowledgeDeactivated: mockAck }
+  await render(<AgeGate />)
+  expect(screen.getByText('This account has been deactivated')).toBeTruthy()
+  expect(screen.getByText('I understand')).toBeTruthy()
+  await fireEvent.press(screen.getByTestId('deactivated-ack'))
+  expect(mockAck).toHaveBeenCalledTimes(1)
+})
+
+it('shows the deactivated notice, not the staff one, for a deactivated staff account', async () => {
+  mockSession = { ...base, profile: { role: 'staff', birthday: null }, deactivated: true, acknowledgeDeactivated: mockAck }
+  await render(<AgeGate />)
+  expect(screen.getByTestId('deactivated-notice')).toBeTruthy()
+  expect(screen.queryByText('SilhouFit mobile is for customers')).toBeNull()
 })
