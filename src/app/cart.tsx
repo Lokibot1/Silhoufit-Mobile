@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
-import { router, useFocusEffect } from 'expo-router'
+import { router, Stack, useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, FlatList, LayoutAnimation, StyleSheet, Text, View } from 'react-native'
 
-import { clearCart, fetchCart, removeCartItem, removeCartItems, setCartItemQuantity, type Cart, type CartItem } from '@/api/cart'
+import { fetchCart, removeCartItem, removeCartItems, setCartItemQuantity, type Cart, type CartItem } from '@/api/cart'
 import { useSession } from '@/auth/session'
 import { cartWarning } from '@/checkout/cartWarning'
 import { ApiError, errorMessage } from '@/lib/api'
@@ -19,10 +19,10 @@ import { useToast } from '@/ui/toast'
 import { useReduceMotion } from '@/ui/useReduceMotion'
 
 const TARGET = 44
-const IMG_W = 88
-const IMG_H = 112
+const IMG_W = 80
+const IMG_H = 100
 const LOW_STOCK = 5
-const BULK = 'bulk' // busyId of Remove selected: not a row id, and not Clear Cart's ''
+const BULK = 'bulk' // busyId of Remove (n): not a row id
 const BLOCKED_NOTE = 'Fix the items marked above to check out'
 
 const variantLine = ({ size, color: colour }: CartItem['variant']) => [size, colour].filter(Boolean).join(' / ')
@@ -41,6 +41,7 @@ type RowProps = {
   locked: boolean
   pending: boolean
   checked: boolean
+  editing: boolean
   error?: string
   onToggle: (id: string) => void
   onOpen: (item: CartItem) => void
@@ -48,11 +49,11 @@ type RowProps = {
   onRemove: (item: CartItem) => void
 }
 
-function CartRow({ item, locked, pending, checked, error, onToggle, onOpen, onQuantity, onRemove }: RowProps) {
+function CartRow({ item, locked, pending, checked, editing, error, onToggle, onOpen, onQuantity, onRemove }: RowProps) {
   const styles = useStyles()
   const { color } = useTheme()
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
-  const { id, quantity, lineTotal, variant, product } = item
+  const { id, quantity, variant, product } = item
   const warn = cartWarning(item)
   const { stock } = variant
   const unavailable = !product.active || (stock !== null && stock <= 0)
@@ -66,8 +67,8 @@ function CartRow({ item, locked, pending, checked, error, onToggle, onOpen, onQu
   // The button's label replaces its children for a screen reader, so it carries the details and warnings too.
   const openLabel = [`Open ${product.name}`, variantLine(variant), `${peso(variant.price)} each`, warn, lowStock ? `Only ${stock} left` : null].filter(Boolean).join(', ')
   return (
-    <View testID={`cart-row-${id}`} accessibilityState={{ busy: pending }} style={styles.card}>
-      <View style={styles.pick}>
+    <View testID={`cart-row-${id}`} accessibilityState={{ busy: pending }} style={styles.row}>
+      <View style={styles.rowMain}>
         <PressableScale
           testID={`cart-check-${id}`}
           accessibilityRole="checkbox"
@@ -78,7 +79,7 @@ function CartRow({ item, locked, pending, checked, error, onToggle, onOpen, onQu
           style={[styles.check, locked && styles.off]}>
           <View style={[styles.box, checked && styles.boxOn]}>{checked && <Ionicons name="checkmark" size={16} color={color.paper} />}</View>
         </PressableScale>
-        <PressableScale testID={`cart-open-${id}`} accessibilityRole="button" accessibilityLabel={openLabel} disabled={!product.id} onPress={() => onOpen(item)} style={[styles.top, styles.grow]}>
+        <PressableScale testID={`cart-open-${id}`} accessibilityRole="button" accessibilityLabel={openLabel} disabled={!product.id} onPress={() => onOpen(item)} style={styles.open}>
           <View style={[styles.tile, unavailable && styles.dim]}>
             {showImage ? (
               <Image source={{ uri: product.image ?? undefined }} accessible={false} contentFit="cover" transition={200} onError={() => setFailedUrl(product.image)} style={styles.fill} />
@@ -87,71 +88,77 @@ function CartRow({ item, locked, pending, checked, error, onToggle, onOpen, onQu
             )}
           </View>
           <View style={styles.info}>
-            <Text numberOfLines={2} style={styles.name}>{product.name}</Text>
-            {variantLine(variant) !== '' && <Text style={styles.variant}>{variantLine(variant)}</Text>}
+            <Text numberOfLines={1} style={styles.name}>{product.name}</Text>
+            {variantLine(variant) !== '' && <Text numberOfLines={1} style={styles.variant}>{variantLine(variant)}</Text>}
             <Text accessibilityLabel={`${peso(variant.price)} each`} style={styles.unit}>{peso(variant.price)}</Text>
             {warn && <Text style={styles.warn}>{warn}</Text>}
             {lowStock && <Text style={styles.warn}>{`Only ${stock} left`}</Text>}
           </View>
         </PressableScale>
+        {/* Siblings of the open button, never inside it: a screen reader would hide them. */}
+        {editing ? (
+          <PressableScale
+            testID={`cart-remove-${id}`}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${product.name}`}
+            accessibilityState={{ disabled: locked }}
+            disabled={locked}
+            onPress={() => onRemove(item)}
+            style={[styles.trash, locked && styles.off]}>
+            {pending ? <ActivityIndicator color={color.obsidian} /> : <Ionicons name="trash-outline" size={24} color={color.graphite} />}
+          </PressableScale>
+        ) : (
+          <View style={styles.stepper}>
+            <StepButton symbol="−" label={decLabel} testID={`cart-dec-${id}`} disabled={locked || quantity <= 1 || cannotLower} onPress={() => onQuantity(item, lowered)} />
+            {pending ? (
+              <View style={styles.qtyCell}><ActivityIndicator color={color.obsidian} /></View>
+            ) : (
+              <Text testID={`cart-qty-${id}`} accessibilityLabel={`Quantity ${quantity}`} accessibilityLiveRegion="polite" maxFontSizeMultiplier={1.3} style={styles.qty}>{quantity}</Text>
+            )}
+            <StepButton symbol="+" label={`Increase quantity of ${product.name}`} testID={`cart-inc-${id}`} disabled={locked || atMax} onPress={() => onQuantity(item, quantity + 1)} />
+          </View>
+        )}
       </View>
-      <PressableScale
-        testID={`cart-remove-${id}`}
-        accessibilityRole="button"
-        accessibilityLabel={`Remove ${product.name}`}
-        accessibilityState={{ disabled: locked }}
-        disabled={locked}
-        onPress={() => onRemove(item)}
-        style={[styles.remove, locked && styles.off]}>
-        <Ionicons name="trash-outline" size={24} color={color.graphite} />
-      </PressableScale>
       {error && <Text testID={`cart-row-error-${id}`} accessibilityRole="alert" style={styles.error}>{error}</Text>}
-      <View style={styles.controls}>
-        <View style={styles.stepper}>
-          <StepButton symbol="−" label={decLabel} testID={`cart-dec-${id}`} disabled={locked || quantity <= 1 || cannotLower} onPress={() => onQuantity(item, lowered)} />
-          <Text testID={`cart-qty-${id}`} accessibilityLabel={`Quantity ${quantity}`} accessibilityLiveRegion="polite" maxFontSizeMultiplier={1.3} style={styles.qty}>{quantity}</Text>
-          <StepButton symbol="+" label={`Increase quantity of ${product.name}`} testID={`cart-inc-${id}`} disabled={locked || atMax} onPress={() => onQuantity(item, quantity + 1)} />
-        </View>
-        <View style={styles.lineTotal}>
-          {pending ? <ActivityIndicator color={color.obsidian} /> : quantity > 1 && <Text accessibilityLabel={`Line total ${peso(lineTotal)}`} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.3} style={styles.total}>{peso(lineTotal)}</Text>}
-        </View>
-      </View>
     </View>
   )
 }
 
-// Same card chrome and heights as CartRow (image, name 2 lines, variant, price, 46px stepper) and the same bar, so the swap does not shift.
+// Same row geometry as CartRow (44px check slot, 80x100 image, name, chip, price, the stepper's reserved line) and the same bar, so the swap does not shift.
 function CartSkeleton() {
   const styles = useStyles()
   return (
     <View accessible accessibilityLabel="Loading" accessibilityRole="progressbar" style={styles.skeleton}>
       <View style={styles.skeletonList}>
         {[0, 1, 2].map((key) => (
-          <View key={key} style={styles.card}>
-            <View style={styles.pick}>
+          <View key={key} style={styles.row}>
+            <View style={styles.rowMain}>
               <View style={styles.check} />
-              <View style={[styles.top, styles.grow]}>
+              <View style={styles.open}>
                 <Skeleton width={IMG_W} height={IMG_H} radius={radius.soft} />
-                <View style={[styles.info, styles.skeletonInfo]}>
-                  <Skeleton height={40} />
-                  <Skeleton width="60%" height={20} />
+                <View style={styles.info}>
+                  <Skeleton height={20} />
+                  <Skeleton width="60%" height={28} />
                   <Skeleton width="40%" height={24} />
                 </View>
               </View>
-            </View>
-            <View style={styles.controls}>
-              <Skeleton width={134} height={TARGET + 2} radius={radius.soft} />
+              <View style={styles.stepper}>
+                <Skeleton width={TARGET * 3} height={TARGET} radius={radius.soft} />
+              </View>
             </View>
           </View>
         ))}
       </View>
       <View style={[styles.bar, { paddingBottom: space.sm }]}>
-        <View style={styles.subtotalRow}>
-          <Skeleton width="40%" height={40} />
-          <Skeleton width="30%" height={28} />
+        <View style={styles.barRow}>
+          <View style={styles.selectAll}>
+            <Skeleton width={24} height={24} radius={radius.pill} />
+          </View>
+          <View style={styles.skeletonSubtotal}>
+            <Skeleton width="30%" height={24} />
+          </View>
+          <Skeleton width={140} height={48} radius={radius.soft} />
         </View>
-        <Skeleton width="50%" height={20} />
-        <Skeleton height={48} />
       </View>
     </View>
   )
@@ -175,7 +182,7 @@ const isGone = (failure: unknown) => failure instanceof ApiError && failure.kind
 // Needs a session; the Shop and Product pages stay public. Rows reload on every focus, silently after the first load.
 export default function CartScreen() {
   const styles = useStyles()
-  const { color } = useTheme()
+  const { color, type } = useTheme()
   const { session, loading, signOut } = useSession()
   const userId = session?.user.id ?? null
   const signedIn = userId !== null
@@ -185,6 +192,7 @@ export default function CartScreen() {
   const { cart, error, rowError, selected } = mine
   const [busyId, setBusyId] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [editing, setEditing] = useState(false)
   const reduceMotion = useReduceMotion()
   const smooth = useRef(false)
   const notify = useRef<(message: string) => void>(() => {})
@@ -209,6 +217,10 @@ export default function CartScreen() {
     seq.current++
     expired.current = false
   }, [userId])
+
+  // Edit mode ends with the last row, so a refilled cart (or another account's) never reopens in it.
+  const rowCount = cart?.items.length ?? 0
+  if (rowCount === 0 && editing) setEditing(false)
 
   const write = useCallback((uid: string, change: Partial<Store> | ((cur: Store) => Partial<Store>)) => {
     if (userRef.current === uid) setStore((s) => own(s, uid, change))
@@ -299,8 +311,8 @@ export default function CartScreen() {
         const message = failure instanceof ApiError && failure.kind === 'validation' && failure.detail ? failure.detail : errorMessage(failure)
         // The server refused because the stock or the line changed: refresh the row so the stepper and warning match, keeping the error shown.
         reload = failure instanceof ApiError && (failure.kind === 'validation' || failure.kind === 'conflict')
-        // Clear Cart and Remove selected have no single row to carry the message, so they toast.
-        if (id === '' || id === BULK) notify.current(message)
+        // Remove (n) has no single row to carry the message, so it toasts.
+        if (id === BULK) notify.current(message)
         else write(uid, { rowError: { id, message } })
       }
     } finally {
@@ -351,16 +363,6 @@ export default function CartScreen() {
         return true
       }),
     )
-  const clear = () =>
-    confirm('Everything in your cart will be removed.', 'Clear All Items', () =>
-      mutate('', async (uid) => {
-        await clearCart()
-        animate()
-        apply(uid, { cart: { items: [], totalItems: 0, subtotal: 0 } })
-        notify.current('Cart cleared')
-        return true
-      }),
-    )
 
   // Only ticked lines count; a tick for a line that has vanished drops out here.
   const chosen = cart?.items.filter((item) => selected.includes(item.id)) ?? []
@@ -402,35 +404,18 @@ export default function CartScreen() {
   }
 
   const header = (
-    <View style={styles.header} />
-  )
-
-  const selectBar = (
-    <View testID="cart-select-bar" style={styles.selectBar}>
-      <PressableScale
-        testID="cart-select-all"
-        accessibilityRole="checkbox"
-        accessibilityLabel="Select all"
-        accessibilityState={{ checked: all ? true : chosen.length > 0 ? 'mixed' : false, disabled: busyId !== null }}
-        disabled={busyId !== null}
-        onPress={toggleAll}
-        style={[styles.selectAll, busyId !== null && styles.off]}>
-        <View style={[styles.box, chosen.length > 0 && styles.boxOn]}>{chosen.length > 0 && <Ionicons name={all ? 'checkmark' : 'remove'} size={16} color={color.paper} />}</View>
-        <Text style={styles.selectText}>Select all</Text>
-      </PressableScale>
-      <Text testID="cart-selected" accessibilityLiveRegion="polite" style={styles.selected}>{`${chosen.length} selected`}</Text>
-      <PressableScale
-        testID="cart-remove-selected"
-        accessibilityRole="button"
-        accessibilityLabel="Remove selected"
-        accessibilityState={{ disabled: chosen.length === 0 || busyId !== null, busy: busyId === BULK }}
-        disabled={chosen.length === 0 || busyId !== null}
-        onPress={removeSelected}
-        style={[styles.removeSelected, (chosen.length === 0 || busyId !== null) && styles.off]}>
-        <Ionicons name="trash-outline" size={24} color={color.graphite} />
-        <Text style={styles.selectText}>Remove selected</Text>
-      </PressableScale>
-    </View>
+    <Stack.Screen
+      options={{
+        headerTitle: () => <Text accessibilityRole="header" style={type.h2}>{cart ? `Shopping cart (${cart.totalItems})` : 'Shopping cart'}</Text>,
+        headerRight: cart?.items.length
+          ? () => (
+              <PressableScale testID="cart-edit" accessibilityRole="button" accessibilityLabel={editing ? 'Done editing' : 'Edit cart'} onPress={() => setEditing(!editing)} style={styles.edit}>
+                <Text style={styles.editText}>{editing ? 'Done' : 'Edit'}</Text>
+              </PressableScale>
+            )
+          : undefined,
+      }}
+    />
   )
 
   if (loading || (signedIn && !cart && !error)) {
@@ -474,6 +459,7 @@ export default function CartScreen() {
 
   return (
     <View style={styles.screen}>
+      {header}
       <PullToRefresh refreshing={refreshing} onRefresh={refresh}>
         {(scroll) => (
           <FlatList
@@ -483,29 +469,45 @@ export default function CartScreen() {
             contentContainerStyle={styles.listContent}
             data={cart.items}
             keyExtractor={(item) => item.id}
-            ListHeaderComponent={selectBar}
-            stickyHeaderIndices={[0]}
             renderItem={({ item }) => (
-              <CartRow item={item} locked={busyId !== null} pending={busyId === item.id} checked={selected.includes(item.id)} error={rowError?.id === item.id ? rowError.message : undefined} onToggle={toggle} onOpen={open} onQuantity={changeQuantity} onRemove={remove} />
+              <CartRow item={item} locked={busyId !== null} pending={busyId === item.id} checked={selected.includes(item.id)} editing={editing} error={rowError?.id === item.id ? rowError.message : undefined} onToggle={toggle} onOpen={open} onQuantity={changeQuantity} onRemove={remove} />
             )}
-            ListFooterComponent={
-              <PressableScale testID="cart-clear" accessibilityRole="button" accessibilityLabel="Clear cart" accessibilityState={{ disabled: busyId !== null, busy: busyId === '' }} disabled={busyId !== null} onPress={clear} style={[styles.clear, busyId !== null && styles.off]}>
-                {busyId === '' ? <ActivityIndicator color={color.graphite} /> : <Ionicons name="trash-outline" size={24} color={color.graphite} />}
-              </PressableScale>
-            }
           />
         )}
       </PullToRefresh>
       <View testID="cart-bar" style={[styles.bar, { paddingBottom: space.sm }]}>
-        <View style={styles.subtotalRow}>
-          <View style={styles.grow}>
-            <Text style={styles.subtotalLabel}>Subtotal</Text>
-            <Text testID="cart-count" style={styles.count}>{`${count} ${count === 1 ? 'Item' : 'Items'}`}</Text>
-          </View>
-          <Text testID="cart-subtotal" maxFontSizeMultiplier={1.3} style={styles.subtotal}>{peso(subtotal)}</Text>
+        {blocked && !editing && <Text testID="cart-checkout-note" accessibilityLiveRegion="polite" style={styles.note}>{BLOCKED_NOTE}</Text>}
+        <View style={styles.barRow}>
+          <PressableScale
+            testID="cart-select-all"
+            accessibilityRole="checkbox"
+            accessibilityLabel="Select all"
+            accessibilityState={{ checked: all ? true : chosen.length > 0 ? 'mixed' : false, disabled: busyId !== null }}
+            disabled={busyId !== null}
+            onPress={toggleAll}
+            style={[styles.selectAll, busyId !== null && styles.off]}>
+            <View style={[styles.box, chosen.length > 0 && styles.boxOn]}>{chosen.length > 0 && <Ionicons name={all ? 'checkmark' : 'remove'} size={16} color={color.paper} />}</View>
+            <Text style={styles.selectText}>All</Text>
+          </PressableScale>
+          {editing ? (
+            <>
+              <View style={styles.grow} />
+              <Button
+                testID="cart-remove-selected"
+                variant="secondary"
+                label={`Remove (${chosen.length})`}
+                accessibilityLabel={`Remove ${chosen.length} selected items`}
+                disabled={chosen.length === 0 || busyId !== null}
+                onPress={removeSelected}
+              />
+            </>
+          ) : (
+            <>
+              <Text testID="cart-subtotal" numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.3} style={styles.subtotal}>{peso(subtotal)}</Text>
+              <Button testID="cart-checkout" label={`Check out (${count})`} disabled={chosen.length === 0 || blocked || busyId !== null} accessibilityHint={blocked ? BLOCKED_NOTE : undefined} onPress={checkout} />
+            </>
+          )}
         </View>
-        {blocked && <Text testID="cart-checkout-note" accessibilityLiveRegion="polite" style={styles.note}>{BLOCKED_NOTE}</Text>}
-        <Button testID="cart-checkout" label={`Checkout (${count})`} disabled={chosen.length === 0 || blocked || busyId !== null} accessibilityHint={blocked ? BLOCKED_NOTE : undefined} onPress={checkout} />
       </View>
     </View>
   )
@@ -515,46 +517,39 @@ const useStyles = themed(({ color, type, hairline }) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.paper },
   listContent: { paddingBottom: space.lg },
   message: { padding: space.lg },
-  header: { paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.md, gap: space.md },
   grow: { flex: 1 },
-  card: { marginHorizontal: space.lg, marginBottom: space.md, padding: space.md, gap: space.sm, borderWidth: 1, borderColor: color.porcelain, borderRadius: radius.soft, backgroundColor: color.paper },
-  pick: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  edit: { minWidth: TARGET, minHeight: TARGET, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.sm },
+  editText: { ...type.body, fontFamily: font.medium },
+  row: { borderBottomWidth: 1, borderBottomColor: color.porcelain },
+  rowMain: { flexDirection: 'row', alignItems: 'center', paddingVertical: space.md, paddingLeft: space.xs, paddingRight: space.lg },
+  open: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   check: { width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
-  box: { ...hairline, borderColor: color.obsidian, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  box: { ...hairline, borderColor: color.obsidian, borderRadius: radius.pill, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   boxOn: { backgroundColor: color.obsidian },
-  selectBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: space.md, paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: space.md, backgroundColor: color.paper },
   selectAll: { minHeight: TARGET, flexDirection: 'row', alignItems: 'center', gap: space.sm },
   selectText: { ...type.small, fontFamily: font.medium, color: color.obsidian },
-  selected: { ...type.small, ...type.numeric, color: color.graphite, flex: 1 },
-  removeSelected: { minHeight: TARGET, flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  top: { flexDirection: 'row', gap: space.md },
   tile: { width: IMG_W, height: IMG_H, backgroundColor: color.porcelain, borderRadius: radius.soft, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: space.xs },
   dim: { opacity: 0.5 },
   fill: { position: 'absolute', width: '100%', height: '100%' },
   fallback: { ...type.small, color: color.graphite, textAlign: 'center' },
-  info: { flex: 1, gap: space.xs, paddingRight: TARGET - space.sm },
-  skeletonInfo: { paddingRight: 0 },
+  info: { flex: 1, minWidth: 0, gap: space.xs, paddingBottom: TARGET + space.xs }, // the bottom reserve is the stepper's line
   name: { fontFamily: font.semibold, fontSize: 14, lineHeight: 20, color: color.obsidian, textTransform: 'uppercase' },
-  variant: { ...type.small, color: color.graphite },
+  variant: { ...type.small, alignSelf: 'flex-start', maxWidth: '100%', color: color.graphite, backgroundColor: color.porcelain, borderRadius: radius.soft, paddingHorizontal: space.sm, paddingVertical: space.xs },
   unit: { fontFamily: font.bold, fontSize: 16, lineHeight: 24, color: color.redInk, ...type.numeric },
   warn: { ...type.small, fontFamily: font.medium, color: color.redInk },
-  error: { ...type.small, color: color.redInk, borderLeftWidth: 4, borderLeftColor: color.red, paddingLeft: space.sm },
-  remove: { position: 'absolute', top: space.xs, right: space.xs, width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
-  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
-  stepper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: color.stonewash, borderRadius: radius.soft, overflow: 'hidden' },
+  error: { ...type.small, color: color.redInk, borderLeftWidth: 4, borderLeftColor: color.red, paddingLeft: space.sm, marginHorizontal: space.lg, marginBottom: space.md },
+  trash: { position: 'absolute', right: space.lg, bottom: space.md, width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
+  stepper: { position: 'absolute', right: space.lg, bottom: space.md, flexDirection: 'row', alignItems: 'center', backgroundColor: color.porcelain, borderRadius: radius.soft, overflow: 'hidden' },
   step: { width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
   stepText: { ...type.h2 },
   qty: { ...type.body, ...type.numeric, minWidth: TARGET, textAlign: 'center' },
-  lineTotal: { flex: 1, minWidth: 0, minHeight: TARGET, alignItems: 'flex-end', justifyContent: 'center' },
-  total: { ...type.h2, ...type.numeric, textAlign: 'right', flexShrink: 1 },
+  qtyCell: { width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
   off: { opacity: 0.4 },
-  clear: { minHeight: TARGET, minWidth: TARGET, alignSelf: 'flex-start', marginHorizontal: space.lg, alignItems: 'center', justifyContent: 'center' },
   skeleton: { flex: 1 },
   skeletonList: { flex: 1 },
+  skeletonSubtotal: { flex: 1, alignItems: 'flex-end' },
   bar: { paddingHorizontal: space.lg, paddingTop: space.md, gap: space.sm, backgroundColor: color.paper, borderTopWidth: 1, borderTopColor: color.porcelain },
-  subtotalRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  subtotalLabel: { ...type.label },
-  count: { ...type.small, ...type.numeric, color: color.graphite },
-  subtotal: { ...type.h1, ...type.numeric, textAlign: 'right' },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  subtotal: { ...type.h2, ...type.numeric, flex: 1, minWidth: 0, textAlign: 'right' },
   note: { ...type.small, color: color.graphite },
 }))

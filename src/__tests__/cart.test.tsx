@@ -4,11 +4,12 @@ import { Alert } from 'react-native'
 import { ApiError } from '@/lib/api'
 import CartScreen from '../app/cart'
 
-jest.mock('@/api/cart', () => ({ fetchCart: jest.fn(), setCartItemQuantity: jest.fn(), removeCartItem: jest.fn(), removeCartItems: jest.fn(), clearCart: jest.fn() }))
+jest.mock('@/api/cart', () => ({ fetchCart: jest.fn(), setCartItemQuantity: jest.fn(), removeCartItem: jest.fn(), removeCartItems: jest.fn() }))
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
 jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn() },
+  Stack: { Screen: ({ options }: { options: { headerTitle?: () => unknown; headerRight?: () => unknown } }) => jest.requireActual('react').createElement(jest.requireActual('react').Fragment, null, options.headerTitle?.(), options.headerRight?.()) },
   useFocusEffect: (effect: () => void | (() => void)) => {
     mockFocus.current = effect
     // Like the real hook: re-runs only while the screen is focused, never for an unfocused tab.
@@ -55,7 +56,7 @@ beforeEach(() => {
   alertSpy.mockImplementation(() => {})
 })
 
-it('shows the skeleton on the first load, then the rows with name, variant, total and subtotal', async () => {
+it('shows the skeleton on the first load, then the rows with name, variant and subtotal', async () => {
   let resolve: (cart: unknown) => void = () => {}
   api.fetchCart.mockReturnValue(new Promise((r) => (resolve = r)))
   await render(<CartScreen />)
@@ -65,10 +66,8 @@ it('shows the skeleton on the first load, then the rows with name, variant, tota
   expect(screen.getByText('Tee a')).toBeTruthy()
   expect(screen.getAllByText('M / Red')).toHaveLength(2)
   expect(screen.getAllByText('₱1,250.00')).toHaveLength(2) // unit price of both rows
-  expect(screen.getByLabelText('Line total ₱2,500.00')).toBeTruthy() // only a quantity above 1 shows a line total
-  expect(screen.queryByLabelText('Line total ₱1,250.00')).toBeNull()
   expect(screen.getByTestId('cart-subtotal').props.children).toBe('₱0.00') // nothing is ticked yet
-  expect(screen.getByTestId('cart-count').props.children).toBe('0 Items')
+  expect(screen.getByText('Check out (0)')).toBeTruthy()
   expect(screen.getByTestId('cart-list')).toBeTruthy()
 })
 
@@ -131,6 +130,7 @@ describe('with items', () => {
   })
 
   it('asks before removing: cancel does nothing, confirm removes once and toasts', async () => {
+    await fireEvent.press(screen.getByTestId('cart-edit'))
     await fireEvent.press(screen.getByTestId('cart-remove-a'))
     expect(alertSpy).toHaveBeenCalledWith('Are you sure?', expect.any(String), expect.any(Array), expect.anything())
     await pressAlert('Cancel')
@@ -161,10 +161,11 @@ describe('with items', () => {
     expect((await screen.findByTestId('cart-open-w')).props.accessibilityLabel).toBe('Open Tee w, M / Red, ₱1,250.00 each, Only 2 left. Lower the quantity.')
   })
 
-  it('labels the stepper and remove for screen readers', () => {
+  it('labels the stepper and remove for screen readers', async () => {
     expect(screen.getByLabelText('Increase quantity of Tee a')).toBeTruthy()
     expect(screen.getByLabelText('Decrease quantity of Tee a')).toBeTruthy()
     expect(screen.getByLabelText('Quantity 2')).toBeTruthy()
+    await fireEvent.press(screen.getByTestId('cart-edit'))
     expect(screen.getByLabelText('Remove Tee a')).toBeTruthy()
   })
 
@@ -172,7 +173,7 @@ describe('with items', () => {
     expect(screen.getByTestId('cart-bar')).toBeTruthy()
     await fireEvent.press(screen.getByTestId('cart-check-a'))
     await fireEvent.press(screen.getByTestId('cart-check-b'))
-    expect(screen.getByTestId('cart-count').props.children).toBe('3 Items')
+    expect(screen.getByText('Check out (3)')).toBeTruthy()
     expect(screen.getByTestId('cart-subtotal').props.children).toBe('₱3,750.00')
     expect(screen.getByTestId('cart-checkout')).toBeEnabled()
     expect(screen.queryByTestId('cart-checkout-note')).toBeNull()
@@ -200,20 +201,6 @@ describe('with items', () => {
     mockPush.mockClear()
     await fireEvent.press(screen.getAllByTestId('cart-checkout').at(-1)!)
     expect(mockPush).not.toHaveBeenCalled()
-  })
-
-  it('asks before clearing, then shows the empty state', async () => {
-    await fireEvent.press(screen.getByTestId('cart-clear'))
-    await pressAlert('Cancel')
-    expect(api.clearCart).not.toHaveBeenCalled()
-
-    api.clearCart.mockResolvedValue(undefined)
-    api.fetchCart.mockResolvedValue(cartOf([]))
-    await fireEvent.press(screen.getByTestId('cart-clear'))
-    await pressAlert('Clear All Items')
-    expect(api.clearCart).toHaveBeenCalledTimes(1)
-    expect(mockToast).toHaveBeenCalledWith('Cart cleared')
-    expect(await screen.findByText('Your cart is empty')).toBeTruthy()
   })
 })
 
@@ -348,8 +335,9 @@ describe('stock warning', () => {
       const dec = await screen.findByTestId(`cart-dec-${id}`)
       expect(dec).toBeDisabled()
       expect(dec.props.accessibilityLabel).toMatch(/Remove it instead/)
-      expect(screen.getByTestId(`cart-remove-${id}`)).toBeEnabled()
     }
+    await fireEvent.press(screen.getByTestId('cart-edit'))
+    for (const id of ['a', 'b']) expect(screen.getByTestId(`cart-remove-${id}`)).toBeEnabled()
   })
   it('steps down by one within the stock', async () => {
     api.fetchCart.mockResolvedValue(cartOf([line('a', { quantity: 3 })]))
@@ -360,7 +348,7 @@ describe('stock warning', () => {
   })
 })
 
-describe('removing and clearing', () => {
+describe('removing', () => {
   const soft = "Can't reach the server. Check your connection and try again."
   beforeEach(async () => {
     api.fetchCart.mockResolvedValueOnce(cartOf([line('a'), line('b', { quantity: 1, lineTotal: 1250 })]))
@@ -371,6 +359,7 @@ describe('removing and clearing', () => {
   it('drops the row locally when the DELETE worked but the refetch fails, with a soft toast', async () => {
     api.removeCartItem.mockResolvedValue(undefined)
     api.fetchCart.mockRejectedValue(new ApiError('network'))
+    await fireEvent.press(screen.getByTestId('cart-edit'))
     await fireEvent.press(screen.getByTestId('cart-remove-a'))
     await pressAlert('Remove Item')
     expect(screen.queryByTestId('cart-row-a')).toBeNull()
@@ -382,6 +371,7 @@ describe('removing and clearing', () => {
 
   it('treats a 404 on remove as gone', async () => {
     api.removeCartItem.mockRejectedValue(new ApiError('not-found', undefined, 404))
+    await fireEvent.press(screen.getByTestId('cart-edit'))
     api.fetchCart.mockResolvedValue(cartOf([line('b', { quantity: 1, lineTotal: 1250 })]))
     await fireEvent.press(screen.getByTestId('cart-remove-a'))
     await pressAlert('Remove Item')
@@ -397,17 +387,8 @@ describe('removing and clearing', () => {
     expect(mockToast).toHaveBeenCalledWith('That item is no longer in your cart.')
   })
 
-  it('clears locally when the refetch fails after Clear Cart', async () => {
-    api.clearCart.mockResolvedValue(undefined)
-    api.fetchCart.mockRejectedValue(new ApiError('network'))
-    await fireEvent.press(screen.getByTestId('cart-clear'))
-    await pressAlert('Clear All Items')
-    expect(await screen.findByText('Your cart is empty')).toBeTruthy()
-    expect(mockToast).toHaveBeenCalledWith('Cart cleared')
-    expect(mockToast).toHaveBeenCalledWith(soft)
-  })
-
   it('opens one Alert on a double tap; the lock is released after Cancel and after a failed action', async () => {
+    await fireEvent.press(screen.getByTestId('cart-edit'))
     await fireEvent.press(screen.getByTestId('cart-remove-a'))
     await fireEvent.press(screen.getByTestId('cart-remove-b'))
     expect(alertSpy).toHaveBeenCalledTimes(1)
@@ -417,11 +398,12 @@ describe('removing and clearing', () => {
     expect(alertSpy).toHaveBeenCalledTimes(2)
     await pressAlert('Remove Item')
     expect(await screen.findByTestId('cart-row-error-a')).toBeTruthy()
-    await fireEvent.press(screen.getByTestId('cart-clear'))
+    await fireEvent.press(screen.getByTestId('cart-remove-b'))
     expect(alertSpy).toHaveBeenCalledTimes(3)
   })
 
   it('releases the lock when the Alert is dismissed outside', async () => {
+    await fireEvent.press(screen.getByTestId('cart-edit'))
     await fireEvent.press(screen.getByTestId('cart-remove-a'))
     await act(async () => alertSpy.mock.calls.at(-1)?.[3]?.onDismiss?.())
     await fireEvent.press(screen.getByTestId('cart-remove-a'))
@@ -465,9 +447,11 @@ describe('selecting', () => {
     await screen.findByTestId('cart-list')
   })
 
-  it('ticks nothing by default: Checkout and Remove selected are disabled', () => {
-    expect(screen.getByTestId('cart-selected')).toHaveTextContent('0 selected')
+  it('ticks nothing by default: Check out and Remove (0) are disabled', async () => {
+    expect(screen.getByText('Check out (0)')).toBeTruthy()
     expect(screen.getByTestId('cart-checkout')).toBeDisabled()
+    await fireEvent.press(screen.getByTestId('cart-edit'))
+    expect(screen.getByText('Remove (0)')).toBeTruthy()
     expect(screen.getByTestId('cart-remove-selected')).toBeDisabled()
     expect(screen.getByLabelText('Select Tee a').props.accessibilityState).toMatchObject({ checked: false })
   })
@@ -475,12 +459,10 @@ describe('selecting', () => {
   it('updates the count, the subtotal and the Checkout label as rows are ticked and unticked', async () => {
     await fireEvent.press(screen.getByTestId('cart-check-a'))
     await fireEvent.press(screen.getByTestId('cart-check-b'))
-    expect(screen.getByTestId('cart-selected')).toHaveTextContent('2 selected')
-    expect(screen.getByTestId('cart-count').props.children).toBe('3 Items')
     expect(screen.getByTestId('cart-subtotal').props.children).toBe('₱3,750.00')
-    expect(screen.getByText('Checkout (3)')).toBeTruthy()
+    expect(screen.getByText('Check out (3)')).toBeTruthy()
     await fireEvent.press(screen.getByTestId('cart-check-a'))
-    expect(screen.getByTestId('cart-count').props.children).toBe('1 Item')
+    expect(screen.getByText('Check out (1)')).toBeTruthy()
     expect(screen.getByTestId('cart-subtotal').props.children).toBe('₱1,250.00')
   })
 
@@ -490,10 +472,10 @@ describe('selecting', () => {
     expect(all()).toBe('mixed')
     await fireEvent.press(screen.getByTestId('cart-select-all'))
     expect(all()).toBe(true)
-    expect(screen.getByTestId('cart-selected')).toHaveTextContent('3 selected')
+    expect(screen.getByText('Check out (4)')).toBeTruthy()
     await fireEvent.press(screen.getByTestId('cart-select-all'))
     expect(all()).toBe(false)
-    expect(screen.getByTestId('cart-selected')).toHaveTextContent('0 selected')
+    expect(screen.getByText('Check out (0)')).toBeTruthy()
   })
 
   it('a warning line blocks Checkout only while it is ticked', async () => {
@@ -512,17 +494,19 @@ describe('selecting', () => {
 
   it('Remove selected: Cancel sends nothing and keeps the ticks', async () => {
     await fireEvent.press(screen.getByTestId('cart-check-a'))
+    await fireEvent.press(screen.getByTestId('cart-edit'))
     await fireEvent.press(screen.getByTestId('cart-remove-selected'))
     expect(alertSpy).toHaveBeenCalledWith('Are you sure?', 'Remove Tee a from your cart?', expect.any(Array), expect.anything())
     await pressAlert('Cancel')
     expect(api.removeCartItems).not.toHaveBeenCalled()
-    expect(screen.getByTestId('cart-selected')).toHaveTextContent('1 selected')
+    expect(screen.getByText('Remove (1)')).toBeTruthy()
   })
 
   it('Remove selected: confirming sends one bulk call, drops the rows, clears the ticks and toasts', async () => {
     api.removeCartItems.mockResolvedValue(cartOf([line('c', { quantity: 1, lineTotal: 1250 })]))
     await fireEvent.press(screen.getByTestId('cart-check-a'))
     await fireEvent.press(screen.getByTestId('cart-check-b'))
+    await fireEvent.press(screen.getByTestId('cart-edit'))
     await fireEvent.press(screen.getByTestId('cart-remove-selected'))
     await pressAlert('Remove 2 Items')
     expect(api.removeCartItems).toHaveBeenCalledTimes(1)
@@ -531,12 +515,13 @@ describe('selecting', () => {
     expect(mockToast).toHaveBeenCalledWith('Removed 2 items from cart')
     expect(screen.queryByTestId('cart-row-a')).toBeNull()
     expect(screen.getByTestId('cart-row-c')).toBeTruthy()
-    expect(screen.getByTestId('cart-selected')).toHaveTextContent('0 selected')
+    expect(screen.getByText('Remove (0)')).toBeTruthy() // stays in Edit, ticks cleared
   })
 
   it('Remove selected names the item when one is ticked', async () => {
     api.removeCartItems.mockResolvedValue(cartOf([line('b'), line('c')]))
     await fireEvent.press(screen.getByTestId('cart-check-a'))
+    await fireEvent.press(screen.getByTestId('cart-edit'))
     await fireEvent.press(screen.getByTestId('cart-remove-selected'))
     await pressAlert('Remove Item')
     expect(mockToast).toHaveBeenCalledWith('Removed Tee a from cart')
@@ -545,12 +530,12 @@ describe('selecting', () => {
   it('Remove selected: a 500 keeps the rows and ticks and toasts the error', async () => {
     api.removeCartItems.mockRejectedValue(new ApiError('server'))
     await fireEvent.press(screen.getByTestId('cart-check-a'))
+    await fireEvent.press(screen.getByTestId('cart-edit'))
     await fireEvent.press(screen.getByTestId('cart-remove-selected'))
     await pressAlert('Remove Item')
     await waitFor(() => expect(mockToast).toHaveBeenCalledTimes(1))
     expect(screen.getByTestId('cart-row-a')).toBeTruthy()
-    expect(screen.getByTestId('cart-selected')).toHaveTextContent('1 selected')
-    expect(screen.getByTestId('cart-clear')).toBeEnabled() // the Clear button was never busy
+    expect(screen.getByText('Remove (1)')).toBeTruthy()
   })
 
   it('Remove selected: a 404 re-reads the cart and removes only the ids still there', async () => {
@@ -558,6 +543,7 @@ describe('selecting', () => {
     api.fetchCart.mockResolvedValue(cartOf([line('b', { quantity: 1, lineTotal: 1250 }), line('c', { quantity: 1, lineTotal: 1250 })]))
     await fireEvent.press(screen.getByTestId('cart-check-a'))
     await fireEvent.press(screen.getByTestId('cart-check-b'))
+    await fireEvent.press(screen.getByTestId('cart-edit'))
     await fireEvent.press(screen.getByTestId('cart-remove-selected'))
     await pressAlert('Remove 2 Items')
     expect(api.removeCartItems).toHaveBeenNthCalledWith(1, ['a', 'b'])
@@ -569,8 +555,75 @@ describe('selecting', () => {
   it('Remove selected: removing every row shows the empty state', async () => {
     api.removeCartItems.mockResolvedValue(cartOf([]))
     await fireEvent.press(screen.getByTestId('cart-select-all'))
+    await fireEvent.press(screen.getByTestId('cart-edit'))
     await fireEvent.press(screen.getByTestId('cart-remove-selected'))
     await pressAlert('Remove 3 Items')
     expect(await screen.findByText('Your cart is empty')).toBeTruthy()
+  })
+
+  it('Remove (n) counts ticked rows, not their quantities, and is disabled at 0', async () => {
+    await fireEvent.press(screen.getByTestId('cart-edit'))
+    expect(screen.getByTestId('cart-remove-selected')).toBeDisabled()
+    await fireEvent.press(screen.getByTestId('cart-check-a')) // quantity 2, still one row
+    expect(screen.getByText('Remove (1)')).toBeTruthy()
+    expect(screen.getByTestId('cart-remove-selected')).toBeEnabled()
+    expect(screen.getByLabelText('Remove 1 selected items')).toBeTruthy()
+  })
+})
+
+describe('Edit mode and header', () => {
+  const edit = () => screen.getByTestId('cart-edit')
+  beforeEach(async () => {
+    api.fetchCart.mockResolvedValue(cartOf([line('a'), line('b', { quantity: 1, lineTotal: 1250 })]))
+    await render(<CartScreen />)
+    await screen.findByTestId('cart-list')
+  })
+
+  it('shows "Shopping cart (3)" in the header', () => {
+    expect(screen.getByText('Shopping cart (3)')).toBeTruthy()
+  })
+
+  it('toggles Edit and Done and keeps the ticks', async () => {
+    await fireEvent.press(screen.getByTestId('cart-check-a'))
+    expect(edit()).toHaveTextContent('Edit')
+    await fireEvent.press(edit())
+    expect(edit()).toHaveTextContent('Done')
+    expect(screen.getByLabelText('Done editing')).toBeTruthy()
+    expect(screen.getByLabelText('Select Tee a').props.accessibilityState).toMatchObject({ checked: true })
+    await fireEvent.press(edit())
+    expect(edit()).toHaveTextContent('Edit')
+    expect(screen.getByLabelText('Select Tee a').props.accessibilityState).toMatchObject({ checked: true })
+  })
+
+  it('swaps Check out for Remove (n) and the steppers for trash buttons', async () => {
+    expect(screen.getByTestId('cart-inc-a')).toBeTruthy()
+    expect(screen.queryByTestId('cart-remove-a')).toBeNull()
+    await fireEvent.press(edit())
+    expect(screen.queryByTestId('cart-checkout')).toBeNull()
+    expect(screen.queryByTestId('cart-subtotal')).toBeNull()
+    expect(screen.getByText('Remove (0)')).toBeTruthy()
+    expect(screen.queryByTestId('cart-inc-a')).toBeNull()
+    expect(screen.queryByTestId('cart-dec-a')).toBeNull()
+    expect(screen.getByTestId('cart-remove-a')).toBeTruthy()
+  })
+})
+
+describe('no Edit without a cart', () => {
+  it('is hidden for an empty cart', async () => {
+    api.fetchCart.mockResolvedValue(cartOf([]))
+    await render(<CartScreen />)
+    await screen.findByText('Your cart is empty')
+    expect(screen.queryByTestId('cart-edit')).toBeNull()
+  })
+  it('is hidden when signed out', async () => {
+    mockUseSession.mockReturnValue(signedOut)
+    await render(<CartScreen />)
+    expect(screen.queryByTestId('cart-edit')).toBeNull()
+  })
+  it('is hidden when the load failed', async () => {
+    api.fetchCart.mockRejectedValue(new ApiError('network'))
+    await render(<CartScreen />)
+    await screen.findByTestId('cart-retry')
+    expect(screen.queryByTestId('cart-edit')).toBeNull()
   })
 })
