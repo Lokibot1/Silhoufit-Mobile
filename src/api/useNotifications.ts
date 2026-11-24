@@ -1,5 +1,6 @@
 import { router } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { AppState } from 'react-native'
 
 import { useSession } from '@/auth/session'
 import { ApiError, errorMessage } from '@/lib/api'
@@ -8,15 +9,17 @@ import { playNotification } from '@/lib/sound'
 import { useLivePoll } from '@/lib/useLivePoll'
 import { useToast } from '@/ui/toast'
 
-import { fetchNotifications, fetchUnreadCount, markAllNotificationsRead, markNotificationRead, notificationOpensMessages, notificationOrderId, notificationTone, onNotificationsChanged, type NotificationItem } from './notifications'
+import { fetchNotifications, fetchUnreadCount, markAllNotificationsRead, markNotificationRead, notificationOpensMessages, notificationOrderId, notificationTone, onNotificationsChanged, subscribeToNotifications, type NotificationItem } from './notifications'
 
 type Page = { items: NotificationItem[]; hasNextPage: boolean; page: number }
 const EMPTY: Page = { items: [], hasNextPage: false, page: 1 }
+/** Broadcasts that land within this long of each other are announced as one. */
+const ANNOUNCE_DELAY_MS = 300
 
 /**
- * The signed-in customer's notifications from the server. The unread count is polled alone; the list is read only while `list` is on
+ * The signed-in customer's notifications from the server. The unread count follows the realtime channel (polled only while it is not SUBSCRIBED); the list is read only while `list` is on
  * (the screen) and again whenever the count changes. Marking read is optimistic and rolls back on failure. Always empty signed out.
- * With `announce`, a rising count toasts the newest unread one with a chime, each following the device's notification settings (the tab bar's instance, never the screen's own).
+ * With `announce`, new broadcasts arriving together toast the newest with one chime, each following the device's notification settings (the tab bar's instance, never the screen's own).
  */
 export function useNotifications({ list = true, announce = false }: { list?: boolean; announce?: boolean } = {}) {
   const { session } = useSession()
@@ -76,23 +79,12 @@ export function useNotifications({ list = true, announce = false }: { list?: boo
   const readCount = useCallback(
     async (signal?: AbortSignal) => {
       const next = await fetchUnreadCount(signal)
-      const { count: known, unreadOnly: only, list: listing, announce: announcing } = live.current
+      const { count: known, unreadOnly: only, list: listing } = live.current
       live.current.count = next
       setCount(next)
       if (listing && known !== null && known !== next) void load(1, only, true)
-      if (announcing && !listing && known !== null && next > known) {
-        // The newest unread one is the story; the rest are only counted.
-        const latest = await fetchNotifications({ page: 1, unreadOnly: true }, signal).then((page) => page.items[0], () => undefined)
-        if (!latest) return
-        const more = next - known - 1
-        const orderId = notificationOrderId(latest)
-        const link = notificationOpensMessages(latest) ? ('/messages' as const) : orderId ? { pathname: '/orders/[id]' as const, params: { id: orderId } } : null
-        const body = `${latest.body ?? ''}${more > 0 ? `${latest.body ? ' ' : ''}and ${more} more` : ''}`
-        if (popupsOn()) toast(body, { title: latest.title, tone: notificationTone(latest.type), action: link ? { label: 'View', onPress: () => router.push(link) } : undefined })
-        if (soundOn()) playNotification()
-      }
     },
-    [load, toast],
+    [load],
   )
 
   const active = userId !== null
@@ -106,7 +98,55 @@ export function useNotifications({ list = true, announce = false }: { list?: boo
       if (live.current.list) void load(1, live.current.unreadOnly, true)
     })
   }, [active, userId, readCount, load])
-  useLivePoll(readCount, { enabled: active, resetKey: userId })
+
+  // Broadcasts arrive over the shared channel while the app is in the foreground; polling is only the fallback while it is not SUBSCRIBED.
+  const [away, setAway] = useState(AppState.currentState === 'background')
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => setAway(state === 'background'))
+    return () => subscription.remove()
+  }, [])
+  const [channel, setChannel] = useState('')
+  const listening = active && !away
+  useEffect(() => {
+    if (!listening) return
+    const seen = new Set<string>()
+    let burst: NotificationItem[] = []
+    let timer: ReturnType<typeof setTimeout> | undefined
+    // The newest of a burst is the story; the rest are only counted.
+    const announceBurst = () => {
+      const { list: listing } = live.current
+      const latest = burst.reduce((a, b) => (b.createdAt > a.createdAt ? b : a))
+      const more = burst.length - 1
+      burst = []
+      if (listing) return
+      const orderId = notificationOrderId(latest)
+      const link = notificationOpensMessages(latest) ? ('/messages' as const) : orderId ? { pathname: '/orders/[id]' as const, params: { id: orderId } } : null
+      const body = `${latest.body ?? ''}${more > 0 ? `${latest.body ? ' ' : ''}and ${more} more` : ''}`
+      if (popupsOn()) toast(body, { title: latest.title, tone: notificationTone(latest.type), action: link ? { label: 'View', onPress: () => router.push(link) } : undefined })
+      if (soundOn()) playNotification()
+    }
+    const unsubscribe = subscribeToNotifications(
+      (notification) => {
+        readCount().catch(() => {})
+        if (!live.current.announce || seen.has(notification.id)) return
+        seen.add(notification.id)
+        burst.push(notification)
+        clearTimeout(timer)
+        timer = setTimeout(announceBurst, ANNOUNCE_DELAY_MS)
+      },
+      (next) => {
+        setChannel(next)
+        // Whatever arrived while the channel was down is counted silently.
+        if (next === 'SUBSCRIBED') readCount().catch(() => {})
+      },
+    )
+    return () => {
+      unsubscribe()
+      clearTimeout(timer)
+      setChannel('')
+    }
+  }, [listening, userId, readCount, toast])
+  useLivePoll(readCount, { enabled: active && channel !== 'SUBSCRIBED', resetKey: userId })
 
   useEffect(() => {
     if (!active || !list) return

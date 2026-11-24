@@ -9,6 +9,7 @@ jest.mock('@/api/notifications', () => ({
   fetchUnreadCount: jest.fn(),
   markNotificationRead: jest.fn(),
   markAllNotificationsRead: jest.fn(),
+  subscribeToNotifications: jest.fn(() => () => {}), // never SUBSCRIBED, so the poll fallback runs
 }))
 jest.mock('@/lib/notificationPrefs', () => ({ popupsOn: () => true, soundOn: () => true }))
 jest.mock('@/auth/session', () => ({ useSession: jest.fn() }))
@@ -221,7 +222,7 @@ it('a failed pull to refresh keeps the rows and toasts', async () => {
   expect(screen.getByTestId('notifications-list').props.refreshing).toBe(false)
 })
 
-it('reads the first page again when the polled count changes', async () => {
+it('reads the first page again when the polled count changes while the channel is down', async () => {
   jest.useFakeTimers()
   jest.spyOn(Math, 'random').mockReturnValue(0.5)
   try {
